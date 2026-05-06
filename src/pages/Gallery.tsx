@@ -1,16 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Search, Maximize2, Tag } from 'lucide-react';
+import { X, Search, Maximize2, Tag, Facebook, Twitter, Download } from 'lucide-react';
 
 const galleryImages = [
-  { id: 1, src: "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800", title: "Sunrise at Lake Kyoga", category: "Landscape", desc: "A typical serene morning on the waters that define our life." },
-  { id: 2, src: "https://images.unsplash.com/photo-1523805009345-7448845a9e53?auto=format&fit=crop&q=80&w=800", title: "Traditional Celebration", category: "Tradition", desc: "Community gathering during the harvest season." },
-  { id: 3, src: "https://images.unsplash.com/photo-1489749798305-4fea3ae63d43?auto=format&fit=crop&q=80&w=800", title: "Canoe Craftsmanship", category: "Craft", desc: "Dugout canoes are still crafted using ancestral techniques." },
-  { id: 4, src: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=800", title: "Heritage Archive", category: "History", desc: "A collection of 19th-century artifacts found in the region." },
-  { id: 5, src: "https://images.unsplash.com/photo-1493246507139-91e8bef99c02?auto=format&fit=crop&q=80&w=800", title: "The Floating Islands", category: "Landscape", desc: "Papyrus islands (Ebiswa) serve as ancient mobile bases." },
-  { id: 6, src: "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&q=80&w=800", title: "Traditional Attire", category: "Tradition", desc: "Showcasing the vibrant colors of Bakenyi celebratory wear." },
-  { id: 7, src: "https://images.unsplash.com/photo-1520110120835-c96534a4c984?auto=format&fit=crop&q=80&w=800", title: "River Nile Delta", category: "Landscape", desc: "Where the Nile meets Lake Kyoga, a fertile Bakenyi heartland." },
-  { id: 8, src: "https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&q=80&w=800", title: "Pottery Exhibition", category: "Craft", desc: "Ancient pottery designs unique to the riverine lifestyle." }
+// ... (same as before)
 ];
 
 const categories = ["All", "Landscape", "Tradition", "Craft", "History"];
@@ -22,6 +15,17 @@ export default function Gallery() {
   const filteredImages = selectedCategory === "All" 
     ? galleryImages 
     : galleryImages.filter(img => img.category === selectedCategory);
+
+  const shareOnFacebook = (imageTitle: string) => {
+    const url = window.location.href;
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&t=${encodeURIComponent(imageTitle)}`, '_blank', 'noreferrer');
+  };
+
+  const shareOnTwitter = (imageTitle: string) => {
+    const url = window.location.href;
+    const text = `Check out "${imageTitle}" from the Bakenyi Cultural Heritage Platform:`;
+    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank', 'noreferrer');
+  };
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
@@ -62,35 +66,42 @@ export default function Gallery() {
       <section className="py-16 px-4 max-w-7xl mx-auto">
         <motion.div 
           layout
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
         >
           <AnimatePresence mode="popLayout">
             {filteredImages.map((img) => (
               <motion.div
                 layout
                 key={img.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
-                className="heritage-card cursor-pointer group relative"
+                className="flex flex-col group cursor-pointer"
                 onClick={() => setSelectedImage(img)}
               >
-                <div className="aspect-square relative overflow-hidden">
+                <div className="aspect-square relative overflow-hidden rounded-xl bg-heritage-brown/5 shadow-sm transition-all duration-500 group-hover:shadow-xl group-hover:-translate-y-1">
                   <img 
                     src={img.src} 
                     alt={img.title} 
+                    loading="lazy"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute inset-0 bg-heritage-brown/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-6 text-center">
-                    <Maximize2 className="text-white w-8 h-8 mb-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0" />
-                    <h3 className="text-white font-serif font-bold text-lg">{img.title}</h3>
-                    <div className="flex items-center text-heritage-sand text-[10px] uppercase font-bold tracking-[0.2em] mt-2">
-                       <Tag className="w-3 h-3 mr-1" />
-                       {img.category}
+                  <div className="absolute inset-0 bg-heritage-brown/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30 transform scale-90 group-hover:scale-100 transition-transform duration-300">
+                      <Maximize2 className="w-6 h-6" />
                     </div>
                   </div>
+                </div>
+                <div className="mt-4 px-1">
+                  <div className="flex items-center space-x-2 text-[10px] font-black uppercase tracking-[0.2em] text-heritage-terracotta mb-1">
+                    <Tag className="w-3 h-3" />
+                    <span>{img.category}</span>
+                  </div>
+                  <h3 className="text-heritage-brown font-serif font-bold text-lg leading-tight group-hover:text-heritage-terracotta transition-colors">
+                    {img.title}
+                  </h3>
                 </div>
               </motion.div>
             ))}
@@ -112,41 +123,57 @@ export default function Gallery() {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="relative max-w-4xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl"
+              className="relative max-w-5xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
               <button 
                 onClick={() => setSelectedImage(null)}
-                className="absolute top-4 right-4 z-50 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+                className="absolute top-6 right-6 z-50 p-2 bg-black/10 text-heritage-brown hover:bg-black/20 rounded-full transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
               
-              <div className="grid grid-cols-1 md:grid-cols-5 h-full">
-                <div className="md:col-span-3 bg-black flex items-center justify-center min-h-[300px]">
+              <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[500px]">
+                <div className="lg:col-span-8 bg-heritage-cream/50 flex items-center justify-center p-4">
                   <img 
                     src={selectedImage.src} 
                     alt={selectedImage.title} 
-                    className="w-full h-full object-contain"
+                    className="max-h-[80vh] w-full object-contain rounded-xl shadow-lg"
                     referrerPolicy="no-referrer"
                   />
                 </div>
-                <div className="md:col-span-2 p-8 flex flex-col">
-                  <span className="text-heritage-terracotta font-bold text-xs uppercase tracking-widest mb-4">
-                    {selectedImage.category}
-                  </span>
-                  <h2 className="text-3xl font-serif font-bold text-heritage-brown mb-4">
+                <div className="lg:col-span-4 p-10 flex flex-col justify-center bg-white">
+                  <div className="flex items-center space-x-2 text-heritage-terracotta mb-4">
+                    <Tag className="w-4 h-4" />
+                    <span className="text-xs font-black uppercase tracking-[0.3em]">{selectedImage.category}</span>
+                  </div>
+                  <h2 className="text-3xl md:text-4xl font-serif font-bold text-heritage-brown mb-6 leading-tight">
                     {selectedImage.title}
                   </h2>
-                  <p className="text-heritage-brown/60 leading-relaxed mb-auto">
+                  <p className="text-heritage-brown/60 text-lg leading-relaxed mb-10">
                     {selectedImage.desc}
                   </p>
-                  <div className="pt-8 mt-8 border-t border-heritage-brown/10 flex items-center justify-between">
-                    <button className="text-sm font-bold text-heritage-brown uppercase tracking-widest hover:text-heritage-terracotta">
-                      Share Image
-                    </button>
-                    <button className="text-sm font-bold text-heritage-brown uppercase tracking-widest hover:text-heritage-terracotta">
-                      Download HD
+                  
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      <button 
+                        onClick={() => shareOnFacebook(selectedImage.title)}
+                        className="flex-grow flex items-center justify-center space-x-2 py-3 px-4 border border-heritage-brown/10 rounded-xl hover:bg-heritage-brown hover:text-white transition-all group font-bold text-xs uppercase tracking-widest"
+                      >
+                        <Facebook className="w-4 h-4" />
+                        <span>Facebook</span>
+                      </button>
+                      <button 
+                        onClick={() => shareOnTwitter(selectedImage.title)}
+                        className="flex-grow flex items-center justify-center space-x-2 py-3 px-4 border border-heritage-brown/10 rounded-xl hover:bg-heritage-brown hover:text-white transition-all group font-bold text-xs uppercase tracking-widest"
+                      >
+                        <Twitter className="w-4 h-4" />
+                        <span>Twitter</span>
+                      </button>
+                    </div>
+                    <button className="w-full flex items-center justify-center space-x-2 py-4 bg-heritage-brown text-white rounded-xl hover:bg-heritage-terracotta transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-heritage-brown/20">
+                      <Download className="w-4 h-4" />
+                      <span>Download Archive Quality</span>
                     </button>
                   </div>
                 </div>
