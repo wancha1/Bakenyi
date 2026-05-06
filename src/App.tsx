@@ -1,5 +1,5 @@
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -13,6 +13,7 @@ import Leadership from './pages/Leadership';
 import Gallery from './pages/Gallery';
 import Language from './pages/Language';
 import Contact from './pages/Contact';
+import Contribute from './pages/Contribute';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -50,7 +51,7 @@ function AppContent() {
       <Navbar />
       <main className="flex-grow relative z-10">
         <AnimatePresence mode="wait">
-          <Routes location={location} key={location.pathname}>
+          <Routes location={location}>
             <Route path="/" element={<PageTransition><Home /></PageTransition>} />
             <Route path="/about" element={<PageTransition><About /></PageTransition>} />
             <Route path="/history" element={<PageTransition><History /></PageTransition>} />
@@ -58,6 +59,7 @@ function AppContent() {
             <Route path="/leadership" element={<PageTransition><Leadership /></PageTransition>} />
             <Route path="/gallery" element={<PageTransition><Gallery /></PageTransition>} />
             <Route path="/language" element={<PageTransition><Language /></PageTransition>} />
+            <Route path="/contribute" element={<PageTransition><Contribute /></PageTransition>} />
             <Route path="/contact" element={<PageTransition><Contact /></PageTransition>} />
           </Routes>
         </AnimatePresence>

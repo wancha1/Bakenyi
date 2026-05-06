@@ -45,6 +45,7 @@ export default function Footer() {
               <li><Link to="/clans" className="text-heritage-cream/70 hover:text-white transition-colors text-sm">Bakenyi Clans</Link></li>
               <li><Link to="/gallery" className="text-heritage-cream/70 hover:text-white transition-colors text-sm">Photo Archive</Link></li>
               <li><Link to="/language" className="text-heritage-cream/70 hover:text-white transition-colors text-sm">Lukenye Language</Link></li>
+              <li><Link to="/contribute" className="text-heritage-cream/70 hover:text-white transition-colors text-sm">Join the Archive</Link></li>
             </ul>
           </div>
 
