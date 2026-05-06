@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 
@@ -71,6 +72,7 @@ export default function App() {
   return (
     <Router>
       <AppContent />
+      <SpeedInsights />
     </Router>
   );
 }
