@@ -1,20 +1,85 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Search, Maximize2, Tag, Facebook, Twitter, Download } from 'lucide-react';
+import { X, Search, Maximize2, Tag, Facebook, Twitter, Download, Loader2 } from 'lucide-react';
+import { db } from '../lib/firebase';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 
 const galleryImages = [
-// ... (same as before)
+  {
+    id: "h1",
+    src: "https://images.unsplash.com/photo-1523805009345-7448845a9e53?auto=format&fit=crop&q=80&w=800",
+    title: "Canoe on Lake Kyoga",
+    category: "Landscape",
+    desc: "A traditional wooden canoe at sunset, reflecting the Bakenyi's deep connection to the floating islands of Lake Kyoga."
+  },
+  {
+    id: "h2",
+    src: "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800",
+    title: "Basket Weaving Art",
+    category: "Craft",
+    desc: "Intricate patterns passed down through generations, utilizing local reeds and papyrus from the marshlands."
+  },
+  {
+    id: "h3",
+    src: "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&q=80&w=800",
+    title: "Ancestral Site",
+    category: "History",
+    desc: "A sacred gathering place where Lukenye is still spoken in its purest form during seasonal ceremonies."
+  },
+  {
+    id: "h4",
+    src: "https://images.unsplash.com/photo-1493246507139-91e8bef99c02?auto=format&fit=crop&q=80&w=800",
+    title: "Community Festival",
+    category: "Tradition",
+    desc: "Celebration of the harvest, bringing together clans from across the region to share stories and feast."
+  }
 ];
 
 const categories = ["All", "Landscape", "Tradition", "Craft", "History"];
 
+interface DBImage {
+  id: string;
+  imageUrl: string;
+  title: string;
+  category: string;
+  description: string;
+}
+
 export default function Gallery() {
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedImage, setSelectedImage] = useState<typeof galleryImages[0] | null>(null);
+  const [dbImages, setDbImages] = useState<DBImage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<{src: string, title: string, category: string, desc: string} | null>(null);
+
+  useEffect(() => {
+    const q = query(collection(db, 'gallery'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as DBImage[];
+      setDbImages(docs);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Merge hardcoded and DB images
+  const allImages = [
+    ...dbImages.map(img => ({
+      id: img.id,
+      src: img.imageUrl,
+      title: img.title,
+      category: img.category,
+      desc: img.description
+    })),
+    ...galleryImages
+  ];
 
   const filteredImages = selectedCategory === "All" 
-    ? galleryImages 
-    : galleryImages.filter(img => img.category === selectedCategory);
+    ? allImages 
+    : allImages.filter(img => img.category === selectedCategory);
 
   const shareOnFacebook = (imageTitle: string) => {
     const url = window.location.href;
@@ -63,7 +128,14 @@ export default function Gallery() {
       </section>
 
       {/* Grid */}
-      <section className="py-16 px-4 max-w-7xl mx-auto">
+      <section className="py-16 px-4 max-w-7xl mx-auto min-h-[400px]">
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-10 h-10 text-heritage-terracotta animate-spin mb-4" />
+            <p className="text-heritage-brown/40 font-bold uppercase tracking-widest text-xs">Opening Archive...</p>
+          </div>
+        )}
+        
         <motion.div 
           layout
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"

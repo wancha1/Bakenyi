@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Shield, Info, Filter } from 'lucide-react';
 
@@ -14,7 +15,22 @@ const bakenyiClans = [
 ];
 
 export default function Clans() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryParam = searchParams.get('q') || "";
+  const [searchTerm, setSearchTerm] = useState(queryParam);
+
+  useEffect(() => {
+    setSearchTerm(searchParams.get('q') || "");
+  }, [searchParams]);
+
+  const handleSearchChange = (val: string) => {
+    setSearchTerm(val);
+    if (val) {
+      setSearchParams({ q: val });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   const filteredClans = bakenyiClans.filter(clan => 
     clan.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -46,7 +62,7 @@ export default function Clans() {
                 placeholder="Search by clan name or totem..."
                 className="w-full pl-12 pr-4 py-4 rounded-full bg-white border-2 border-heritage-terracotta/20 focus:border-heritage-terracotta focus:outline-none text-heritage-brown transition-all"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
               />
             </div>
           </div>
@@ -102,7 +118,7 @@ export default function Clans() {
               <Search className="w-12 h-12 text-heritage-brown/20 mx-auto mb-4" />
               <p className="text-heritage-brown/60 text-lg">No clans found matching "{searchTerm}"</p>
               <button 
-                onClick={() => setSearchTerm("")}
+                onClick={() => handleSearchChange("")}
                 className="mt-4 text-heritage-terracotta font-bold hover:underline"
               >
                 Clear Search

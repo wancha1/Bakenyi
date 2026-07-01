@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Auth tokens NEVER contain custom claims.
+    // User email check with email_verified is standard for this admin role.
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'wanchaaaron@gmail.com' && request.auth.token.email_verified == true
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+             data.keys().size() == 4 &&
+             data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 256 &&
+             data.role in ['contributor', 'admin'] &&
+             data.createdAt == request.time;
+    }
+
+    function isValidContribution(data) {
+      return data.keys().hasAll(['userId', 'type', 'title', 'status', 'submittedAt']) &&
+             data.userId == request.auth.uid &&
+             data.type in ['photo', 'audio', 'story'] &&
+             data.title is string && data.title.size() <= 100 &&
+             data.status == 'pending' &&
+             data.submittedAt == request.time;
+    }
+
+    function isValidGalleryItem(data) {
+      return data.keys().hasAll(['title', 'category', 'imageUrl', 'createdAt']) &&
+             data.title is string && data.title.size() <= 100 &&
+             data.category is string && data.category.size() <= 50 &&
+             data.imageUrl is string && data.imageUrl.size() <= 1000 &&
+             data.createdAt == request.time;
+    }
+
+    function isValidArticle(data) {
+      return data.keys().hasAll(['id', 'title', 'excerpt', 'content', 'category', 'author', 'publishedAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.excerpt is string && data.excerpt.size() <= 1000 &&
+             data.content is string && data.content.size() <= 50000 &&
+             data.category in ['Community News', 'Culture', 'Heritage', 'Leadership', 'History', 'Announcements'] &&
+             data.author is string && data.author.size() <= 150;
+    }
+
+    // --- Matches ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isEmailVerified() && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) && isEmailVerified() && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName']) &&
+                      incoming().uid == existing().uid &&
+                      incoming().email == existing().email &&
+                      incoming().role == existing().role;
+    }
+
+    match /contributions/{contribId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isSignedIn() && isEmailVerified() && isValidContribution(incoming());
+      allow update: if isAdmin() && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
+                      incoming().status in ['approved', 'rejected'];
+    }
+
+    match /gallery/{itemId} {
+      allow list, get: if true;
+      allow create: if isAdmin() && isValidGalleryItem(incoming());
+      allow update: if isAdmin() && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'description', 'imageUrl']);
+      allow delete: if isAdmin();
+    }
+
+    match /articles/{articleId} {
+      allow list, get: if true;
+      allow create: if isAdmin() && isValidArticle(incoming());
+      allow update: if isAdmin() && isValidArticle(incoming());
+      allow delete: if isAdmin();
+    }
+  }
+}

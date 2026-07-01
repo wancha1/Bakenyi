@@ -12,8 +12,11 @@ import Clans from './pages/Clans';
 import Leadership from './pages/Leadership';
 import Gallery from './pages/Gallery';
 import Language from './pages/Language';
+import Articles from './pages/Articles';
 import Contact from './pages/Contact';
 import Contribute from './pages/Contribute';
+import Admin from './pages/Admin';
+import Search from './pages/Search';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -59,7 +62,11 @@ function AppContent() {
             <Route path="/leadership" element={<PageTransition><Leadership /></PageTransition>} />
             <Route path="/gallery" element={<PageTransition><Gallery /></PageTransition>} />
             <Route path="/language" element={<PageTransition><Language /></PageTransition>} />
+            <Route path="/articles" element={<PageTransition><Articles /></PageTransition>} />
+            <Route path="/articles/:id" element={<PageTransition><Articles /></PageTransition>} />
             <Route path="/contribute" element={<PageTransition><Contribute /></PageTransition>} />
+            <Route path="/search" element={<PageTransition><Search /></PageTransition>} />
+            <Route path="/admin" element={<PageTransition><Admin /></PageTransition>} />
             <Route path="/contact" element={<PageTransition><Contact /></PageTransition>} />
           </Routes>
         </AnimatePresence>

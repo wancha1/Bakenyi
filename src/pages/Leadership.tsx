@@ -1,3 +1,5 @@
+import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Mail, Linkedin, User, ShieldCheck, Award } from 'lucide-react';
 
@@ -29,6 +31,9 @@ const leaders = [
 ];
 
 export default function Leadership() {
+  const [searchParams] = useSearchParams();
+  const query = searchParams.get('q') || '';
+
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
       {/* Page Header */}
@@ -52,39 +57,49 @@ export default function Leadership() {
       <section className="py-24 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {leaders.map((leader, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="heritage-card flex flex-col items-center p-8 bg-white"
-              >
-                <div className="w-32 h-32 rounded-full bg-heritage-cream mb-6 overflow-hidden flex items-center justify-center border-4 border-heritage-terracotta/20">
-                  <User className="w-16 h-16 text-heritage-brown/20" />
-                </div>
-                <h3 className="text-xl font-serif font-bold text-heritage-brown text-center mb-1">{leader.name}</h3>
-                <p className="text-heritage-terracotta text-xs font-bold uppercase tracking-widest mb-4 text-center">{leader.role}</p>
-                <p className="text-heritage-brown/60 text-sm text-center mb-6 leading-relaxed flex-grow">
-                  {leader.bio}
-                </p>
-                <div className="w-full pt-4 border-t border-heritage-brown/5 flex flex-col items-center">
-                  <div className="flex items-center text-heritage-olive text-[10px] font-bold uppercase tracking-wider mb-4">
-                    <Award className="w-3 h-3 mr-1" />
-                    {leader.expertise}
+            {leaders.map((leader, i) => {
+              const isHighlighted = query !== '' && leader.name.toLowerCase().includes(query.toLowerCase());
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className={`heritage-card flex flex-col items-center p-8 bg-white relative transition-all duration-500 ${
+                    isHighlighted ? 'ring-4 ring-heritage-terracotta border-heritage-terracotta shadow-2xl scale-105 z-10' : ''
+                  }`}
+                >
+                  {isHighlighted && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-heritage-terracotta text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md animate-bounce">
+                      Search Match
+                    </span>
+                  )}
+                  <div className="w-32 h-32 rounded-full bg-heritage-cream mb-6 overflow-hidden flex items-center justify-center border-4 border-heritage-terracotta/20">
+                    <User className="w-16 h-16 text-heritage-brown/20" />
                   </div>
-                  <div className="flex space-x-3">
-                    <button className="p-2 rounded-full bg-heritage-cream text-heritage-brown hover:bg-heritage-terracotta hover:text-white transition-colors">
-                      <Mail className="w-4 h-4" />
-                    </button>
-                    <button className="p-2 rounded-full bg-heritage-cream text-heritage-brown hover:bg-heritage-terracotta hover:text-white transition-colors">
-                      <Linkedin className="w-4 h-4" />
-                    </button>
+                  <h3 className="text-xl font-serif font-bold text-heritage-brown text-center mb-1">{leader.name}</h3>
+                  <p className="text-heritage-terracotta text-xs font-bold uppercase tracking-widest mb-4 text-center">{leader.role}</p>
+                  <p className="text-heritage-brown/60 text-sm text-center mb-6 leading-relaxed flex-grow">
+                    {leader.bio}
+                  </p>
+                  <div className="w-full pt-4 border-t border-heritage-brown/5 flex flex-col items-center">
+                    <div className="flex items-center text-heritage-olive text-[10px] font-bold uppercase tracking-wider mb-4">
+                      <Award className="w-3 h-3 mr-1" />
+                      {leader.expertise}
+                    </div>
+                    <div className="flex space-x-3">
+                      <button className="p-2 rounded-full bg-heritage-cream text-heritage-brown hover:bg-heritage-terracotta hover:text-white transition-colors">
+                        <Mail className="w-4 h-4" />
+                      </button>
+                      <button className="p-2 rounded-full bg-heritage-cream text-heritage-brown hover:bg-heritage-terracotta hover:text-white transition-colors">
+                        <Linkedin className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
