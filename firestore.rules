@@ -1,14 +1,34 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
-    // --- Core Security Helpers ---
+    // --- Helpers ---
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Auth tokens NEVER contain custom claims.
+    // User email check with email_verified is standard for this admin role.
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'wanchaaaron@gmail.com' && request.auth.token.email_verified == true
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
     function incoming() {
@@ -19,121 +39,76 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // Role Lookup from authoritatively stored user documents
-    function hasUserDoc() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    // --- Entity Validations ---
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+             data.keys().size() == 4 &&
+             data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 256 &&
+             data.role in ['contributor', 'admin'] &&
+             data.createdAt == request.time;
     }
 
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    function isValidContribution(data) {
+      return data.keys().hasAll(['userId', 'type', 'title', 'status', 'submittedAt']) &&
+             data.userId == request.auth.uid &&
+             data.type in ['photo', 'audio', 'story'] &&
+             data.title is string && data.title.size() <= 100 &&
+             data.status == 'pending' &&
+             data.submittedAt == request.time;
     }
 
-    // Zero-Trust Role Authorization Inheritances
-    function isSuperAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'wanchaaaron@gmail.com' ||
-        (hasUserDoc() && getUserRole() == 'super_admin')
-      );
+    function isValidGalleryItem(data) {
+      return data.keys().hasAll(['title', 'category', 'imageUrl', 'createdAt']) &&
+             data.title is string && data.title.size() <= 100 &&
+             data.category is string && data.category.size() <= 50 &&
+             data.imageUrl is string && data.imageUrl.size() <= 1000 &&
+             data.createdAt == request.time;
     }
 
-    function isAdmin() {
-      return isSignedIn() && (
-        isSuperAdmin() ||
-        (hasUserDoc() && getUserRole() == 'admin')
-      );
+    function isValidArticle(data) {
+      return data.keys().hasAll(['id', 'title', 'excerpt', 'content', 'category', 'author', 'publishedAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.excerpt is string && data.excerpt.size() <= 1000 &&
+             data.content is string && data.content.size() <= 50000 &&
+             data.category in ['Community News', 'Culture', 'Heritage', 'Leadership', 'History', 'Announcements'] &&
+             data.author is string && data.author.size() <= 150;
     }
 
-    function isEditor() {
-      return isSignedIn() && (
-        isAdmin() ||
-        (hasUserDoc() && getUserRole() == 'editor')
-      );
-    }
+    // --- Matches ---
 
-    function isReporter() {
-      return isSignedIn() && (
-        isEditor() ||
-        (hasUserDoc() && getUserRole() == 'reporter')
-      );
-    }
-
-    // 1. Global Safety Net: Default deny catch-all
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // 2. Users Profiles
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && (isSuperAdmin() || isAdmin());
-      allow create: if isOwner(userId) && (
-        incoming().role == 'reporter' ||
-        (incoming().role == 'super_admin' && (request.auth.token.email == 'wanchaaaron@gmail.com' || request.auth.uid == 'Lp09nUjMh7M5yeqE1Dih85k1qXI2' || userId == 'Lp09nUjMh7M5yeqE1Dih85k1qXI2'))
-      );
-      allow update: if isSuperAdmin() || (
-        isOwner(userId) && 
-        incoming().role == existing().role
-      );
-      allow delete: if isSuperAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isEmailVerified() && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) && isEmailVerified() && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName']) &&
+                      incoming().uid == existing().uid &&
+                      incoming().email == existing().email &&
+                      incoming().role == existing().role;
     }
 
-    // 3. News Collection
-    match /news/{newsId} {
-      allow read: if resource.data.status == 'published' || isReporter();
-      allow create: if isReporter() && (
-        isAdmin() ||
-        (isEditor() && incoming().status in ['draft', 'pending']) ||
-        (isReporter() && incoming().status == 'draft')
-      );
-      allow update: if isReporter() && (
-        isAdmin() ||
-        // Editors can update drafts and pending articles
-        (isEditor() && existing().status in ['draft', 'pending'] && incoming().status in ['draft', 'pending']) ||
-        // Reporters can only update their own drafts
-        (isReporter() && existing().authorId == request.auth.uid && existing().status == 'draft' && incoming().status == 'draft')
-      );
+    match /contributions/{contribId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isSignedIn() && isEmailVerified() && isValidContribution(incoming());
+      allow update: if isAdmin() && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
+                      incoming().status in ['approved', 'rejected'];
+    }
+
+    match /gallery/{itemId} {
+      allow list, get: if true;
+      allow create: if isAdmin() && isValidGalleryItem(incoming());
+      allow update: if isAdmin() && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'description', 'imageUrl']);
       allow delete: if isAdmin();
     }
 
-    // 4. Blogs Collection
-    match /blogs/{blogId} {
-      allow read: if resource.data.status == 'published' || isReporter();
-      allow create: if isReporter() && (
-        isAdmin() ||
-        (isEditor() && incoming().status in ['draft', 'pending']) ||
-        (isReporter() && incoming().status == 'draft')
-      );
-      allow update: if isReporter() && (
-        isAdmin() ||
-        // Editors can update drafts and pending articles
-        (isEditor() && existing().status in ['draft', 'pending'] && incoming().status in ['draft', 'pending']) ||
-        // Reporters can only update their own drafts
-        (isReporter() && existing().authorId == request.auth.uid && existing().status == 'draft' && incoming().status == 'draft')
-      );
-      allow delete: if isAdmin();
-    }
-
-    // 5. Vlogs Collection
-    match /vlogs/{vlogId} {
-      allow read: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    // 6. Gallery Collection
-    match /gallery/{galleryId} {
-      allow read: if true;
-      allow create: if isReporter();
-      allow update: if isReporter();
-      allow delete: if isAdmin();
-    }
-
-    // 7. Categories Collection
-    match /categories/{categoryId} {
-      allow read: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin();
+    match /articles/{articleId} {
+      allow list, get: if true;
+      allow create: if isAdmin() && isValidArticle(incoming());
+      allow update: if isAdmin() && isValidArticle(incoming());
       allow delete: if isAdmin();
     }
   }

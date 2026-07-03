@@ -2,5 +2,5 @@
   "name": "Bakenyi Cultural Heritage Platform",
   "description": "A digital archive dedicated to preserving and promoting the rich history, traditions, and language of the Bakenyi people of Uganda.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }

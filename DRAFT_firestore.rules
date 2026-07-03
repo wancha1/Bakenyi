@@ -1,22 +1,30 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 1. Global Safety Net: Default deny catch-all
+    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Core Security Helpers ---
+    // --- Helpers ---
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Auth tokens NEVER contain custom claims.
+    // User email check with email_verified is standard for this admin role.
     function isEmailVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+      return request.auth.token.email_verified == true;
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'wanchaaaron@gmail.com' && request.auth.token.email_verified == true
+      );
     }
 
     function isValidId(id) {
@@ -31,198 +39,76 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // Role Lookup from authoritatively stored user documents
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function getUserRole() {
-      return getUserData().role;
-    }
-
-    function hasUserDoc() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
-    }
-
-    // Zero-Trust Role Authorization Inheritances
-    function isSuperAdmin() {
-      return isSignedIn() && (
-        (request.auth.token.email == 'wanchaaaron@gmail.com' && isEmailVerified()) ||
-        (hasUserDoc() && getUserRole() == 'super_admin')
-      );
-    }
-
-    function isAdmin() {
-      return isSignedIn() && (
-        isSuperAdmin() ||
-        (hasUserDoc() && getUserRole() == 'admin')
-      );
-    }
-
-    function isEditor() {
-      return isSignedIn() && (
-        isAdmin() ||
-        (hasUserDoc() && getUserRole() == 'editor')
-      );
-    }
-
-    function isReporter() {
-      return isSignedIn() && (
-        isEditor() ||
-        (hasUserDoc() && getUserRole() == 'reporter')
-      );
-    }
-
-    // --- Entity Validation Blueprints ---
+    // --- Entity Validations ---
     function isValidUserProfile(data) {
-      return data.keys().hasAll(['uid', 'email', 'displayName', 'role', 'status', 'createdAt']) &&
-             data.keys().size() == 6 &&
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+             data.keys().size() == 4 &&
              data.uid == request.auth.uid &&
              data.email is string && data.email.size() <= 256 &&
-             data.displayName is string && data.displayName.size() <= 100 &&
-             data.role in ['super_admin', 'admin', 'editor', 'reporter'] &&
-             data.status is string && data.status.size() <= 50 &&
+             data.role in ['contributor', 'admin'] &&
              data.createdAt == request.time;
     }
 
-    function isValidNewsBlogItem(data) {
-      return data.keys().hasAll(['title', 'slug', 'summary', 'content', 'authorId', 'authorName', 'category', 'tags', 'status', 'createdAt']) &&
+    function isValidContribution(data) {
+      return data.keys().hasAll(['userId', 'type', 'title', 'status', 'submittedAt']) &&
+             data.userId == request.auth.uid &&
+             data.type in ['photo', 'audio', 'story'] &&
+             data.title is string && data.title.size() <= 100 &&
+             data.status == 'pending' &&
+             data.submittedAt == request.time;
+    }
+
+    function isValidGalleryItem(data) {
+      return data.keys().hasAll(['title', 'category', 'imageUrl', 'createdAt']) &&
+             data.title is string && data.title.size() <= 100 &&
+             data.category is string && data.category.size() <= 50 &&
+             data.imageUrl is string && data.imageUrl.size() <= 1000 &&
+             data.createdAt == request.time;
+    }
+
+    function isValidArticle(data) {
+      return data.keys().hasAll(['id', 'title', 'excerpt', 'content', 'category', 'author', 'publishedAt']) &&
+             data.id is string && data.id.size() <= 128 &&
              data.title is string && data.title.size() <= 200 &&
-             data.slug is string && data.slug.size() <= 120 &&
-             data.summary is string && data.summary.size() <= 1000 &&
+             data.excerpt is string && data.excerpt.size() <= 1000 &&
              data.content is string && data.content.size() <= 50000 &&
-             data.authorId == request.auth.uid &&
-             data.authorName is string && data.authorName.size() <= 150 &&
-             data.category is string && data.category.size() <= 100 &&
-             data.tags is list && data.tags.size() <= 20 &&
-             data.status in ['draft', 'pending', 'published'] &&
-             data.createdAt == request.time;
+             data.category in ['Community News', 'Culture', 'Heritage', 'Leadership', 'History', 'Announcements'] &&
+             data.author is string && data.author.size() <= 150;
     }
 
-    function isValidVlog(data) {
-      return data.keys().hasAll(['title', 'thumbnailImage', 'youtubeUrl', 'description', 'publishDate']) &&
-             data.title is string && data.title.size() <= 200 &&
-             data.thumbnailImage is string && data.thumbnailImage.size() <= 1000 &&
-             data.youtubeUrl is string && data.youtubeUrl.size() <= 1000 &&
-             data.description is string && data.description.size() <= 5000;
-    }
+    // --- Matches ---
 
-    function isValidGalleryAlbum(data) {
-      return data.keys().hasAll(['title', 'images', 'createdAt']) &&
-             data.title is string && data.title.size() <= 200 &&
-             data.images is list && data.images.size() <= 50 &&
-             data.createdAt == request.time;
-    }
-
-    function isValidCategory(data) {
-      return data.keys().hasAll(['name', 'slug', 'createdAt']) &&
-             data.name is string && data.name.size() <= 100 &&
-             data.slug is string && data.slug.size() <= 100 &&
-             data.createdAt == request.time;
-    }
-
-    // --- Match Rules Blocks ---
-
-    // 1. Users Profiles (PII Isolation & Self-Privilege Guard)
     match /users/{userId} {
-      allow get: if isOwner(userId) || isSuperAdmin() || isAdmin();
-      allow list: if isSuperAdmin();
-      allow create: if isOwner(userId) && isEmailVerified() && isValidUserProfile(incoming()) && (
-        // Prevent self-assigned roles: standard registrations must be reporter, except the core bootstrap admin
-        (request.auth.token.email == 'wanchaaaron@gmail.com' && incoming().role == 'super_admin') ||
-        incoming().role == 'reporter'
-      );
-      allow update: if isSuperAdmin() || (
-        isOwner(userId) && 
-        isValidUserProfile(incoming()) &&
-        // Protect role and status from unauthorized changes
-        incoming().diff(existing()).affectedKeys().hasOnly(['displayName'])
-      );
+      allow get: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isEmailVerified() && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) && isEmailVerified() && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName']) &&
+                      incoming().uid == existing().uid &&
+                      incoming().email == existing().email &&
+                      incoming().role == existing().role;
     }
 
-    // Helper validating News & Blog writes depending on specific author role constraints
-    function authWriteNewsBlog(data, isCreate) {
-      return isReporter() && isValidNewsBlogItem(data) && (
-        // Reporters can only write as 'draft'
-        (getUserRole() == 'reporter' && data.status == 'draft') ||
-        // Editors can write 'draft' or 'pending' review
-        (getUserRole() == 'editor' && data.status in ['draft', 'pending']) ||
-        // Admins & Super Admins can write any status
-        isAdmin()
-      );
+    match /contributions/{contribId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isSignedIn() && isEmailVerified() && isValidContribution(incoming());
+      allow update: if isAdmin() && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
+                      incoming().status in ['approved', 'rejected'];
     }
 
-    // 2. News Collection
-    match /news/{newsId} {
-      allow get: if resource.data.status == 'published' || isReporter();
-      allow list: if resource.data.status == 'published' || isReporter();
-      allow create: if isReporter() && isValidId(newsId) && authWriteNewsBlog(incoming(), true);
-      allow update: if isReporter() && isValidId(newsId) && (
-        // Immutable values guard
-        incoming().createdAt == existing().createdAt &&
-        incoming().authorId == existing().authorId && (
-          // Admin override
-          isAdmin() || (
-            // Editor / Reporter constraints
-            isOwner(existing().authorId) &&
-            authWriteNewsBlog(incoming(), false) && (
-              // If Reporter: can only update drafts
-              (getUserRole() == 'reporter' && existing().status == 'draft') ||
-              // If Editor: can update draft or pending review
-              (getUserRole() == 'editor' && existing().status in ['draft', 'pending'])
-            )
-          )
-        )
-      );
+    match /gallery/{itemId} {
+      allow list, get: if true;
+      allow create: if isAdmin() && isValidGalleryItem(incoming());
+      allow update: if isAdmin() && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'description', 'imageUrl']);
       allow delete: if isAdmin();
     }
 
-    // 3. Blogs Collection
-    match /blogs/{blogId} {
-      allow get: if resource.data.status == 'published' || isReporter();
-      allow list: if resource.data.status == 'published' || isReporter();
-      allow create: if isReporter() && isValidId(blogId) && authWriteNewsBlog(incoming(), true);
-      allow update: if isReporter() && isValidId(blogId) && (
-        // Immutable values guard
-        incoming().createdAt == existing().createdAt &&
-        incoming().authorId == existing().authorId && (
-          // Admin override
-          isAdmin() || (
-            // Editor / Reporter constraints
-            isOwner(existing().authorId) &&
-            authWriteNewsBlog(incoming(), false) && (
-              // If Reporter: can only update drafts
-              (getUserRole() == 'reporter' && existing().status == 'draft') ||
-              // If Editor: can update draft or pending review
-              (getUserRole() == 'editor' && existing().status in ['draft', 'pending'])
-            )
-          )
-        )
-      );
-      allow delete: if isAdmin();
-    }
-
-    // 4. Vlogs Collection
-    match /vlogs/{vlogId} {
-      allow read: if true;
-      allow create: if isAdmin() && isValidId(vlogId) && isValidVlog(incoming());
-      allow update: if isAdmin() && isValidId(vlogId) && isValidVlog(incoming());
-      allow delete: if isAdmin();
-    }
-
-    // 5. Gallery Collection
-    match /gallery/{galleryId} {
-      allow read: if true;
-      allow create: if isReporter() && isValidId(galleryId) && isValidGalleryAlbum(incoming());
-      allow update: if isReporter() && isValidId(galleryId) && isValidGalleryAlbum(incoming());
-      allow delete: if isAdmin();
-    }
-
-    // 6. Categories Collection
-    match /categories/{categoryId} {
-      allow read: if true;
-      allow create: if isAdmin() && isValidId(categoryId) && isValidCategory(incoming());
-      allow update: if isAdmin() && isValidId(categoryId) && isValidCategory(incoming());
+    match /articles/{articleId} {
+      allow list, get: if true;
+      allow create: if isAdmin() && isValidArticle(incoming());
+      allow update: if isAdmin() && isValidArticle(incoming());
       allow delete: if isAdmin();
     }
   }

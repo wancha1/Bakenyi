@@ -18,13 +18,6 @@ import Contribute from './pages/Contribute';
 import Admin from './pages/Admin';
 import Search from './pages/Search';
 
-// Decap CMS Collections Pages
-import NewsPage from './pages/NewsPage';
-import NewsDetail from './pages/NewsDetail';
-import BlogPage from './pages/BlogPage';
-import BlogDetail from './pages/BlogDetail';
-import VlogsPage from './pages/VlogsPage';
-
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -71,11 +64,6 @@ function AppContent() {
             <Route path="/language" element={<PageTransition><Language /></PageTransition>} />
             <Route path="/articles" element={<PageTransition><Articles /></PageTransition>} />
             <Route path="/articles/:id" element={<PageTransition><Articles /></PageTransition>} />
-            <Route path="/news" element={<PageTransition><NewsPage /></PageTransition>} />
-            <Route path="/news/:slug" element={<PageTransition><NewsDetail /></PageTransition>} />
-            <Route path="/blog" element={<PageTransition><BlogPage /></PageTransition>} />
-            <Route path="/blog/:slug" element={<PageTransition><BlogDetail /></PageTransition>} />
-            <Route path="/vlogs" element={<PageTransition><VlogsPage /></PageTransition>} />
             <Route path="/contribute" element={<PageTransition><Contribute /></PageTransition>} />
             <Route path="/search" element={<PageTransition><Search /></PageTransition>} />
             <Route path="/admin" element={<PageTransition><Admin /></PageTransition>} />

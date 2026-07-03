@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History } from 'lucide-react';
-import { auth, db, onAuthStateChanged, collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, Timestamp } from '../lib/firebase';
-import { loginWithGoogle } from '../appwrite/auth';
+import { auth, db } from '../lib/firebase';
+import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
+import { collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
 
 interface UserContribution {
@@ -42,7 +43,7 @@ const steps = [
 ];
 
 export default function Contribute() {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -87,7 +88,8 @@ export default function Contribute() {
 
   const handleLogin = async () => {
     try {
-       await loginWithGoogle();
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Login failed:", error);
     }

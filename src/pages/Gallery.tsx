@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Maximize2, Tag, Facebook, Twitter, Download, Loader2 } from 'lucide-react';
-import { db, collection, query, orderBy, onSnapshot } from '../lib/firebase';
-import { loadGallery } from '../lib/contentParser';
+import { X, Search, Maximize2, Tag, Facebook, Twitter, Download, Loader2 } from 'lucide-react';
+import { db } from '../lib/firebase';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 
 const galleryImages = [
   {
@@ -60,48 +60,22 @@ export default function Gallery() {
       })) as DBImage[];
       setDbImages(docs);
       setLoading(false);
-    }, (err) => {
-      console.warn("Firestore gallery real-time listener error, using fallback state:", err);
-      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Load markdown gallery images
-  const mdImages = useMemo(() => {
-    try {
-      const galleries = loadGallery();
-      return galleries.flatMap((gallery) => {
-        const images = gallery.frontmatter.images || [];
-        return images.map((imgObj: any, idx: number) => ({
-          id: `cms-${gallery.slug}-${idx}`,
-          src: imgObj.image,
-          title: imgObj.caption || gallery.frontmatter.title || 'Bakenyi Chronicles',
-          category: 'Tradition', // CMS galleries are grouped as Tradition
-          desc: gallery.content || gallery.frontmatter.title || ''
-        }));
-      });
-    } catch (e) {
-      console.warn('Failed to load markdown gallery items:', e);
-      return [];
-    }
-  }, []);
-
-  // Merge hardcoded, DB and CMS images
-  const allImages = useMemo(() => {
-    return [
-      ...mdImages,
-      ...dbImages.map(img => ({
-        id: img.id,
-        src: img.imageUrl,
-        title: img.title,
-        category: img.category,
-        desc: img.description
-      })),
-      ...galleryImages
-    ];
-  }, [mdImages, dbImages]);
+  // Merge hardcoded and DB images
+  const allImages = [
+    ...dbImages.map(img => ({
+      id: img.id,
+      src: img.imageUrl,
+      title: img.title,
+      category: img.category,
+      desc: img.description
+    })),
+    ...galleryImages
+  ];
 
   const filteredImages = selectedCategory === "All" 
     ? allImages 
@@ -119,9 +93,9 @@ export default function Gallery() {
   };
 
   return (
-    <div className="pt-24 min-h-screen bg-heritage-cream dark:bg-zinc-950 transition-colors duration-300 pb-20">
+    <div className="pt-24 min-h-screen bg-heritage-cream">
       {/* Header */}
-      <section className="bg-heritage-olive dark:bg-zinc-900 py-16 px-4">
+      <section className="bg-heritage-olive py-16 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <motion.h1 
             initial={{ opacity: 0, scale: 0.95 }}
@@ -140,7 +114,7 @@ export default function Gallery() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all cursor-pointer ${
+                className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
                   selectedCategory === cat 
                     ? 'bg-heritage-terracotta text-white shadow-lg' 
                     : 'bg-white/10 text-white hover:bg-white/20'
@@ -158,7 +132,7 @@ export default function Gallery() {
         {loading && (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-10 h-10 text-heritage-terracotta animate-spin mb-4" />
-            <p className="text-heritage-brown/40 dark:text-zinc-500 font-bold uppercase tracking-widest text-xs">Opening Archive...</p>
+            <p className="text-heritage-brown/40 font-bold uppercase tracking-widest text-xs">Opening Archive...</p>
           </div>
         )}
         
@@ -178,7 +152,7 @@ export default function Gallery() {
                 className="flex flex-col group cursor-pointer"
                 onClick={() => setSelectedImage(img)}
               >
-                <div className="aspect-square relative overflow-hidden rounded-xl bg-heritage-brown/5 dark:bg-zinc-900 shadow-sm transition-all duration-500 group-hover:shadow-xl group-hover:-translate-y-1">
+                <div className="aspect-square relative overflow-hidden rounded-xl bg-heritage-brown/5 shadow-sm transition-all duration-500 group-hover:shadow-xl group-hover:-translate-y-1">
                   <img 
                     src={img.src} 
                     alt={img.title} 
@@ -186,7 +160,7 @@ export default function Gallery() {
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute inset-0 bg-heritage-brown/20 group-hover:bg-heritage-brown/40 transition-colors flex items-center justify-center">
+                  <div className="absolute inset-0 bg-heritage-brown/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30 transform scale-90 group-hover:scale-100 transition-transform duration-300">
                       <Maximize2 className="w-6 h-6" />
                     </div>
@@ -197,7 +171,7 @@ export default function Gallery() {
                     <Tag className="w-3 h-3" />
                     <span>{img.category}</span>
                   </div>
-                  <h3 className="text-heritage-brown dark:text-zinc-200 font-serif font-bold text-lg leading-tight group-hover:text-heritage-terracotta dark:group-hover:text-heritage-sand transition-colors">
+                  <h3 className="text-heritage-brown font-serif font-bold text-lg leading-tight group-hover:text-heritage-terracotta transition-colors">
                     {img.title}
                   </h3>
                 </div>
@@ -214,25 +188,25 @@ export default function Gallery() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-heritage-brown/95 dark:bg-zinc-950/95 backdrop-blur-xl"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-heritage-brown/95 backdrop-blur-xl"
             onClick={() => setSelectedImage(null)}
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="relative max-w-5xl w-full bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-2xl border border-heritage-brown/5 dark:border-zinc-800"
+              className="relative max-w-5xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
               <button 
                 onClick={() => setSelectedImage(null)}
-                className="absolute top-6 right-6 z-50 p-2 bg-black/10 dark:bg-zinc-800 text-heritage-brown dark:text-zinc-200 hover:bg-black/20 rounded-full transition-colors cursor-pointer"
+                className="absolute top-6 right-6 z-50 p-2 bg-black/10 text-heritage-brown hover:bg-black/20 rounded-full transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
               
               <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[500px]">
-                <div className="lg:col-span-8 bg-heritage-cream/50 dark:bg-zinc-950/50 flex items-center justify-center p-4">
+                <div className="lg:col-span-8 bg-heritage-cream/50 flex items-center justify-center p-4">
                   <img 
                     src={selectedImage.src} 
                     alt={selectedImage.title} 
@@ -240,15 +214,15 @@ export default function Gallery() {
                     referrerPolicy="no-referrer"
                   />
                 </div>
-                <div className="lg:col-span-4 p-10 flex flex-col justify-center bg-white dark:bg-zinc-900">
+                <div className="lg:col-span-4 p-10 flex flex-col justify-center bg-white">
                   <div className="flex items-center space-x-2 text-heritage-terracotta mb-4">
                     <Tag className="w-4 h-4" />
                     <span className="text-xs font-black uppercase tracking-[0.3em]">{selectedImage.category}</span>
                   </div>
-                  <h2 className="text-3xl md:text-4xl font-serif font-bold text-heritage-brown dark:text-white mb-6 leading-tight">
+                  <h2 className="text-3xl md:text-4xl font-serif font-bold text-heritage-brown mb-6 leading-tight">
                     {selectedImage.title}
                   </h2>
-                  <p className="text-heritage-brown/60 dark:text-zinc-400 text-lg leading-relaxed mb-10">
+                  <p className="text-heritage-brown/60 text-lg leading-relaxed mb-10">
                     {selectedImage.desc}
                   </p>
                   
@@ -256,20 +230,20 @@ export default function Gallery() {
                     <div className="flex items-center gap-4">
                       <button 
                         onClick={() => shareOnFacebook(selectedImage.title)}
-                        className="flex-grow flex items-center justify-center space-x-2 py-3 px-4 border border-heritage-brown/10 dark:border-zinc-800 text-heritage-brown dark:text-zinc-300 rounded-xl hover:bg-heritage-brown hover:text-white dark:hover:bg-zinc-800 transition-all group font-bold text-xs uppercase tracking-widest cursor-pointer"
+                        className="flex-grow flex items-center justify-center space-x-2 py-3 px-4 border border-heritage-brown/10 rounded-xl hover:bg-heritage-brown hover:text-white transition-all group font-bold text-xs uppercase tracking-widest"
                       >
                         <Facebook className="w-4 h-4" />
                         <span>Facebook</span>
                       </button>
                       <button 
                         onClick={() => shareOnTwitter(selectedImage.title)}
-                        className="flex-grow flex items-center justify-center space-x-2 py-3 px-4 border border-heritage-brown/10 dark:border-zinc-800 text-heritage-brown dark:text-zinc-300 rounded-xl hover:bg-heritage-brown hover:text-white dark:hover:bg-zinc-800 transition-all group font-bold text-xs uppercase tracking-widest cursor-pointer"
+                        className="flex-grow flex items-center justify-center space-x-2 py-3 px-4 border border-heritage-brown/10 rounded-xl hover:bg-heritage-brown hover:text-white transition-all group font-bold text-xs uppercase tracking-widest"
                       >
                         <Twitter className="w-4 h-4" />
                         <span>Twitter</span>
                       </button>
                     </div>
-                    <button className="w-full flex items-center justify-center space-x-2 py-4 bg-heritage-brown dark:bg-heritage-olive text-white rounded-xl hover:bg-heritage-terracotta transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-heritage-brown/20 cursor-pointer">
+                    <button className="w-full flex items-center justify-center space-x-2 py-4 bg-heritage-brown text-white rounded-xl hover:bg-heritage-terracotta transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-heritage-brown/20">
                       <Download className="w-4 h-4" />
                       <span>Download Archive Quality</span>
                     </button>

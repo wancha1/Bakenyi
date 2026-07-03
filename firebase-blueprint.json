@@ -2,103 +2,83 @@
   "entities": {
     "UserProfile": {
       "title": "User Profile",
-      "description": "Stores user profiles with role-based access control.",
+      "description": "Stores user cultural profiles and roles.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string" },
-        "role": { "type": "string", "enum": ["super_admin", "admin", "editor", "reporter"] },
-        "status": { "type": "string" },
+        "role": { "type": "string", "enum": ["contributor", "admin"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "role"]
     },
-    "NewsBlogItem": {
-      "title": "News and Blog Content",
-      "description": "Represents a published or draft news article or blog post.",
+    "Contribution": {
+      "title": "Contribution",
+      "description": "User submitted cultural data (photos, stories, audio placeholders).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["photo", "audio", "story"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "title", "status", "submittedAt"]
+    },
+    "GalleryItem": {
+      "title": "Gallery Item",
+      "description": "Approved items displayed in the public gallery.",
       "type": "object",
       "properties": {
         "title": { "type": "string" },
-        "slug": { "type": "string" },
-        "summary": { "type": "string" },
-        "content": { "type": "string" },
-        "featuredImage": { "type": "string", "format": "uri" },
-        "authorId": { "type": "string" },
-        "authorName": { "type": "string" },
         "category": { "type": "string" },
-        "tags": { "type": "array" },
-        "status": { "type": "string", "enum": ["draft", "pending", "published"] },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" },
-        "publishedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["title", "slug", "summary", "content", "authorId", "status", "createdAt"]
-    },
-    "VlogItem": {
-      "title": "Vlog Item",
-      "description": "Represents a video blog entry referencing a YouTube link.",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "thumbnailImage": { "type": "string", "format": "uri" },
-        "youtubeUrl": { "type": "string", "format": "uri" },
         "description": { "type": "string" },
-        "publishDate": { "type": "string", "format": "date-time" }
-      },
-      "required": ["title", "youtubeUrl", "publishDate"]
-    },
-    "GalleryAlbum": {
-      "title": "Gallery Album",
-      "description": "Represents a collection of photos uploaded for a specific event with captions.",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "images": { "type": "array" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" },
-        "createdBy": { "type": "string" }
-      },
-      "required": ["title", "images", "createdAt"]
-    },
-    "Category": {
-      "title": "Category",
-      "description": "Represents a category for organizing news, blogs, and other publications.",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "slug": { "type": "string" },
-        "description": { "type": "string" },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "contributionId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "slug", "createdAt"]
+      "required": ["title", "category", "imageUrl", "createdAt"]
+    },
+    "Article": {
+      "title": "Article",
+      "description": "Published news articles, announcements, and heritage writings.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string", "enum": ["Community News", "Culture", "Heritage", "Leadership", "History", "Announcements"] },
+        "author": { "type": "string" },
+        "publishedAt": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "pdfUrl": { "type": "string" },
+        "popular": { "type": "boolean" },
+        "views": { "type": "number" },
+        "tags": { "type": "array" }
+      },
+      "required": ["id", "title", "excerpt", "content", "category", "author", "publishedAt"]
     }
   },
   "firestore": {
     "users/{userId}": {
       "schema": "UserProfile",
-      "description": "Secure user roles and access control document."
+      "description": "Private user profiles."
     },
-    "news/{newsId}": {
-      "schema": "NewsBlogItem",
-      "description": "News articles."
+    "contributions/{contributionId}": {
+      "schema": "Contribution",
+      "description": "Submitted contributions."
     },
-    "blogs/{blogId}": {
-      "schema": "NewsBlogItem",
-      "description": "Blog posts."
+    "gallery/{galleryItemId}": {
+      "schema": "GalleryItem",
+      "description": "Public gallery items."
     },
-    "vlogs/{vlogId}": {
-      "schema": "VlogItem",
-      "description": "Video blogs (vlogs)."
-    },
-    "gallery/{galleryId}": {
-      "schema": "GalleryAlbum",
-      "description": "Public multi-photo gallery events with captions."
-    },
-    "categories/{categoryId}": {
-      "schema": "Category",
-      "description": "Article and blog categories."
+    "articles/{articleId}": {
+      "schema": "Article",
+      "description": "Public published articles and news."
     }
   }
 }
