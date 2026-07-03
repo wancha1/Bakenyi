@@ -9,10 +9,10 @@ const navItems = [
   { name: 'About', path: '/about' },
   { name: 'History', path: '/history' },
   { name: 'Clans', path: '/clans' },
-  { name: 'Leadership', path: '/leadership' },
   { name: 'Gallery', path: '/gallery' },
-  { name: 'Language', path: '/language' },
-  { name: 'Articles', path: '/articles' },
+  { name: 'News', path: '/news' },
+  { name: 'Blog', path: '/blog' },
+  { name: 'Vlogs', path: '/vlogs' },
   { name: 'Contribute', path: '/contribute' },
   { name: 'Contact', path: '/contact' },
 ];

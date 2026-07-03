@@ -23,7 +23,7 @@ import {
   Printer
 } from 'lucide-react';
 import { Article } from '../types/article';
-import { getArticles, getArticleById } from '../lib/supabase';
+import { getArticles, getArticleById } from '../lib/articlesService';
 
 export default function Articles() {
   const { id } = useParams<{ id: string }>();

@@ -27,7 +27,7 @@ import {
   Tag
 } from 'lucide-react';
 import { Article } from '../../types/article';
-import { getArticles, createArticle, updateArticle, deleteArticle, uploadMedia, isSupabaseConfigured } from '../../lib/supabase';
+import { getArticles, createArticle, updateArticle, deleteArticle, uploadMedia, isSupabaseConfigured } from '../../lib/articlesService';
 
 export default function ArticlesManager() {
   // State

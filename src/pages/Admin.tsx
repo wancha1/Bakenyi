@@ -1,205 +1,120 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Lock, 
-  ShieldCheck, 
-  CheckCircle2, 
-  XCircle, 
-  Trash2, 
-  Loader2, 
-  User, 
-  Database, 
-  BookOpen, 
-  Inbox, 
-  LogOut, 
-  AlertTriangle, 
-  Check, 
-  Copy, 
-  Terminal,
-  FileCode,
-  Sparkles
+  Lock, ShieldCheck, Loader2, User, LogOut, AlertTriangle, 
+  Check, Copy, Sparkles, BookOpen, Film, Image as ImageIcon, 
+  Tag, Users, LayoutDashboard, Key, ShieldAlert, CheckCircle2,
+  Mail, Settings, ChevronRight
 } from 'lucide-react';
-import { db } from '../lib/firebase';
-import { collection, query, orderBy, onSnapshot, updateDoc, doc, deleteDoc, Timestamp, setDoc, serverTimestamp } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
-import { signIn, signOut, getCurrentUser, isSupabaseConfigured } from '../lib/supabase';
-import ArticlesManager from '../components/admin/ArticlesManager';
+import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from '../lib/firebase';
+import { loginWithGoogle } from '../appwrite/auth';
+import { 
+  getUserProfile, createUserProfile, UserProfile, UserRole 
+} from '../lib/firebaseContentService';
 
-interface Contribution {
-  id: string;
-  userId: string;
-  userEmail: string;
-  title: string;
-  description: string;
-  type: string;
-  status: 'pending' | 'approved' | 'rejected';
-  submittedAt: Timestamp;
-  imageUrl: string;
-}
+// Import our newly created managers
+import NewsBlogManager from '../components/admin/NewsBlogManager';
+import VlogsManager from '../components/admin/VlogsManager';
+import GalleryManager from '../components/admin/GalleryManager';
+import CategoryManager from '../components/admin/CategoryManager';
+import UserManager from '../components/admin/UserManager';
 
 export default function Admin() {
   // Navigation / Tabs
-  const [activeTab, setActiveTab] = useState<'articles' | 'contributions' | 'integration'>('articles');
+  const [activeTab, setActiveTab] = useState<'overview' | 'news' | 'blogs' | 'vlogs' | 'gallery' | 'categories' | 'users'>('overview');
   
   // Authentication State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [authError, setAuthError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // Archive Contributions State (legacy integration)
-  const [contributions, setContributions] = useState<Contribution[]>([]);
-  const [contribsLoading, setContribsLoading] = useState(true);
-
-  // SQL schema code copy feedback
-  const [copiedSql, setCopiedSql] = useState(false);
-
-  // Check login state on mount
+  // Monitor auth state changes
   useEffect(() => {
-    async function checkUser() {
-      try {
-        const user = await getCurrentUser();
-        setCurrentUser(user);
-      } catch (err) {
-        console.error('Failed to resolve current admin user', err);
-      } finally {
-        setAuthChecking(false);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        try {
+          // Attempt to fetch profile from Firestore
+          let profile = await getUserProfile(user.uid);
+          if (!profile) {
+            // Self-register profile if none exists
+            profile = await createUserProfile(
+              user.uid, 
+              user.email || '', 
+              user.displayName || displayName || user.email?.split('@')[0] || 'Contributor'
+            );
+          }
+          setUserProfile(profile);
+        } catch (err) {
+          console.error("Failed to resolve profile from Firestore, using fallback role", err);
+          // Set safety fallback
+          setUserProfile({
+            uid: user.uid,
+            email: user.email || '',
+            displayName: user.displayName || 'Contributor',
+            role: user.email === 'wanchaaaron@gmail.com' ? 'super_admin' : 'reporter',
+            status: 'active',
+            createdAt: new Date().toISOString()
+          });
+        }
+      } else {
+        setUserProfile(null);
       }
-    }
-    checkUser();
-  }, []);
-
-  // Fetch contributions if logged in and on the contributions tab
-  useEffect(() => {
-    if (!currentUser || activeTab !== 'contributions') return;
-
-    setContribsLoading(true);
-    const q = query(collection(db, 'contributions'), orderBy('submittedAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      })) as Contribution[];
-      setContributions(docs);
-      setContribsLoading(false);
-    }, (err) => {
-      handleFirestoreError(err, OperationType.LIST, 'contributions');
-      setContribsLoading(false);
+      setAuthChecking(false);
     });
 
     return () => unsubscribe();
-  }, [currentUser, activeTab]);
+  }, [displayName]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleGoogleLogin = async () => {
+    setLoginLoading(true);
+    setAuthError('');
+    try {
+      await loginWithGoogle();
+    } catch (err: any) {
+      setAuthError(err.message || 'Google authentication failed.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       setAuthError('Please fill in all credentials.');
       return;
     }
-
     setLoginLoading(true);
     setAuthError('');
     try {
-      const { user, error } = await signIn(email, password);
-      if (error) {
-        throw error;
+      if (isSignUp) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
       }
-      setCurrentUser(user);
     } catch (err: any) {
-      setAuthError(err.message || 'Login failed. Please verify credentials.');
+      setAuthError(err.message || 'Email authorization failed.');
     } finally {
       setLoginLoading(false);
     }
   };
 
   const handleLogout = async () => {
-    const { error } = await signOut();
-    if (error) {
-      console.error('Failed to log out', error);
-    } else {
+    try {
+      await signOut(auth);
       setCurrentUser(null);
-    }
-  };
-
-  // Pre-existing contribution review action
-  const updateStatus = async (id: string, status: 'approved' | 'rejected') => {
-    try {
-      const contrib = contributions.find(c => c.id === id);
-      if (!contrib) return;
-
-      await updateDoc(doc(db, 'contributions', id), { status });
-
-      if (status === 'approved') {
-        const galleryPath = 'gallery';
-        await setDoc(doc(db, galleryPath, id), {
-          title: contrib.title,
-          category: contrib.type === 'photo' ? 'History' : 'Tradition',
-          description: contrib.description,
-          imageUrl: contrib.imageUrl,
-          contributionId: id,
-          createdAt: serverTimestamp()
-        });
-      } else {
-        await deleteDoc(doc(db, 'gallery', id));
-      }
+      setUserProfile(null);
+      setActiveTab('overview');
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `contributions/${id}`);
+      console.error('Failed to log out', err);
     }
-  };
-
-  // Pre-existing contribution deletion action
-  const removeContribution = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this contribution?')) return;
-    try {
-      await deleteDoc(doc(db, 'contributions', id));
-      await deleteDoc(doc(db, 'gallery', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `contributions/${id}`);
-    }
-  };
-
-  const copySqlToClipboard = () => {
-    const sql = `
--- 1. CREATE THE ARTICLES TABLE
-create table if not exists public.articles (
-  id text primary key,
-  title text not null,
-  excerpt text not null,
-  content text not null,
-  category text not null,
-  author text not null,
-  "publishedAt" text not null,
-  "imageUrl" text,
-  "pdfUrl" text,
-  views integer default 0,
-  tags text[] default array[]::text[],
-  "additionalImages" text[] default array[]::text[],
-  status text default 'draft'
-);
-
--- 2. ENABLE ROW LEVEL SECURITY (RLS) FOR ARTICLES
-alter table public.articles enable row level security;
-
--- Create policies for Articles
-create policy "Allow public read access to published articles" 
-  on public.articles for select 
-  using (status = 'published');
-
-create policy "Allow full access to authenticated admins" 
-  on public.articles for all 
-  to authenticated 
-  using (true);
-
--- 3. STORAGE SETUP FOR ATTACHMENTS
--- Note: Create two public storage buckets in Supabase:
---    a. 'featured-images' (for article covers)
---    b. 'pdf-attachments' (for downloadable research papers)
-    `;
-    navigator.clipboard.writeText(sql.trim());
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2000);
   };
 
   if (authChecking) {
@@ -212,9 +127,9 @@ create policy "Allow full access to authenticated admins"
   }
 
   // ==========================================
-  // VIEW: AUTHENTICATION LOGIN FORM
+  // VIEW: AUTHENTICATION LOGIN / SIGNUP FORM
   // ==========================================
-  if (!currentUser) {
+  if (!currentUser || !userProfile) {
     return (
       <div className="pt-24 min-h-screen bg-heritage-cream relative flex items-center justify-center px-4">
         <div className="absolute inset-0 cultural-pattern opacity-5 pointer-events-none" />
@@ -233,25 +148,43 @@ create policy "Allow full access to authenticated admins"
             Access secure admin publishing & management tools
           </p>
 
-          {/* Fallback Warning Box */}
-          {!isSupabaseConfigured() && (
-            <div className="bg-heritage-sand/15 border border-heritage-sand/30 rounded-2xl p-4 text-left mb-6 text-xs space-y-1">
-              <div className="flex items-center text-heritage-terracotta font-black uppercase tracking-wider gap-1.5 mb-1">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Local Sandbox Mode Active</span>
-              </div>
-              <p className="text-heritage-brown/75 font-semibold leading-relaxed">
-                Supabase keys aren't added yet. We have auto-enabled high-fidelity local storage emulation.
-              </p>
-              <div className="pt-1.5 font-bold text-heritage-brown/60">
-                👉 Login with: <code className="bg-white/80 px-1.5 py-0.5 rounded font-mono text-heritage-terracotta">admin@bakenyi.org</code><br />
-                👉 Password: <code className="bg-white/80 px-1.5 py-0.5 rounded font-mono text-heritage-terracotta">admin123</code>
-              </div>
-            </div>
-          )}
+          {/* Social Sign-in Button */}
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loginLoading}
+            className="w-full flex items-center justify-center space-x-3 py-3.5 bg-white border-2 border-heritage-brown/10 hover:border-heritage-terracotta text-heritage-brown font-bold rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer mb-6 shadow-sm active:scale-95"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+            </svg>
+            <span>Continue with Google</span>
+          </button>
 
-          {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-4 text-left">
+          <div className="flex items-center my-6">
+            <div className="flex-grow border-t border-heritage-brown/10"></div>
+            <span className="mx-4 text-[10px] font-black uppercase tracking-wider text-heritage-brown/40">Or Use Email Credentials</span>
+            <div className="flex-grow border-t border-heritage-brown/10"></div>
+          </div>
+
+          {/* Email Form */}
+          <form onSubmit={handleEmailAuth} className="space-y-4 text-left">
+            {isSignUp && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-heritage-brown/50">Full Name</label>
+                <input 
+                  type="text" 
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. Aaron Wancha"
+                  className="w-full px-5 py-3 bg-heritage-cream/30 border border-heritage-brown/10 rounded-2xl text-xs font-bold text-heritage-brown outline-none focus:border-heritage-terracotta"
+                  required={isSignUp}
+                />
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-widest text-heritage-brown/50">Admin Email</label>
               <input 
@@ -286,36 +219,56 @@ create policy "Allow full access to authenticated admins"
             <button 
               type="submit"
               disabled={loginLoading}
-              className="w-full flex items-center justify-center space-x-2 py-4 bg-heritage-terracotta hover:bg-heritage-brown text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-heritage-terracotta/20 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+              className="w-full flex items-center justify-center space-x-2 py-4 bg-heritage-terracotta hover:bg-heritage-brown text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-heritage-terracotta/20 transition-all cursor-pointer active:scale-95"
             >
               {loginLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  <span>Authenticate Session</span>
+                  <span>{isSignUp ? 'Register Account' : 'Authenticate Session'}</span>
                   <ShieldCheck className="w-5 h-5" />
                 </>
               )}
             </button>
           </form>
+
+          {/* Toggle login vs signup */}
+          <div className="text-center mt-6">
+            <button
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-xs font-bold text-heritage-terracotta hover:text-heritage-brown underline"
+            >
+              {isSignUp ? 'Already registered? Log In here' : "First time? Self-register an account"}
+            </button>
+          </div>
         </motion.div>
       </div>
     );
   }
 
+  // Determine user clearance string
+  const roleLabels: Record<UserRole, string> = {
+    super_admin: 'Super Admin',
+    admin: 'Administrator',
+    editor: 'Content Editor',
+    reporter: 'Field Reporter'
+  };
+
+  const currentRoleLabel = roleLabels[userProfile.role] || 'Contributor';
+
   // ==========================================
-  // VIEW: MAIN SECURE ADMINISTRATOR BOARD
+  // VIEW: MAIN SECURE CMS DASHBOARD
   // ==========================================
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
       
-      {/* Admin Branding Strip */}
+      {/* Admin Header Section */}
       <section className="bg-heritage-brown text-white py-12 px-4 border-b border-white/5">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-heritage-sand">
               <ShieldCheck className="w-5 h-5 text-heritage-terracotta" />
-              <span className="text-[10px] font-black uppercase tracking-[0.3em]">Secure Administrator Interface</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.3em]">Bakenyi Heritage CMS Portal</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-serif font-black">Archive Management</h1>
           </div>
@@ -323,12 +276,15 @@ create policy "Allow full access to authenticated admins"
           <div className="flex flex-wrap items-center gap-4">
             {/* User credentials identifier */}
             <div className="bg-white/5 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-heritage-terracotta/20 flex items-center justify-center">
-                <User className="w-4 h-4 text-heritage-sand" />
+              <div className="w-10 h-10 rounded-full bg-heritage-terracotta text-white flex items-center justify-center font-black">
+                {userProfile.displayName ? userProfile.displayName.slice(0, 2).toUpperCase() : 'C'}
               </div>
               <div className="text-left">
-                <p className="text-[8px] font-black uppercase tracking-widest text-heritage-sand">Logged in as</p>
-                <p className="text-xs font-bold truncate max-w-[150px]">{currentUser.email || 'Admin'}</p>
+                <p className="text-[8px] font-black uppercase tracking-widest text-heritage-sand flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-heritage-terracotta" />
+                  <span>{currentRoleLabel}</span>
+                </p>
+                <p className="text-xs font-black truncate max-w-[150px]">{userProfile.displayName}</p>
               </div>
             </div>
 
@@ -336,7 +292,7 @@ create policy "Allow full access to authenticated admins"
             <button
               onClick={handleLogout}
               className="p-3.5 bg-white/5 hover:bg-red-500 hover:text-white text-white rounded-2xl border border-white/10 transition-all cursor-pointer active:scale-90"
-              title="End Secure Session"
+              title="Sign Out"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -344,297 +300,249 @@ create policy "Allow full access to authenticated admins"
         </div>
       </section>
 
-      {/* Tabs navigation bar */}
+      {/* Tabs Navigation Rail */}
       <div className="bg-white border-b border-heritage-brown/10">
-        <div className="max-w-7xl mx-auto px-4 flex gap-6 overflow-x-auto">
-          {/* Tab: Articles Manager */}
+        <div className="max-w-7xl mx-auto px-4 flex gap-6 overflow-x-auto scrollbar-none">
+          
           <button
-            onClick={() => setActiveTab('articles')}
+            onClick={() => setActiveTab('overview')}
             className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
-              activeTab === 'articles' 
-                ? 'border-heritage-terracotta text-heritage-terracotta' 
-                : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
+              activeTab === 'overview' ? 'border-heritage-terracotta text-heritage-terracotta' : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
+            }`}
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            <span>Overview</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('news')}
+            className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
+              activeTab === 'news' ? 'border-heritage-terracotta text-heritage-terracotta' : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            <span>Articles Publisher</span>
+            <span>Kyoga News</span>
           </button>
 
-          {/* Tab: Contributions review */}
           <button
-            onClick={() => setActiveTab('contributions')}
+            onClick={() => setActiveTab('blogs')}
             className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
-              activeTab === 'contributions' 
-                ? 'border-heritage-terracotta text-heritage-terracotta' 
-                : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
+              activeTab === 'blogs' ? 'border-heritage-terracotta text-heritage-terracotta' : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
             }`}
           >
-            <Inbox className="w-4 h-4" />
-            <span>Community Contributions</span>
-            {contributions.filter(c => c.status === 'pending').length > 0 && (
-              <span className="bg-heritage-terracotta text-white text-[9px] font-black px-2 py-0.5 rounded-full">
-                {contributions.filter(c => c.status === 'pending').length}
-              </span>
-            )}
+            <BookOpen className="w-4 h-4" />
+            <span>Culture Blog</span>
           </button>
 
-          {/* Tab: Supabase configuration setup */}
           <button
-            onClick={() => setActiveTab('integration')}
+            onClick={() => setActiveTab('vlogs')}
             className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
-              activeTab === 'integration' 
-                ? 'border-heritage-terracotta text-heritage-terracotta' 
-                : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
+              activeTab === 'vlogs' ? 'border-heritage-terracotta text-heritage-terracotta' : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
             }`}
           >
-            <Database className="w-4 h-4" />
-            <span>Supabase Setup</span>
+            <Film className="w-4 h-4" />
+            <span>Video Logs</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('gallery')}
+            className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
+              activeTab === 'gallery' ? 'border-heritage-terracotta text-heritage-terracotta' : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
+            }`}
+          >
+            <ImageIcon className="w-4 h-4" />
+            <span>Photo Galleries</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('categories')}
+            className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
+              activeTab === 'categories' ? 'border-heritage-terracotta text-heritage-terracotta' : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
+            }`}
+          >
+            <Tag className="w-4 h-4" />
+            <span>Taxonomies</span>
+          </button>
+
+          {userProfile.role === 'super_admin' && (
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
+                activeTab === 'users' ? 'border-heritage-terracotta text-heritage-terracotta' : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>User Roles</span>
+            </button>
+          )}
+
         </div>
       </div>
 
-      {/* Tab Contents Frame */}
+      {/* Main Tab View Contents */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         
-        {/* TAB 1: ARTICLES MANAGER */}
-        {activeTab === 'articles' && (
-          <div className="animate-fade-in">
-            <ArticlesManager />
-          </div>
-        )}
-
-        {/* TAB 2: ORIGINAL ARCHIVE REVIEW PROCESS */}
-        {activeTab === 'contributions' && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="flex justify-between items-center pb-4 border-b border-heritage-brown/10">
-              <div>
-                <h2 className="text-xl font-serif font-black text-heritage-brown">Review Archive Submissions</h2>
-                <p className="text-xs text-heritage-brown/50 font-semibold">Verify and moderate heritage media items sent in by the community</p>
+        {/* OVERVIEW TAB */}
+        {activeTab === 'overview' && (
+          <div className="space-y-8 animate-fade-in">
+            {/* Quick Greeting */}
+            <div className="bg-white border border-heritage-brown/10 rounded-[32px] p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-serif font-bold text-heritage-brown">Welcome, {userProfile.displayName}!</h2>
+                <p className="text-xs text-heritage-brown/50 font-medium">
+                  Your account has <span className="text-heritage-terracotta font-black">{currentRoleLabel}</span> permissions.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <span className="px-4 py-2 rounded-xl bg-heritage-cream text-heritage-brown text-xs font-bold font-mono">
+                  UID: {currentUser.uid.slice(0, 10)}...
+                </span>
               </div>
             </div>
 
-            {contribsLoading ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 className="w-10 h-10 text-heritage-terracotta animate-spin mb-4" />
-                <p className="text-heritage-brown/40 font-bold uppercase tracking-widest text-xs">Loading submissions...</p>
-              </div>
-            ) : contributions.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-[32px] border border-heritage-brown/5 shadow-sm p-8">
-                <Inbox className="w-12 h-12 text-heritage-brown/20 mx-auto mb-4" />
-                <p className="text-heritage-brown font-black text-sm">No submissions in queue</p>
-                <p className="text-heritage-brown/40 text-xs mt-1">When public users upload media on the Contribute page, it will populate here for vetting.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {contributions.map((item) => (
-                  <div 
-                    key={item.id}
-                    className="bg-white rounded-[28px] overflow-hidden shadow-sm border border-heritage-brown/5 flex flex-col h-full group"
-                  >
-                    <div className="aspect-video relative overflow-hidden bg-heritage-cream/50">
-                      <img 
-                        src={item.imageUrl} 
-                        alt={item.title} 
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-4 left-4">
-                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                          item.status === 'approved' ? 'bg-heritage-olive/10 text-heritage-olive border-heritage-olive/20' :
-                          item.status === 'rejected' ? 'bg-red-50 text-red-500 border-red-500/20' :
-                          'bg-heritage-terracotta/10 text-heritage-terracotta border-heritage-terracotta/20'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-6 flex-grow flex flex-col">
-                      <div className="flex items-center justify-between mb-3 text-[10px] font-black uppercase tracking-widest text-heritage-brown/40">
-                        <span>Type: {item.type}</span>
-                        <span>{item.submittedAt?.toDate().toLocaleDateString()}</span>
-                      </div>
-                      <h3 className="text-lg font-serif font-bold text-heritage-brown mb-2">{item.title}</h3>
-                      <p className="text-xs text-heritage-brown/60 leading-relaxed mb-6 line-clamp-3 italic">
-                        "{item.description}"
-                      </p>
-                      
-                      <div className="mt-auto space-y-4 pt-4 border-t border-heritage-brown/5">
-                        <p className="text-[10px] font-mono text-heritage-brown/40 truncate">Sender: {item.userEmail || item.userId}</p>
-                        <div className="flex gap-1.5">
-                          <button 
-                            onClick={() => updateStatus(item.id, 'approved')}
-                            disabled={item.status === 'approved'}
-                            className="flex-grow flex items-center justify-center space-x-2 py-2.5 bg-heritage-olive/10 text-heritage-olive hover:bg-heritage-olive hover:text-white rounded-xl transition-all text-[10px] font-black uppercase tracking-widest disabled:opacity-30 cursor-pointer"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Approve</span>
-                          </button>
-                          <button 
-                            onClick={() => updateStatus(item.id, 'rejected')}
-                            disabled={item.status === 'rejected'}
-                            className="flex-grow flex items-center justify-center space-x-2 py-2.5 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all text-[10px] font-black uppercase tracking-widest disabled:opacity-30 cursor-pointer"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Reject</span>
-                          </button>
-                          <button 
-                            onClick={() => removeContribution(item.id)}
-                            className="p-2.5 bg-heritage-brown/5 hover:bg-red-500 text-heritage-brown/40 hover:text-white rounded-xl transition-all cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB 3: INTEGRATION MONITORING & SCHEMAS */}
-        {activeTab === 'integration' && (
-          <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-            {/* Status Check Card */}
-            <div className="bg-white border border-heritage-brown/10 rounded-[32px] p-6 md:p-8 shadow-sm space-y-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  isSupabaseConfigured() ? 'bg-heritage-olive/10 text-heritage-olive' : 'bg-amber-50 text-amber-600'
-                }`}>
-                  <Database className="w-5 h-5" />
+            {/* Quick Analytics Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              
+              <div onClick={() => setActiveTab('news')} className="bg-white p-6 rounded-2xl border border-heritage-brown/5 hover:border-heritage-terracotta/20 transition-all cursor-pointer shadow-sm space-y-3">
+                <div className="w-10 h-10 bg-heritage-terracotta/10 text-heritage-terracotta rounded-full flex items-center justify-center">
+                  <BookOpen className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-serif font-bold text-heritage-brown">Connection Verification</h3>
-                  <p className="text-xs text-heritage-brown/50 font-medium">Supabase service status monitoring</p>
+                  <h4 className="text-[10px] font-black uppercase tracking-wider text-heritage-brown/40">News Dispatches</h4>
+                  <p className="text-2xl font-serif font-black text-heritage-brown">Active Collection</p>
                 </div>
               </div>
 
-              {isSupabaseConfigured() ? (
-                <div className="bg-heritage-olive/5 border border-heritage-olive/10 p-4 rounded-xl flex items-start gap-3">
-                  <Check className="w-5 h-5 text-heritage-olive mt-0.5 shrink-0" />
-                  <div className="text-xs text-heritage-olive space-y-1">
-                    <p className="font-bold uppercase tracking-wider">SUPABASE ACTIVE & CONFIGURED</p>
-                    <p className="font-medium text-heritage-brown/80 leading-relaxed">
-                      Your app is connected to the live Supabase instance at <code className="font-mono bg-white px-1 py-0.5 border rounded">{(import.meta as any).env.VITE_SUPABASE_URL}</code>. Secure authentication, publishing tables, and media storage buckets are fully active.
-                    </p>
-                  </div>
+              <div onClick={() => setActiveTab('blogs')} className="bg-white p-6 rounded-2xl border border-heritage-brown/5 hover:border-heritage-terracotta/20 transition-all cursor-pointer shadow-sm space-y-3">
+                <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center">
+                  <BookOpen className="w-5 h-5" />
                 </div>
-              ) : (
-                <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-                  <div className="text-xs text-amber-800 space-y-1">
-                    <p className="font-bold uppercase tracking-wider">LOCAL EMULATION ACTIVE</p>
-                    <p className="font-medium text-heritage-brown/80 leading-relaxed">
-                      This environment is running a flawless client-side simulation. To link a real Supabase database and storage, click <strong>Settings</strong> in the AI Studio editor sidebar, and provide the credentials below:
-                    </p>
-                    <div className="pt-2 font-mono text-[10px] space-y-1 text-heritage-brown/70">
-                      <div>🗝️ <span className="font-bold">VITE_SUPABASE_URL</span> = <span className="italic">Your Supabase Endpoint URL</span></div>
-                      <div>🗝️ <span className="font-bold">VITE_SUPABASE_ANON_KEY</span> = <span className="italic">Your Supabase Anon API Key</span></div>
-                    </div>
-                  </div>
+                <div>
+                  <h4 className="text-[10px] font-black uppercase tracking-wider text-heritage-brown/40">Blog Posts</h4>
+                  <p className="text-2xl font-serif font-black text-heritage-brown">Active Collection</p>
                 </div>
-              )}
-            </div>
-
-            {/* SQL Blueprint Copy Card */}
-            <div className="bg-white border border-heritage-brown/10 rounded-[32px] p-6 md:p-8 shadow-sm space-y-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-heritage-terracotta/10 text-heritage-terracotta rounded-full flex items-center justify-center">
-                    <Terminal className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-serif font-bold text-heritage-brown">Supabase SQL Blueprint</h3>
-                    <p className="text-xs text-heritage-brown/50 font-medium">Execute this schema in your Supabase SQL Editor to provision tables</p>
-                  </div>
-                </div>
-                
-                <button
-                  onClick={copySqlToClipboard}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-heritage-terracotta hover:bg-heritage-brown text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-sm"
-                >
-                  {copiedSql ? (
-                    <>
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy SQL</span>
-                    </>
-                  )}
-                </button>
               </div>
 
-              {/* Code Pre Box */}
-              <div className="bg-heritage-brown/5 rounded-2xl p-5 border border-heritage-brown/10 font-mono text-[10px] overflow-x-auto text-heritage-brown/80 leading-relaxed max-h-[350px]">
-                <pre>{`-- 1. CREATE THE ARTICLES TABLE
-create table if not exists public.articles (
-  id text primary key,
-  title text not null,
-  excerpt text not null,
-  content text not null,
-  category text not null,
-  author text not null,
-  "publishedAt" text not null,
-  "imageUrl" text,
-  "pdfUrl" text,
-  views integer default 0,
-  tags text[] default array[]::text[],
-  "additionalImages" text[] default array[]::text[],
-  status text default 'draft'
-);
-
--- 2. ENABLE ROW LEVEL SECURITY (RLS)
-alter table public.articles enable row level security;
-
--- Policies for Articles
-create policy "Allow public read access to published articles" 
-  on public.articles for select 
-  using (status = 'published');
-
-create policy "Allow full access to authenticated admins" 
-  on public.articles for all 
-  to authenticated 
-  using (true);`}</pre>
+              <div onClick={() => setActiveTab('vlogs')} className="bg-white p-6 rounded-2xl border border-heritage-brown/5 hover:border-heritage-terracotta/20 transition-all cursor-pointer shadow-sm space-y-3">
+                <div className="w-10 h-10 bg-red-50 text-red-600 rounded-full flex items-center justify-center">
+                  <Film className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black uppercase tracking-wider text-heritage-brown/40">YouTube Vlogs</h4>
+                  <p className="text-2xl font-serif font-black text-heritage-brown">Active Collection</p>
+                </div>
               </div>
-            </div>
 
-            {/* Storage Buckets Instructions Card */}
-            <div className="bg-white border border-heritage-brown/10 rounded-[32px] p-6 md:p-8 shadow-sm space-y-4">
-              <div className="flex items-center gap-3">
+              <div onClick={() => setActiveTab('gallery')} className="bg-white p-6 rounded-2xl border border-heritage-brown/5 hover:border-heritage-terracotta/20 transition-all cursor-pointer shadow-sm space-y-3">
                 <div className="w-10 h-10 bg-heritage-olive/10 text-heritage-olive rounded-full flex items-center justify-center">
-                  <FileCode className="w-5 h-5" />
+                  <ImageIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-serif font-bold text-heritage-brown">Required Storage Buckets</h3>
-                  <p className="text-xs text-heritage-brown/50 font-medium">Configure Supabase Storage to handle uploads securely</p>
+                  <h4 className="text-[10px] font-black uppercase tracking-wider text-heritage-brown/40">Gallery Albums</h4>
+                  <p className="text-2xl font-serif font-black text-heritage-brown">Active Collection</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold leading-relaxed text-heritage-brown">
-                <div className="border border-heritage-brown/10 p-5 rounded-2xl space-y-1 bg-heritage-cream/10">
-                  <p className="font-black text-heritage-terracotta uppercase">Bucket 1: featured-images</p>
-                  <p className="text-heritage-brown/70">Used for uploading featured banner images for articles.</p>
-                  <p className="pt-2 text-[10px] font-bold text-heritage-brown/50">🔒 Set access to: <span className="font-black text-heritage-brown">Public</span></p>
-                </div>
-                
-                <div className="border border-heritage-brown/10 p-5 rounded-2xl space-y-1 bg-heritage-cream/10">
-                  <p className="font-black text-heritage-terracotta uppercase">Bucket 2: pdf-attachments</p>
-                  <p className="text-heritage-brown/70">Used for uploading custom research files and historical documents.</p>
-                  <p className="pt-2 text-[10px] font-bold text-heritage-brown/50">🔒 Set access to: <span className="font-black text-heritage-brown">Public</span></p>
-                </div>
-              </div>
             </div>
 
+            {/* Role Gating Matrix Instructions */}
+            <div className="bg-white border border-heritage-brown/10 rounded-[32px] p-6 md:p-8 shadow-sm space-y-6">
+              <div>
+                <h3 className="text-lg font-serif font-bold text-heritage-brown">Operational Permissions Matrix</h3>
+                <p className="text-xs text-heritage-brown/50 font-medium">Verify your administrative clearance boundaries</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-xs text-heritage-brown">
+                
+                <div className={`p-5 rounded-2xl border space-y-2 ${userProfile.role === 'super_admin' ? 'border-purple-300 bg-purple-50/25' : 'border-heritage-brown/10'}`}>
+                  <h4 className="font-black text-purple-700 uppercase flex items-center gap-1">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Super Admin</span>
+                  </h4>
+                  <p className="text-heritage-brown/60 leading-relaxed font-medium">
+                    Complete authorization keys. Manage users, update roles, create categories, and publish/delete all historical archives.
+                  </p>
+                </div>
+
+                <div className={`p-5 rounded-2xl border space-y-2 ${userProfile.role === 'admin' ? 'border-heritage-terracotta/30 bg-heritage-terracotta/5' : 'border-heritage-brown/10'}`}>
+                  <h4 className="font-black text-heritage-terracotta uppercase flex items-center gap-1">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Admin</span>
+                  </h4>
+                  <p className="text-heritage-brown/60 leading-relaxed font-medium">
+                    Publish authority. Write, edit, publish and delete articles. Manage categories. Create video records and albums.
+                  </p>
+                </div>
+
+                <div className={`p-5 rounded-2xl border space-y-2 ${userProfile.role === 'editor' ? 'border-heritage-olive/30 bg-heritage-olive/5' : 'border-heritage-brown/10'}`}>
+                  <h4 className="font-black text-heritage-olive uppercase flex items-center gap-1">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Editor</span>
+                  </h4>
+                  <p className="text-heritage-brown/60 leading-relaxed font-medium">
+                    Review submissions. Write and edit dispatches, submit for Review queue. Upload media files. Cannot publish directly.
+                  </p>
+                </div>
+
+                <div className={`p-5 rounded-2xl border space-y-2 ${userProfile.role === 'reporter' ? 'border-amber-300 bg-amber-50/20' : 'border-heritage-brown/10'}`}>
+                  <h4 className="font-black text-amber-600 uppercase flex items-center gap-1">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Reporter</span>
+                  </h4>
+                  <p className="text-heritage-brown/60 leading-relaxed font-medium">
+                    Draft contribution. Create blog draft records, upload initial photos. Cannot edit other people's drafts or request reviews.
+                  </p>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB NEWS: NEWS MANAGER */}
+        {activeTab === 'news' && (
+          <div className="animate-fade-in">
+            <NewsBlogManager type="news" userRole={userProfile.role} />
+          </div>
+        )}
+
+        {/* TAB BLOGS: BLOGS MANAGER */}
+        {activeTab === 'blogs' && (
+          <div className="animate-fade-in">
+            <NewsBlogManager type="blogs" userRole={userProfile.role} />
+          </div>
+        )}
+
+        {/* TAB VLOGS: VLOGS MANAGER */}
+        {activeTab === 'vlogs' && (
+          <div className="animate-fade-in">
+            <VlogsManager userRole={userProfile.role} />
+          </div>
+        )}
+
+        {/* TAB GALLERY: GALLERY MANAGER */}
+        {activeTab === 'gallery' && (
+          <div className="animate-fade-in">
+            <GalleryManager userRole={userProfile.role} />
+          </div>
+        )}
+
+        {/* TAB CATEGORIES: CATEGORY MANAGER */}
+        {activeTab === 'categories' && (
+          <div className="animate-fade-in">
+            <CategoryManager userRole={userProfile.role} />
+          </div>
+        )}
+
+        {/* TAB USERS: USER ROLES MANAGER */}
+        {activeTab === 'users' && userProfile.role === 'super_admin' && (
+          <div className="animate-fade-in">
+            <UserManager userRole={userProfile.role} />
           </div>
         )}
 
       </main>
 
-      {/* Integrity Disclaimer strip */}
       <footer className="py-16 bg-white border-t border-heritage-brown/5 text-center px-4 mt-12">
         <div className="max-w-2xl mx-auto space-y-4">
           <ShieldCheck className="w-10 h-10 text-heritage-terracotta mx-auto" />
