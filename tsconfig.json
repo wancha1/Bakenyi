@@ -25,9 +25,6 @@
   },
   "exclude": [
     "node_modules",
-    "dist",
-    "middleware.ts",
-    "src/app",
-    "src/lib/serverAuth.ts"
+    "dist"
   ]
 }
