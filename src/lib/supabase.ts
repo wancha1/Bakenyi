@@ -1,141 +1,168 @@
 import { Article } from '../types/article';
 import { bakenyiArticles } from '../data/articlesData';
-import { db, auth } from './firebase';
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  deleteDoc,
-  query
-} from 'firebase/firestore';
-import { 
-  signInWithEmailAndPassword, 
-  signOut as fbSignOut 
-} from 'firebase/auth';
-
-// Retrieve environment variables - deactivated as Supabase is disabled in favor of Firebase
-const SUPABASE_URL = "";
-const SUPABASE_ANON_KEY = "";
+import { getSupabase } from './supabaseClient';
 
 export const isSupabaseConfigured = (): boolean => {
-  // Supabase is completely disabled to bypass all schema/relations/keys setup
-  return false;
+  return getSupabase() !== null;
 };
 
-// Supabase client fallback
-export const supabase = null;
+// Supabase client direct reference
+export const supabase = getSupabase();
 
 // ==========================================
-// UNIFIED AUTHENTICATION SERVICES (FIREBASE / EMULATED)
+// UNIFIED AUTHENTICATION SERVICES (SUPABASE)
 // ==========================================
-
-const EMULATED_AUTH_KEY = 'supabase_emulated_session';
-
-export interface EmulatedUser {
-  id: string;
-  email: string;
-  role: 'admin' | 'public';
-}
 
 export async function signIn(email: string, password: string): Promise<{ user: any; error: Error | null }> {
+  const client = getSupabase();
+  if (!client) {
+    return { user: null, error: new Error('Supabase client is not configured.') };
+  }
+
   try {
-    // Try authenticating with Firebase Auth first
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return { user: userCredential.user, error: null };
-  } catch (fbErr: any) {
-    // Fallback to emulated credentials if Firebase Auth fails or is unconfigured
-    if ((email.includes('admin') || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') && password === 'admin123') {
-      const mockUser: EmulatedUser = {
-        id: 'emulated-admin-uuid-123456',
-        email,
-        role: 'admin'
-      };
-      localStorage.setItem(EMULATED_AUTH_KEY, JSON.stringify(mockUser));
-      return { user: mockUser, error: null };
-    }
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    if (error) throw error;
     
-    return { 
-      user: null, 
-      error: new Error(fbErr.message || 'Authentication failed. (Hint: Use admin@bakenyi.org and admin123 for sandbox access.)') 
-    };
+    // Also ensure they have a profile row in the profiles table for role-based features
+    if (data.user) {
+      const emailLower = email.toLowerCase();
+      const isAdmin = 
+        emailLower === 'admin@bakenye.com' || 
+        emailLower === 'admin@bakenyi.org' || 
+        emailLower === 'wanchaaaron@gmail.com' || 
+        emailLower === 'aaronwancha@gmail.com';
+      
+      const role = isAdmin ? 'admin' : 'customer';
+      
+      // Upsert profile record
+      await client.from('profiles').upsert({
+        id: data.user.id,
+        email: data.user.email,
+        role: role,
+        is_admin: isAdmin,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+    }
+
+    return { user: data.user, error: null };
+  } catch (err: any) {
+    return { user: null, error: err };
   }
 }
 
 export async function signOut(): Promise<{ error: Error | null }> {
+  const client = getSupabase();
+  if (!client) return { error: null };
+
   try {
-    await fbSignOut(auth);
-  } catch (e) {
-    // ignore silent signout failures
+    const { error } = await client.auth.signOut();
+    if (error) throw error;
+    return { error: null };
+  } catch (err: any) {
+    return { error: err };
   }
-  localStorage.removeItem(EMULATED_AUTH_KEY);
-  return { error: null };
 }
 
 export async function getCurrentUser(): Promise<any> {
-  if (auth.currentUser) {
-    return auth.currentUser;
+  const client = getSupabase();
+  if (!client) return null;
+
+  try {
+    const { data: { user } } = await client.auth.getUser();
+    return user;
+  } catch {
+    return null;
   }
-  const stored = localStorage.getItem(EMULATED_AUTH_KEY);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return null;
-    }
-  }
-  return null;
 }
 
 // ==========================================
-// UNIFIED DATABASE & ARTICLES SERVICES (FIRESTORE)
+// UNIFIED DATABASE & ARTICLES SERVICES (SUPABASE)
 // ==========================================
 
-const ARTICLES_COLLECTION = 'articles';
-
 /**
- * Fetches all articles from either Firestore or the local static database.
+ * Fetches all articles from Supabase with dynamic seeding fallback.
  * @param onlyPublished If true, only returns articles with status === 'published'.
  */
 export async function getArticles(onlyPublished = true): Promise<Article[]> {
-  try {
-    const articlesCol = collection(db, ARTICLES_COLLECTION);
-    const q = query(articlesCol);
-    const snapshot = await getDocs(q);
-    
-    let list: Article[] = [];
-    if (!snapshot.empty) {
-      snapshot.forEach(docSnap => {
-        list.push(docSnap.data() as Article);
-      });
-    } else {
-      // Seed the Firestore database with initial articles if empty
-      list = bakenyiArticles.map(art => ({
-        ...art,
-        status: art.status || 'published'
-      }));
-      // Save initial seed to Firestore so they exist as real records
-      for (const art of list) {
-        try {
-          await setDoc(doc(db, ARTICLES_COLLECTION, art.id), art);
-        } catch (e) {
-          // silent error on seeding writes
-        }
-      }
-    }
-    
-    // Sort by publishedAt desc
-    const sorted = [...list].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-    return onlyPublished ? sorted.filter(a => a.status === 'published') : sorted;
-  } catch (err) {
-    console.warn('Firestore fetch failed, falling back to static list:', err);
+  const client = getSupabase();
+  if (!client) {
+    // If no client, fallback to static articles
     const list = bakenyiArticles.map(art => ({
       ...art,
       status: art.status || 'published'
     }));
-    const sorted = [...list].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-    return onlyPublished ? sorted.filter(a => a.status === 'published') : sorted;
+    return onlyPublished ? list.filter(a => a.status === 'published') : list;
+  }
+
+  try {
+    const { data, error } = await client
+      .from('articles')
+      .select('id, title, content, status, created_at, updated_at, published_at, summary')
+      .order('published_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      // Map database schema to frontend Article model
+      const articles = data.map((row: any) => ({
+        id: row.id,
+        title: row.title,
+        excerpt: row.summary || '',
+        content: row.content || '',
+        category: 'Heritage', // default or custom category if needed
+        author: 'Bakenyi Committee', // default author
+        publishedAt: row.published_at || row.created_at || new Date().toISOString().split('T')[0],
+        status: row.status || 'published',
+        views: 0,
+        tags: ['Heritage']
+      }));
+
+      return onlyPublished ? articles.filter(a => a.status === 'published') : articles;
+    }
+
+    // Database is empty - let's seed it dynamically from bakenyiArticles
+    console.log('Articles table is empty, seeding with bakenyiArticles...');
+    const seedList = bakenyiArticles.map(art => ({
+      id: art.id,
+      title: art.title,
+      content: art.content || '',
+      status: 'published',
+      published_at: art.publishedAt || new Date().toISOString(),
+      summary: art.excerpt || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }));
+
+    // Perform individual inserts or bulk insert to bypass schema constraint differences
+    for (const record of seedList) {
+      await client.from('articles').upsert(record);
+    }
+
+    // Fetch again after seeding
+    const { data: reFetched } = await client
+      .from('articles')
+      .select('id, title, content, status, created_at, updated_at, published_at, summary');
+
+    if (reFetched) {
+      const articles = reFetched.map((row: any) => ({
+        id: row.id,
+        title: row.title,
+        excerpt: row.summary || '',
+        content: row.content || '',
+        category: 'Heritage',
+        author: 'Bakenyi Committee',
+        publishedAt: row.published_at || row.created_at || new Date().toISOString().split('T')[0],
+        status: row.status || 'published',
+        views: 0,
+        tags: ['Heritage']
+      }));
+      return onlyPublished ? articles.filter(a => a.status === 'published') : articles;
+    }
+
+    return bakenyiArticles;
+  } catch (err) {
+    console.warn('Supabase fetch failed, falling back to static list:', err);
+    return bakenyiArticles;
   }
 }
 
@@ -143,25 +170,47 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
  * Fetches an article by its ID.
  */
 export async function getArticleById(id: string): Promise<Article | null> {
+  const client = getSupabase();
+  if (!client) {
+    const localArticle = bakenyiArticles.find(a => a.id === id);
+    return localArticle || null;
+  }
+
   try {
-    const articleDocRef = doc(db, ARTICLES_COLLECTION, id);
-    const docSnap = await getDoc(articleDocRef);
-    if (docSnap.exists()) {
-      return docSnap.data() as Article;
+    const { data, error } = await client
+      .from('articles')
+      .select('id, title, content, status, created_at, updated_at, published_at, summary')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (data) {
+      return {
+        id: data.id,
+        title: data.title,
+        excerpt: data.summary || '',
+        content: data.content || '',
+        category: 'Heritage',
+        author: 'Bakenyi Committee',
+        publishedAt: data.published_at || data.created_at || new Date().toISOString().split('T')[0],
+        status: data.status || 'published',
+        views: 0,
+        tags: ['Heritage']
+      };
     }
   } catch (err) {
-    console.warn(`Firestore read for ID ${id} failed, checking static list:`, err);
+    console.warn(`Supabase read for ID ${id} failed:`, err);
   }
-  
-  // Fallback to static articles
+
   const localArticle = bakenyiArticles.find(a => a.id === id);
   return localArticle || null;
 }
 
 /**
- * Creates a new article in the database.
+ * Creates a new article in Supabase.
  */
 export async function createArticle(article: Omit<Article, 'id'>): Promise<{ data: Article | null; error: Error | null }> {
+  const client = getSupabase();
   const generatedId = article.title.toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '') || `article-${Date.now()}`;
@@ -174,20 +223,28 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
     status: article.status || 'draft'
   };
 
+  if (!client) {
+    return { data: newArticle, error: null };
+  }
+
   try {
-    await setDoc(doc(db, ARTICLES_COLLECTION, generatedId), newArticle);
+    const dbRecord = {
+      id: generatedId,
+      title: article.title,
+      content: article.content || '',
+      status: article.status || 'draft',
+      published_at: article.publishedAt || new Date().toISOString().split('T')[0],
+      summary: article.excerpt || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await client.from('articles').insert(dbRecord);
+    if (error) throw error;
     return { data: newArticle, error: null };
   } catch (err: any) {
-    console.error('Firestore create article failed, saving to localStorage emulation:', err);
-    // Emulated local fallback
-    const stored = localStorage.getItem('supabase_emulated_articles');
-    let emulated: Article[] = [];
-    if (stored) {
-      try { emulated = JSON.parse(stored); } catch (e) {}
-    }
-    emulated.unshift(newArticle);
-    localStorage.setItem('supabase_emulated_articles', JSON.stringify(emulated));
-    return { data: newArticle, error: null };
+    console.error('Supabase create article failed:', err);
+    return { data: null, error: err };
   }
 }
 
@@ -195,29 +252,33 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
  * Updates an existing article.
  */
 export async function updateArticle(id: string, articleUpdates: Partial<Article>): Promise<{ data: Article | null; error: Error | null }> {
+  const client = getSupabase();
+  if (!client) {
+    return { data: null, error: new Error('Supabase is not configured.') };
+  }
+
   try {
-    const articleDocRef = doc(db, ARTICLES_COLLECTION, id);
     const current = await getArticleById(id);
     if (!current) {
       return { data: null, error: new Error('Article not found.') };
     }
     const updated = { ...current, ...articleUpdates };
-    await setDoc(articleDocRef, updated);
+
+    const dbRecord: any = {
+      updated_at: new Date().toISOString()
+    };
+    if (articleUpdates.title !== undefined) dbRecord.title = articleUpdates.title;
+    if (articleUpdates.content !== undefined) dbRecord.content = articleUpdates.content;
+    if (articleUpdates.status !== undefined) dbRecord.status = articleUpdates.status;
+    if (articleUpdates.publishedAt !== undefined) dbRecord.published_at = articleUpdates.publishedAt;
+    if (articleUpdates.excerpt !== undefined) dbRecord.summary = articleUpdates.excerpt;
+
+    const { error } = await client.from('articles').update(dbRecord).eq('id', id);
+    if (error) throw error;
+
     return { data: updated, error: null };
   } catch (err: any) {
-    console.error(`Firestore update article ${id} failed, saving to localStorage emulation:`, err);
-    // Emulated local fallback
-    const stored = localStorage.getItem('supabase_emulated_articles');
-    let emulated: Article[] = [];
-    if (stored) {
-      try { emulated = JSON.parse(stored); } catch (e) {}
-    }
-    const idx = emulated.findIndex(a => a.id === id);
-    if (idx !== -1) {
-      emulated[idx] = { ...emulated[idx], ...articleUpdates };
-      localStorage.setItem('supabase_emulated_articles', JSON.stringify(emulated));
-      return { data: emulated[idx], error: null };
-    }
+    console.error(`Supabase update article ${id} failed:`, err);
     return { data: null, error: err };
   }
 }
@@ -226,36 +287,48 @@ export async function updateArticle(id: string, articleUpdates: Partial<Article>
  * Deletes an article from the database.
  */
 export async function deleteArticle(id: string): Promise<{ success: boolean; error: Error | null }> {
+  const client = getSupabase();
+  if (!client) {
+    return { success: true, error: null };
+  }
+
   try {
-    const articleDocRef = doc(db, ARTICLES_COLLECTION, id);
-    await deleteDoc(articleDocRef);
+    const { error } = await client.from('articles').delete().eq('id', id);
+    if (error) throw error;
     return { success: true, error: null };
   } catch (err: any) {
-    console.error(`Firestore delete article ${id} failed, deleting from localStorage emulation:`, err);
-    // Emulated local fallback
-    const stored = localStorage.getItem('supabase_emulated_articles');
-    if (stored) {
-      try {
-        const emulated: Article[] = JSON.parse(stored);
-        const filtered = emulated.filter(a => a.id !== id);
-        localStorage.setItem('supabase_emulated_articles', JSON.stringify(filtered));
-      } catch (e) {}
-    }
-    return { success: true, error: null };
+    console.error(`Supabase delete article ${id} failed:`, err);
+    return { success: false, error: err };
   }
 }
 
 // ==========================================
-// UNIFIED STORAGE SERVICES (EMULATED)
+// UNIFIED STORAGE SERVICES (EMULATED & REAL)
 // ==========================================
 
-/**
- * Uploads a file (featured image or PDF).
- * Uses a high-fidelity client-side Base64 File Reader so media uploads work
- * seamlessly and immediately without requiring storage configuration.
- */
 export async function uploadMedia(file: File, type: 'images' | 'pdfs'): Promise<{ url: string; error: Error | null }> {
-  return emulateFileUpload(file);
+  const client = getSupabase();
+  if (!client) {
+    return emulateFileUpload(file);
+  }
+
+  try {
+    const bucketName = type === 'images' ? 'media' : 'pdf-attachments';
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 10)}.${fileExt}`;
+    
+    // First ensure the bucket exists/we can upload to it
+    const { data, error } = await client.storage.from(bucketName).upload(fileName, file);
+    if (error) {
+      console.warn(`Storage upload to ${bucketName} failed (bucket might not exist), falling back to Base64:`, error);
+      return emulateFileUpload(file);
+    }
+
+    const { data: { publicUrl } } = client.storage.from(bucketName).getPublicUrl(fileName);
+    return { url: publicUrl, error: null };
+  } catch (err: any) {
+    return emulateFileUpload(file);
+  }
 }
 
 async function emulateFileUpload(file: File): Promise<{ url: string; error: Error | null }> {
@@ -270,3 +343,312 @@ async function emulateFileUpload(file: File): Promise<{ url: string; error: Erro
     reader.readAsDataURL(file);
   });
 }
+
+// ==========================================
+// UNIFIED CONTRIBUTIONS SERVICES (SUPABASE)
+// ==========================================
+
+export interface Contribution {
+  id: string;
+  title: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  // Parsed from the content JSON string
+  description: string;
+  imageUrl: string;
+  type: string;
+  userEmail: string;
+  userId: string;
+}
+
+export async function getContributions(userId?: string): Promise<Contribution[]> {
+  const client = getSupabase();
+  if (!client) {
+    const stored = localStorage.getItem('supabase_emulated_contributions') || '[]';
+    return JSON.parse(stored);
+  }
+
+  try {
+    let query = client.from('contributions').select('id, title, content, status, created_at');
+    
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const list: Contribution[] = (data || []).map((row: any) => {
+      let parsed = { description: '', imageUrl: '', type: 'photo', userEmail: 'anonymous@bakenyi.org', userId: '' };
+      try {
+        if (row.content) {
+          parsed = JSON.parse(row.content);
+        }
+      } catch (e) {
+        parsed.description = row.content || '';
+      }
+
+      return {
+        id: row.id,
+        title: row.title,
+        status: row.status || 'pending',
+        created_at: row.created_at,
+        description: parsed.description || '',
+        imageUrl: parsed.imageUrl || '',
+        type: parsed.type || 'photo',
+        userEmail: parsed.userEmail || '',
+        userId: parsed.userId || ''
+      };
+    });
+
+    if (userId) {
+      return list.filter(item => item.userId === userId);
+    }
+    return list;
+  } catch (err) {
+    console.error('getContributions failed:', err);
+    return [];
+  }
+}
+
+export async function createContribution(
+  title: string,
+  description: string,
+  type: string,
+  imageUrl: string,
+  userEmail: string,
+  userId: string
+): Promise<{ data: Contribution | null; error: Error | null }> {
+  const client = getSupabase();
+  const id = `contrib-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const contentStr = JSON.stringify({ description, imageUrl, type, userEmail, userId });
+
+  const contributionObj: Contribution = {
+    id,
+    title,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+    description,
+    imageUrl,
+    type,
+    userEmail,
+    userId
+  };
+
+  if (!client) {
+    const stored = localStorage.getItem('supabase_emulated_contributions') || '[]';
+    const list = JSON.parse(stored);
+    list.unshift(contributionObj);
+    localStorage.setItem('supabase_emulated_contributions', JSON.stringify(list));
+    return { data: contributionObj, error: null };
+  }
+
+  try {
+    const { error } = await client.from('contributions').insert({
+      id,
+      title,
+      content: contentStr,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    });
+
+    if (error) throw error;
+    return { data: contributionObj, error: null };
+  } catch (err: any) {
+    console.error('createContribution failed:', err);
+    return { data: null, error: err };
+  }
+}
+
+export async function updateContributionStatus(id: string, status: 'pending' | 'approved' | 'rejected'): Promise<{ success: boolean; error: Error | null }> {
+  const client = getSupabase();
+  if (!client) {
+    const stored = localStorage.getItem('supabase_emulated_contributions') || '[]';
+    const list: Contribution[] = JSON.parse(stored);
+    const idx = list.findIndex(c => c.id === id);
+    if (idx !== -1) {
+      list[idx].status = status;
+      localStorage.setItem('supabase_emulated_contributions', JSON.stringify(list));
+    }
+    return { success: true, error: null };
+  }
+
+  try {
+    const { error } = await client.from('contributions').update({ status }).eq('id', id);
+    if (error) throw error;
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err };
+  }
+}
+
+// ==========================================
+// UNIFIED GALLERY SERVICES (SUPABASE)
+// ==========================================
+
+export interface GalleryImage {
+  id: string;
+  title: string;
+  imageUrl: string;
+  created_at?: string;
+  description: string;
+  category: string;
+}
+
+export async function getGalleryImages(): Promise<GalleryImage[]> {
+  const client = getSupabase();
+  
+  const staticGallery = [
+    {
+      id: "h1",
+      title: "Canoe on Lake Kyoga",
+      imageUrl: "https://images.unsplash.com/photo-1523805009345-7448845a9e53?auto=format&fit=crop&q=80&w=800",
+      category: "Landscape",
+      description: "A traditional wooden canoe at sunset, reflecting the Bakenyi's deep connection to the floating islands of Lake Kyoga."
+    },
+    {
+      id: "h2",
+      title: "Basket Weaving Art",
+      imageUrl: "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800",
+      category: "Craft",
+      description: "Intricate patterns passed down through generations, utilizing local reeds and papyrus from the marshlands."
+    },
+    {
+      id: "h3",
+      title: "Ancestral Site",
+      imageUrl: "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&q=80&w=800",
+      category: "History",
+      description: "A sacred gathering place where Lukenye is still spoken in its purest form during seasonal ceremonies."
+    },
+    {
+      id: "h4",
+      title: "Community Festival",
+      imageUrl: "https://images.unsplash.com/photo-1493246507139-91e8bef99c02?auto=format&fit=crop&q=80&w=800",
+      category: "Tradition",
+      description: "Celebration of the harvest, bringing together clans from across the region to share stories and feast."
+    }
+  ];
+
+  if (!client) {
+    const stored = localStorage.getItem('supabase_emulated_gallery') || '[]';
+    return [...JSON.parse(stored), ...staticGallery];
+  }
+
+  try {
+    const { data, error } = await client.from('gallery').select('id, title, image_url, created_at');
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      const list = data.map((row: any) => {
+        let titleVal = row.title;
+        let desc = '';
+        let cat = 'General';
+        
+        // Check if title is serialized JSON holding title, description and category
+        try {
+          if (titleVal.startsWith('{')) {
+            const parsed = JSON.parse(titleVal);
+            titleVal = parsed.title;
+            desc = parsed.description || '';
+            cat = parsed.category || 'General';
+          }
+        } catch (e) {}
+
+        return {
+          id: row.id,
+          title: titleVal,
+          imageUrl: row.image_url,
+          created_at: row.created_at,
+          description: desc,
+          category: cat
+        };
+      });
+
+      return [...list, ...staticGallery];
+    }
+
+    // Database is empty, let's seed with staticGallery
+    console.log('Gallery table is empty, seeding...');
+    for (const img of staticGallery) {
+      const titleStr = JSON.stringify({ title: img.title, description: img.description, category: img.category });
+      await client.from('gallery').upsert({
+        id: img.id,
+        title: titleStr,
+        image_url: img.imageUrl,
+        created_at: new Date().toISOString()
+      });
+    }
+
+    // Fetch again
+    const { data: reFetched } = await client.from('gallery').select('id, title, image_url, created_at');
+    if (reFetched) {
+      return reFetched.map((row: any) => {
+        let titleVal = row.title;
+        let desc = '';
+        let cat = 'General';
+        try {
+          if (titleVal.startsWith('{')) {
+            const parsed = JSON.parse(titleVal);
+            titleVal = parsed.title;
+            desc = parsed.description || '';
+            cat = parsed.category || 'General';
+          }
+        } catch (e) {}
+
+        return {
+          id: row.id,
+          title: titleVal,
+          imageUrl: row.image_url,
+          created_at: row.created_at,
+          description: desc,
+          category: cat
+        };
+      });
+    }
+
+    return staticGallery;
+  } catch (err) {
+    console.error('getGalleryImages failed:', err);
+    return staticGallery;
+  }
+}
+
+export async function addGalleryImage(
+  title: string,
+  imageUrl: string,
+  description: string,
+  category: string
+): Promise<{ data: GalleryImage | null; error: Error | null }> {
+  const client = getSupabase();
+  const id = `gal-${Date.now()}`;
+  const titleStr = JSON.stringify({ title, description, category });
+
+  const galleryObj: GalleryImage = {
+    id,
+    title,
+    imageUrl,
+    created_at: new Date().toISOString(),
+    description,
+    category
+  };
+
+  if (!client) {
+    const stored = localStorage.getItem('supabase_emulated_gallery') || '[]';
+    const list = JSON.parse(stored);
+    list.unshift(galleryObj);
+    localStorage.setItem('supabase_emulated_gallery', JSON.stringify(list));
+    return { data: galleryObj, error: null };
+  }
+
+  try {
+    const { error } = await client.from('gallery').insert({
+      id,
+      title: titleStr,
+      image_url: imageUrl,
+      created_at: new Date().toISOString()
+    });
+
+    if (error) throw error;
+    return { data: galleryObj, error: null };
+  } catch (err: any) {
+    console.error('addGalleryImage failed:', err);
+    return { data: null, error: err };
+  }
+}
+

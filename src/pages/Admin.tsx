@@ -15,53 +15,79 @@ import {
   AlertTriangle, 
   Check, 
   Copy, 
-  Terminal,
+  Sparkles,
+  Users,
+  Image as ImageIcon,
+  Activity,
   FileCode,
-  Sparkles
+  Settings,
+  Heart
 } from 'lucide-react';
-import { db } from '../lib/firebase';
-import { collection, query, orderBy, onSnapshot, updateDoc, doc, deleteDoc, Timestamp, setDoc, serverTimestamp } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
-import { signIn, signOut, getCurrentUser, isSupabaseConfigured } from '../lib/supabase';
+import { getSupabase, fetchUsers, updateUserStatus } from '../lib/supabaseClient';
+import { 
+  signIn, 
+  signOut, 
+  getCurrentUser, 
+  isSupabaseConfigured,
+  getArticles,
+  getContributions,
+  updateContributionStatus,
+  getGalleryImages,
+  addGalleryImage,
+  Contribution,
+  GalleryImage
+} from '../lib/supabase';
 import ArticlesManager from '../components/admin/ArticlesManager';
 
-interface Contribution {
-  id: string;
-  userId: string;
-  userEmail: string;
-  title: string;
-  description: string;
-  type: string;
-  status: 'pending' | 'approved' | 'rejected';
-  submittedAt: Timestamp;
-  imageUrl: string;
-}
-
 export default function Admin() {
-  // Navigation / Tabs
-  const [activeTab, setActiveTab] = useState<'articles' | 'contributions' | 'integration'>('articles');
+  const supabase = getSupabase();
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'articles' | 'contributions' | 'gallery' | 'users' | 'settings'>('dashboard');
   
-  // Authentication State
+  // Auth states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'staff' | 'customer'>('customer');
   const [authChecking, setAuthChecking] = useState(true);
   const [authError, setAuthError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // Archive Contributions State (legacy integration)
+  // Stats and list states
+  const [articlesCount, setArticlesCount] = useState(0);
   const [contributions, setContributions] = useState<Contribution[]>([]);
-  const [contribsLoading, setContribsLoading] = useState(true);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // SQL schema code copy feedback
-  const [copiedSql, setCopiedSql] = useState(false);
-
-  // Check login state on mount
+  // Check login state and fetch initial profile role
   useEffect(() => {
     async function checkUser() {
       try {
         const user = await getCurrentUser();
         setCurrentUser(user);
+        if (user && supabase) {
+          // Fetch exact user role from profiles
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+          if (!error && data) {
+            setUserRole(data.role || 'customer');
+          } else {
+            // Check email-based bypass for fallback admin credentials
+            const emailLower = user.email?.toLowerCase() || '';
+            if (
+              emailLower === 'admin@bakenye.com' || 
+              emailLower === 'admin@bakenyi.org' || 
+              emailLower === 'wanchaaaron@gmail.com' ||
+              emailLower === 'aaronwancha@gmail.com'
+            ) {
+              setUserRole('admin');
+            }
+          }
+        }
       } catch (err) {
         console.error('Failed to resolve current admin user', err);
       } finally {
@@ -69,28 +95,35 @@ export default function Admin() {
       }
     }
     checkUser();
-  }, []);
+  }, [refreshTrigger]);
 
-  // Fetch contributions if logged in and on the contributions tab
+  // Fetch metrics and list data
   useEffect(() => {
-    if (!currentUser || activeTab !== 'contributions') return;
+    if (!currentUser) return;
 
-    setContribsLoading(true);
-    const q = query(collection(db, 'contributions'), orderBy('submittedAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      })) as Contribution[];
-      setContributions(docs);
-      setContribsLoading(false);
-    }, (err) => {
-      handleFirestoreError(err, OperationType.LIST, 'contributions');
-      setContribsLoading(false);
-    });
+    async function fetchDashboardMetrics() {
+      setLoadingStats(true);
+      try {
+        const articles = await getArticles(false);
+        setArticlesCount(articles.length);
 
-    return () => unsubscribe();
-  }, [currentUser, activeTab]);
+        const contribs = await getContributions();
+        setContributions(contribs);
+
+        const gallery = await getGalleryImages();
+        // Since getGalleryImages merges hardcoded gallery, let's keep only database gallery items for precise admin editing if desired, or all
+        setGalleryImages(gallery);
+
+        const users = await fetchUsers();
+        setUsersList(users);
+      } catch (err) {
+        console.error('Error loading admin metrics:', err);
+      } finally {
+        setLoadingStats(false);
+      }
+    }
+    fetchDashboardMetrics();
+  }, [currentUser, refreshTrigger, activeTab]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,10 +136,9 @@ export default function Admin() {
     setAuthError('');
     try {
       const { user, error } = await signIn(email, password);
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
       setCurrentUser(user);
+      setRefreshTrigger(prev => prev + 1);
     } catch (err: any) {
       setAuthError(err.message || 'Login failed. Please verify credentials.');
     } finally {
@@ -120,86 +152,61 @@ export default function Admin() {
       console.error('Failed to log out', error);
     } else {
       setCurrentUser(null);
+      setUserRole('customer');
     }
   };
 
-  // Pre-existing contribution review action
-  const updateStatus = async (id: string, status: 'approved' | 'rejected') => {
+  // Contribution review
+  const handleReviewContribution = async (contrib: Contribution, status: 'approved' | 'rejected') => {
     try {
-      const contrib = contributions.find(c => c.id === id);
-      if (!contrib) return;
-
-      await updateDoc(doc(db, 'contributions', id), { status });
+      const { success, error } = await updateContributionStatus(contrib.id, status);
+      if (error) throw error;
 
       if (status === 'approved') {
-        const galleryPath = 'gallery';
-        await setDoc(doc(db, galleryPath, id), {
-          title: contrib.title,
-          category: contrib.type === 'photo' ? 'History' : 'Tradition',
-          description: contrib.description,
-          imageUrl: contrib.imageUrl,
-          contributionId: id,
-          createdAt: serverTimestamp()
-        });
+        // Automatically add approved contribution to the gallery!
+        await addGalleryImage(
+          contrib.title,
+          contrib.imageUrl,
+          contrib.description,
+          contrib.type === 'photo' ? 'History' : 'Tradition'
+        );
+        alert('Contribution approved and automatically published to the Digital Gallery!');
       } else {
-        await deleteDoc(doc(db, 'gallery', id));
+        alert('Contribution marked as rejected.');
       }
-    } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `contributions/${id}`);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update submission status.');
     }
   };
 
-  // Pre-existing contribution deletion action
-  const removeContribution = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this contribution?')) return;
+  const handleDeleteGalleryItem = async (id: string) => {
+    if (!window.confirm('Are you sure you want to unpublish and delete this gallery image?')) return;
+    if (!supabase) return;
+    
     try {
-      await deleteDoc(doc(db, 'contributions', id));
-      await deleteDoc(doc(db, 'gallery', id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `contributions/${id}`);
+      const { error } = await supabase.from('gallery').delete().eq('id', id);
+      if (error) throw error;
+      alert('Gallery asset unpublished successfully.');
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err: any) {
+      alert(err.message || 'Failed to unpublish asset.');
     }
   };
 
-  const copySqlToClipboard = () => {
-    const sql = `
--- 1. CREATE THE ARTICLES TABLE
-create table if not exists public.articles (
-  id text primary key,
-  title text not null,
-  excerpt text not null,
-  content text not null,
-  category text not null,
-  author text not null,
-  "publishedAt" text not null,
-  "imageUrl" text,
-  "pdfUrl" text,
-  views integer default 0,
-  tags text[] default array[]::text[],
-  "additionalImages" text[] default array[]::text[],
-  status text default 'draft'
-);
-
--- 2. ENABLE ROW LEVEL SECURITY (RLS) FOR ARTICLES
-alter table public.articles enable row level security;
-
--- Create policies for Articles
-create policy "Allow public read access to published articles" 
-  on public.articles for select 
-  using (status = 'published');
-
-create policy "Allow full access to authenticated admins" 
-  on public.articles for all 
-  to authenticated 
-  using (true);
-
--- 3. STORAGE SETUP FOR ATTACHMENTS
--- Note: Create two public storage buckets in Supabase:
---    a. 'featured-images' (for article covers)
---    b. 'pdf-attachments' (for downloadable research papers)
-    `;
-    navigator.clipboard.writeText(sql.trim());
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2000);
+  const handleUpdateUserRole = async (userId: string, targetRole: 'admin' | 'staff' | 'customer') => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: targetRole, is_admin: targetRole === 'admin' })
+        .eq('id', userId);
+      if (error) throw error;
+      alert('User role updated successfully.');
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update user role.');
+    }
   };
 
   if (authChecking) {
@@ -224,7 +231,6 @@ create policy "Allow full access to authenticated admins"
           animate={{ opacity: 1, y: 0 }}
           className="max-w-md w-full bg-white rounded-[40px] p-8 md:p-10 shadow-2xl border border-heritage-brown/5 text-center relative z-10"
         >
-          {/* Lock Header */}
           <div className="w-20 h-20 bg-heritage-terracotta/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lock className="w-10 h-10 text-heritage-terracotta" />
           </div>
@@ -233,7 +239,6 @@ create policy "Allow full access to authenticated admins"
             Access secure admin publishing & management tools
           </p>
 
-          {/* Fallback Warning Box */}
           {!isSupabaseConfigured() && (
             <div className="bg-heritage-sand/15 border border-heritage-sand/30 rounded-2xl p-4 text-left mb-6 text-xs space-y-1">
               <div className="flex items-center text-heritage-terracotta font-black uppercase tracking-wider gap-1.5 mb-1">
@@ -250,7 +255,6 @@ create policy "Allow full access to authenticated admins"
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4 text-left">
             <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-widest text-heritage-brown/50">Admin Email</label>
@@ -259,7 +263,7 @@ create policy "Allow full access to authenticated admins"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@bakenyi.org"
-                className="w-full px-5 py-3.5 bg-heritage-cream/30 border border-heritage-brown/10 rounded-2xl text-xs font-bold text-heritage-brown outline-none focus:border-heritage-terracotta"
+                className="w-full px-5 py-3.5 bg-heritage-cream/30 border border-heritage-brown/10 rounded-2xl text-xs font-bold text-heritage-brown outline-none focus:border-heritage-terracotta font-sans"
                 required
               />
             </div>
@@ -271,7 +275,7 @@ create policy "Allow full access to authenticated admins"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full px-5 py-3.5 bg-heritage-cream/30 border border-heritage-brown/10 rounded-2xl text-xs font-bold text-heritage-brown outline-none focus:border-heritage-terracotta"
+                className="w-full px-5 py-3.5 bg-heritage-cream/30 border border-heritage-brown/10 rounded-2xl text-xs font-bold text-heritage-brown outline-none focus:border-heritage-terracotta font-sans"
                 required
               />
             </div>
@@ -307,7 +311,7 @@ create policy "Allow full access to authenticated admins"
   // VIEW: MAIN SECURE ADMINISTRATOR BOARD
   // ==========================================
   return (
-    <div className="pt-24 min-h-screen bg-heritage-cream">
+    <div className="pt-24 min-h-screen bg-heritage-cream text-left">
       
       {/* Admin Branding Strip */}
       <section className="bg-heritage-brown text-white py-12 px-4 border-b border-white/5">
@@ -317,7 +321,7 @@ create policy "Allow full access to authenticated admins"
               <ShieldCheck className="w-5 h-5 text-heritage-terracotta" />
               <span className="text-[10px] font-black uppercase tracking-[0.3em]">Secure Administrator Interface</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-serif font-black">Archive Management</h1>
+            <h1 className="text-3xl md:text-4xl font-serif font-black">Platform Preservation Control</h1>
           </div>
           
           <div className="flex flex-wrap items-center gap-4">
@@ -326,13 +330,14 @@ create policy "Allow full access to authenticated admins"
               <div className="w-8 h-8 rounded-full bg-heritage-terracotta/20 flex items-center justify-center">
                 <User className="w-4 h-4 text-heritage-sand" />
               </div>
-              <div className="text-left">
-                <p className="text-[8px] font-black uppercase tracking-widest text-heritage-sand">Logged in as</p>
-                <p className="text-xs font-bold truncate max-w-[150px]">{currentUser.email || 'Admin'}</p>
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-widest text-heritage-sand leading-none mb-1">
+                  Role: <span className="text-white font-bold">{userRole.toUpperCase()}</span>
+                </p>
+                <p className="text-xs font-bold truncate max-w-[150px] leading-none text-white">{currentUser.email}</p>
               </div>
             </div>
 
-            {/* Logout */}
             <button
               onClick={handleLogout}
               className="p-3.5 bg-white/5 hover:bg-red-500 hover:text-white text-white rounded-2xl border border-white/10 transition-all cursor-pointer active:scale-90"
@@ -347,7 +352,18 @@ create policy "Allow full access to authenticated admins"
       {/* Tabs navigation bar */}
       <div className="bg-white border-b border-heritage-brown/10">
         <div className="max-w-7xl mx-auto px-4 flex gap-6 overflow-x-auto">
-          {/* Tab: Articles Manager */}
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
+              activeTab === 'dashboard' 
+                ? 'border-heritage-terracotta text-heritage-terracotta' 
+                : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            <span>Overview</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('articles')}
             className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
@@ -357,10 +373,9 @@ create policy "Allow full access to authenticated admins"
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            <span>Articles Publisher</span>
+            <span>Content Publisher</span>
           </button>
 
-          {/* Tab: Contributions review */}
           <button
             onClick={() => setActiveTab('contributions')}
             className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
@@ -370,7 +385,7 @@ create policy "Allow full access to authenticated admins"
             }`}
           >
             <Inbox className="w-4 h-4" />
-            <span>Community Contributions</span>
+            <span>Community Submissions</span>
             {contributions.filter(c => c.status === 'pending').length > 0 && (
               <span className="bg-heritage-terracotta text-white text-[9px] font-black px-2 py-0.5 rounded-full">
                 {contributions.filter(c => c.status === 'pending').length}
@@ -378,17 +393,42 @@ create policy "Allow full access to authenticated admins"
             )}
           </button>
 
-          {/* Tab: Firestore database setup */}
           <button
-            onClick={() => setActiveTab('integration')}
+            onClick={() => setActiveTab('gallery')}
             className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
-              activeTab === 'integration' 
+              activeTab === 'gallery' 
                 ? 'border-heritage-terracotta text-heritage-terracotta' 
                 : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
             }`}
           >
-            <Database className="w-4 h-4" />
-            <span>Database Config</span>
+            <ImageIcon className="w-4 h-4" />
+            <span>Gallery Assets</span>
+          </button>
+
+          {userRole === 'admin' && (
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
+                activeTab === 'users' 
+                  ? 'border-heritage-terracotta text-heritage-terracotta' 
+                  : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>User Roles</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
+              activeTab === 'settings' 
+                ? 'border-heritage-terracotta text-heritage-terracotta' 
+                : 'border-transparent text-heritage-brown/50 hover:text-heritage-brown'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            <span>System Config</span>
           </button>
         </div>
       </div>
@@ -396,47 +436,149 @@ create policy "Allow full access to authenticated admins"
       {/* Tab Contents Frame */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         
-        {/* TAB 1: ARTICLES MANAGER */}
+        {/* TAB: DASHBOARD OVERVIEW */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-8 animate-fade-in">
+            {/* Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-3xl border border-heritage-brown/5 shadow-sm flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-heritage-brown/40">Total Articles</p>
+                  <h3 className="text-3xl font-serif font-black text-heritage-brown mt-1">
+                    {loadingStats ? <Loader2 className="w-6 h-6 animate-spin text-heritage-terracotta" /> : articlesCount}
+                  </h3>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-heritage-terracotta/10 flex items-center justify-center text-heritage-terracotta">
+                  <BookOpen className="w-6 h-6" />
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-heritage-brown/5 shadow-sm flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-heritage-brown/40">Pending Vetting</p>
+                  <h3 className="text-3xl font-serif font-black text-heritage-brown mt-1">
+                    {loadingStats ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-heritage-terracotta" />
+                    ) : (
+                      contributions.filter(c => c.status === 'pending').length
+                    )}
+                  </h3>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-heritage-olive/10 flex items-center justify-center text-heritage-olive">
+                  <Inbox className="w-6 h-6" />
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-heritage-brown/5 shadow-sm flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-heritage-brown/40">Gallery Assets</p>
+                  <h3 className="text-3xl font-serif font-black text-heritage-brown mt-1">
+                    {loadingStats ? <Loader2 className="w-6 h-6 animate-spin text-heritage-terracotta" /> : galleryImages.length}
+                  </h3>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-heritage-brown/5 shadow-sm flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-heritage-brown/40">Preservationists</p>
+                  <h3 className="text-3xl font-serif font-black text-heritage-brown mt-1">
+                    {loadingStats ? <Loader2 className="w-6 h-6 animate-spin text-heritage-terracotta" /> : usersList.length}
+                  </h3>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                  <Users className="w-6 h-6" />
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Summary Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left Column: Platform Preservation Status */}
+              <div className="lg:col-span-2 bg-white rounded-[32px] p-8 border border-heritage-brown/5 shadow-sm space-y-6">
+                <div>
+                  <h2 className="text-2xl font-serif font-bold text-heritage-brown">Preservation Activity Log</h2>
+                  <p className="text-xs text-heritage-brown/50">Historical contributions currently undergoing digitization or community audit.</p>
+                </div>
+
+                <div className="divide-y divide-heritage-brown/5">
+                  {contributions.slice(0, 4).map(c => (
+                    <div key={c.id} className="py-4 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <img src={c.imageUrl} className="w-12 h-12 rounded-xl object-cover shrink-0 border" alt="" />
+                        <div>
+                          <h4 className="font-serif font-bold text-heritage-brown leading-tight">{c.title}</h4>
+                          <p className="text-[10px] text-heritage-brown/40 font-medium">By {c.userEmail} • {c.type.toUpperCase()}</p>
+                        </div>
+                      </div>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border shrink-0 ${
+                        c.status === 'approved' ? 'bg-heritage-olive/10 text-heritage-olive border-heritage-olive/20' :
+                        c.status === 'rejected' ? 'bg-red-50 text-red-500 border-red-500/20' :
+                        'bg-heritage-terracotta/10 text-heritage-terracotta border-heritage-terracotta/20'
+                      }`}>
+                        {c.status}
+                      </span>
+                    </div>
+                  ))}
+                  {contributions.length === 0 && (
+                    <div className="py-12 text-center text-heritage-brown/40 text-xs font-semibold">
+                      No community activity logged yet.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Platform Information Panel */}
+              <div className="bg-heritage-olive text-white rounded-[32px] p-8 space-y-6 flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
+                    <Heart className="w-6 h-6 text-heritage-sand" />
+                  </div>
+                  <h3 className="text-2xl font-serif font-bold text-white">Preserving Bakenyi Heritage</h3>
+                  <p className="text-xs text-white/80 leading-relaxed font-medium">
+                    This administrative interface controls content published to the Bakenye platform. Approve community submissions to dynamically update our Digital Gallery and publish custom-written educational histories.
+                  </p>
+                </div>
+                <div className="pt-6 border-t border-white/10 text-[10px] font-mono text-white/60">
+                  Bakenye Platform Server • Active
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: CONTENT PUBLISHER */}
         {activeTab === 'articles' && (
           <div className="animate-fade-in">
             <ArticlesManager />
           </div>
         )}
 
-        {/* TAB 2: ORIGINAL ARCHIVE REVIEW PROCESS */}
+        {/* TAB: COMMUNITY SUBMISSIONS */}
         {activeTab === 'contributions' && (
           <div className="space-y-6 animate-fade-in">
-            <div className="flex justify-between items-center pb-4 border-b border-heritage-brown/10">
-              <div>
-                <h2 className="text-xl font-serif font-black text-heritage-brown">Review Archive Submissions</h2>
-                <p className="text-xs text-heritage-brown/50 font-semibold">Verify and moderate heritage media items sent in by the community</p>
-              </div>
+            <div>
+              <h2 className="text-2xl font-serif font-bold text-heritage-brown">Vetting Queue</h2>
+              <p className="text-xs text-heritage-brown/50">Moderate and approve cultural items submitted by public contributors.</p>
             </div>
 
-            {contribsLoading ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 className="w-10 h-10 text-heritage-terracotta animate-spin mb-4" />
-                <p className="text-heritage-brown/40 font-bold uppercase tracking-widest text-xs">Loading submissions...</p>
-              </div>
-            ) : contributions.length === 0 ? (
+            {contributions.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-[32px] border border-heritage-brown/5 shadow-sm p-8">
                 <Inbox className="w-12 h-12 text-heritage-brown/20 mx-auto mb-4" />
-                <p className="text-heritage-brown font-black text-sm">No submissions in queue</p>
-                <p className="text-heritage-brown/40 text-xs mt-1">When public users upload media on the Contribute page, it will populate here for vetting.</p>
+                <p className="text-heritage-brown font-black text-sm">Vetting queue is empty</p>
+                <p className="text-heritage-brown/40 text-xs mt-1">Community submissions will appear here for audit before public archiving.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {contributions.map((item) => (
                   <div 
                     key={item.id}
-                    className="bg-white rounded-[28px] overflow-hidden shadow-sm border border-heritage-brown/5 flex flex-col h-full group"
+                    className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-heritage-brown/5 flex flex-col h-full"
                   >
                     <div className="aspect-video relative overflow-hidden bg-heritage-cream/50">
-                      <img 
-                        src={item.imageUrl} 
-                        alt={item.title} 
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
                       <div className="absolute top-4 left-4">
                         <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
                           item.status === 'approved' ? 'bg-heritage-olive/10 text-heritage-olive border-heritage-olive/20' :
@@ -448,40 +590,36 @@ create policy "Allow full access to authenticated admins"
                       </div>
                     </div>
 
-                    <div className="p-6 flex-grow flex flex-col">
-                      <div className="flex items-center justify-between mb-3 text-[10px] font-black uppercase tracking-widest text-heritage-brown/40">
-                        <span>Type: {item.type}</span>
-                        <span>{item.submittedAt?.toDate().toLocaleDateString()}</span>
+                    <div className="p-6 flex-grow flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-3 text-[9px] font-black uppercase tracking-widest text-heritage-brown/40">
+                          <span>{item.type.toUpperCase()}</span>
+                          <span>{item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}</span>
+                        </div>
+                        <h3 className="text-lg font-serif font-bold text-heritage-brown mb-2">{item.title}</h3>
+                        <p className="text-xs text-heritage-brown/60 leading-relaxed mb-6 italic">
+                          "{item.description}"
+                        </p>
                       </div>
-                      <h3 className="text-lg font-serif font-bold text-heritage-brown mb-2">{item.title}</h3>
-                      <p className="text-xs text-heritage-brown/60 leading-relaxed mb-6 line-clamp-3 italic">
-                        "{item.description}"
-                      </p>
                       
-                      <div className="mt-auto space-y-4 pt-4 border-t border-heritage-brown/5">
-                        <p className="text-[10px] font-mono text-heritage-brown/40 truncate">Sender: {item.userEmail || item.userId}</p>
-                        <div className="flex gap-1.5">
+                      <div className="space-y-4 pt-4 border-t border-heritage-brown/5 mt-auto">
+                        <p className="text-[10px] font-mono text-heritage-brown/40 truncate">Sender: {item.userEmail}</p>
+                        <div className="flex gap-2">
                           <button 
-                            onClick={() => updateStatus(item.id, 'approved')}
+                            onClick={() => handleReviewContribution(item, 'approved')}
                             disabled={item.status === 'approved'}
-                            className="flex-grow flex items-center justify-center space-x-2 py-2.5 bg-heritage-olive/10 text-heritage-olive hover:bg-heritage-olive hover:text-white rounded-xl transition-all text-[10px] font-black uppercase tracking-widest disabled:opacity-30 cursor-pointer"
+                            className="flex-grow flex items-center justify-center space-x-2 py-2.5 bg-heritage-olive/15 text-heritage-olive hover:bg-heritage-olive hover:text-white rounded-xl transition-all text-[10px] font-black uppercase tracking-widest disabled:opacity-30 cursor-pointer"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             <span>Approve</span>
                           </button>
                           <button 
-                            onClick={() => updateStatus(item.id, 'rejected')}
+                            onClick={() => handleReviewContribution(item, 'rejected')}
                             disabled={item.status === 'rejected'}
                             className="flex-grow flex items-center justify-center space-x-2 py-2.5 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all text-[10px] font-black uppercase tracking-widest disabled:opacity-30 cursor-pointer"
                           >
                             <XCircle className="w-3.5 h-3.5" />
                             <span>Reject</span>
-                          </button>
-                          <button 
-                            onClick={() => removeContribution(item.id)}
-                            className="p-2.5 bg-heritage-brown/5 hover:bg-red-500 text-heritage-brown/40 hover:text-white rounded-xl transition-all cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
@@ -493,140 +631,159 @@ create policy "Allow full access to authenticated admins"
           </div>
         )}
 
-        {/* TAB 3: INTEGRATION MONITORING & SCHEMAS */}
-        {activeTab === 'integration' && (
+        {/* TAB: GALLERY ASSETS */}
+        {activeTab === 'gallery' && (
+          <div className="space-y-6 animate-fade-in">
+            <div>
+              <h2 className="text-2xl font-serif font-bold text-heritage-brown">Archive Assets</h2>
+              <p className="text-xs text-heritage-brown/50">Manage images displayed in the public Digital Gallery.</p>
+            </div>
+
+            {galleryImages.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-[32px] border border-heritage-brown/5 shadow-sm p-8">
+                <ImageIcon className="w-12 h-12 text-heritage-brown/20 mx-auto mb-4" />
+                <p className="text-heritage-brown font-black text-sm">Digital gallery is empty</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {galleryImages.map((img) => (
+                  <div key={img.id} className="bg-white rounded-[24px] overflow-hidden shadow-sm border border-heritage-brown/5 flex flex-col">
+                    <div className="aspect-video relative overflow-hidden bg-heritage-cream/50">
+                      <img src={img.imageUrl} alt={img.title} className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => handleDeleteGalleryItem(img.id)}
+                        className="absolute top-3 right-3 p-2 bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all cursor-pointer border border-red-100"
+                        title="Delete Gallery Item"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="p-4">
+                      <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-heritage-olive/10 text-heritage-olive">
+                        {img.category}
+                      </span>
+                      <h4 className="font-serif font-bold text-heritage-brown truncate mt-2">{img.title}</h4>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB: USER ROLES */}
+        {activeTab === 'users' && userRole === 'admin' && (
+          <div className="space-y-6 animate-fade-in">
+            <div>
+              <h2 className="text-2xl font-serif font-bold text-heritage-brown">User Permission Control</h2>
+              <p className="text-xs text-heritage-brown/50">Inspect registered cultural contributors and delegate administrative permissions.</p>
+            </div>
+
+            <div className="bg-white rounded-[32px] overflow-hidden border border-heritage-brown/5 shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-heritage-cream/40 border-b border-heritage-brown/10">
+                      <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-heritage-brown/50">Email</th>
+                      <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-heritage-brown/50">Role</th>
+                      <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-heritage-brown/50">Created At</th>
+                      <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-heritage-brown/50 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-heritage-brown/5">
+                    {usersList.map((usr) => (
+                      <tr key={usr.id} className="hover:bg-heritage-cream/10">
+                        <td className="px-6 py-4 font-semibold text-sm text-heritage-brown">{usr.email}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                            usr.role === 'admin' ? 'bg-red-50 text-red-500 border-red-500/20' :
+                            usr.role === 'staff' ? 'bg-indigo-50 text-indigo-500 border-indigo-500/20' :
+                            'bg-heritage-olive/10 text-heritage-olive border-heritage-olive/20'
+                          }`}>
+                            {usr.role || 'customer'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-xs text-heritage-brown/50 font-medium">
+                          {usr.created_at ? new Date(usr.created_at).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 text-right shrink-0">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleUpdateUserRole(usr.id, 'admin')}
+                              disabled={usr.role === 'admin'}
+                              className="px-3 py-1.5 bg-red-50 hover:bg-red-500 text-red-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-30 cursor-pointer"
+                            >
+                              Make Admin
+                            </button>
+                            <button
+                              onClick={() => handleUpdateUserRole(usr.id, 'customer')}
+                              disabled={usr.role === 'customer' || !usr.role}
+                              className="px-3 py-1.5 bg-heritage-olive/10 hover:bg-heritage-olive text-heritage-olive hover:text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-30 cursor-pointer"
+                            >
+                              Revoke Admin
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: SYSTEM CONFIG */}
+        {activeTab === 'settings' && (
           <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-            {/* Status Check Card */}
-            <div className="bg-white border border-heritage-brown/10 rounded-[32px] p-6 md:p-8 shadow-sm space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-heritage-olive/10 text-heritage-olive">
-                  <Database className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-serif font-bold text-heritage-brown">Connection Verification</h3>
-                  <p className="text-xs text-heritage-brown/50 font-medium">Firestore database status monitoring</p>
-                </div>
+            <div className="bg-white border border-heritage-brown/10 rounded-[32px] p-8 shadow-sm space-y-6">
+              <div>
+                <h2 className="text-2xl font-serif font-bold text-heritage-brown">System Integration Status</h2>
+                <p className="text-sm text-heritage-brown/50">Your Bakenyi platform is configured with secure row-level security policy layers.</p>
               </div>
 
-              <div className="bg-heritage-olive/5 border border-heritage-olive/10 p-4 rounded-xl flex items-start gap-3">
-                <Check className="w-5 h-5 text-heritage-olive mt-0.5 shrink-0" />
-                <div className="text-xs text-heritage-olive space-y-1">
-                  <p className="font-bold uppercase tracking-wider">FIRESTORE ACTIVE & CONFIGURED</p>
-                  <p className="font-medium text-heritage-brown/80 leading-relaxed">
-                    The platform is securely connected to your cloud-hosted, zero-trust Firebase Firestore database. All articles, research, assets, and community contribution pipelines are persisted natively on Firestore. No SQL/Supabase schema setup is required!
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <div className="p-5 bg-heritage-cream/30 rounded-2xl border border-heritage-brown/5">
+                  <span className="text-[10px] font-black text-heritage-terracotta uppercase tracking-wider">Active Database Schema</span>
+                  <p className="text-lg font-serif font-bold text-heritage-brown mt-1">Supabase PostgreSQL</p>
+                  <p className="text-xs text-heritage-brown/60 leading-relaxed mt-1 font-medium">
+                    All updates are saved securely inside database tables including profiles, articles, gallery, and contributions.
+                  </p>
+                </div>
+
+                <div className="p-5 bg-heritage-cream/30 rounded-2xl border border-heritage-brown/5">
+                  <span className="text-[10px] font-black text-heritage-terracotta uppercase tracking-wider">Authentication Layer</span>
+                  <p className="text-lg font-serif font-bold text-heritage-brown mt-1">Supabase GoAuth / JWT</p>
+                  <p className="text-xs text-heritage-brown/60 leading-relaxed mt-1 font-medium">
+                    Protects client-side queries, monitors contributor identity, and structures platform-level roles.
                   </p>
                 </div>
               </div>
-            </div>
 
-            {/* SQL Blueprint Copy Card */}
-            <div className="bg-white border border-heritage-brown/10 rounded-[32px] p-6 md:p-8 shadow-sm space-y-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-heritage-terracotta/10 text-heritage-terracotta rounded-full flex items-center justify-center">
-                    <Terminal className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-serif font-bold text-heritage-brown">Supabase SQL Blueprint</h3>
-                    <p className="text-xs text-heritage-brown/50 font-medium">Execute this schema in your Supabase SQL Editor to provision tables</p>
-                  </div>
-                </div>
+              <div className="pt-6 border-t border-heritage-brown/5">
+                <h4 className="text-xs font-black uppercase tracking-widest text-heritage-brown/50 mb-4 flex items-center gap-1.5">
+                  <FileCode className="w-4 h-4 text-heritage-terracotta" />
+                  <span>Row Level Security (RLS) Configuration Schema</span>
+                </h4>
                 
-                <button
-                  onClick={copySqlToClipboard}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-heritage-terracotta hover:bg-heritage-brown text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-sm"
-                >
-                  {copiedSql ? (
-                    <>
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy SQL</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Code Pre Box */}
-              <div className="bg-heritage-brown/5 rounded-2xl p-5 border border-heritage-brown/10 font-mono text-[10px] overflow-x-auto text-heritage-brown/80 leading-relaxed max-h-[350px]">
-                <pre>{`-- 1. CREATE THE ARTICLES TABLE
-create table if not exists public.articles (
-  id text primary key,
-  title text not null,
-  excerpt text not null,
-  content text not null,
-  category text not null,
-  author text not null,
-  "publishedAt" text not null,
-  "imageUrl" text,
-  "pdfUrl" text,
-  views integer default 0,
-  tags text[] default array[]::text[],
-  "additionalImages" text[] default array[]::text[],
-  status text default 'draft'
-);
-
--- 2. ENABLE ROW LEVEL SECURITY (RLS)
+                <div className="bg-slate-950 rounded-2xl p-6 overflow-x-auto relative group font-mono text-xs text-slate-300 text-left">
+                  <pre className="leading-relaxed">
+{`-- Articles security policies
 alter table public.articles enable row level security;
 
--- Policies for Articles
 create policy "Allow public read access to published articles" 
-  on public.articles for select 
-  using (status = 'published');
+  on public.articles for select using (status = 'published');
 
 create policy "Allow full access to authenticated admins" 
-  on public.articles for all 
-  to authenticated 
-  using (true);`}</pre>
-              </div>
-            </div>
-
-            {/* Storage Buckets Instructions Card */}
-            <div className="bg-white border border-heritage-brown/10 rounded-[32px] p-6 md:p-8 shadow-sm space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-heritage-olive/10 text-heritage-olive rounded-full flex items-center justify-center">
-                  <FileCode className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-serif font-bold text-heritage-brown">Required Storage Buckets</h3>
-                  <p className="text-xs text-heritage-brown/50 font-medium">Configure Supabase Storage to handle uploads securely</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold leading-relaxed text-heritage-brown">
-                <div className="border border-heritage-brown/10 p-5 rounded-2xl space-y-1 bg-heritage-cream/10">
-                  <p className="font-black text-heritage-terracotta uppercase">Bucket 1: featured-images</p>
-                  <p className="text-heritage-brown/70">Used for uploading featured banner images for articles.</p>
-                  <p className="pt-2 text-[10px] font-bold text-heritage-brown/50">🔒 Set access to: <span className="font-black text-heritage-brown">Public</span></p>
-                </div>
-                
-                <div className="border border-heritage-brown/10 p-5 rounded-2xl space-y-1 bg-heritage-cream/10">
-                  <p className="font-black text-heritage-terracotta uppercase">Bucket 2: pdf-attachments</p>
-                  <p className="text-heritage-brown/70">Used for uploading custom research files and historical documents.</p>
-                  <p className="pt-2 text-[10px] font-bold text-heritage-brown/50">🔒 Set access to: <span className="font-black text-heritage-brown">Public</span></p>
+  on public.articles for all to authenticated using (true);`}
+                  </pre>
                 </div>
               </div>
             </div>
-
           </div>
         )}
 
       </main>
-
-      {/* Integrity Disclaimer strip */}
-      <footer className="py-16 bg-white border-t border-heritage-brown/5 text-center px-4 mt-12">
-        <div className="max-w-2xl mx-auto space-y-4">
-          <ShieldCheck className="w-10 h-10 text-heritage-terracotta mx-auto" />
-          <h2 className="text-2xl font-serif font-bold text-heritage-brown">Administrator Code of Ethics</h2>
-          <p className="text-heritage-brown/60 text-xs leading-relaxed max-w-lg mx-auto font-medium">
-            You hold the key to the digital archives of the Bakenyi people. Ensure that all published resources are accurate, respectful, and contribute to the long-term documentation and defense of our culture.
-          </p>
-        </div>
-      </footer>
-
     </div>
   );
 }

@@ -1,19 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History } from 'lucide-react';
-import { auth, db } from '../lib/firebase';
-import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../lib/firestoreUtils';
-
-interface UserContribution {
-  id: string;
-  title: string;
-  status: 'pending' | 'approved' | 'rejected';
-  submittedAt: Timestamp;
-  imageUrl: string;
-  type: string;
-}
+import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History, Mail, Lock, User as UserIcon } from 'lucide-react';
+import { getSupabase } from '../lib/supabaseClient';
+import { getContributions, createContribution, uploadMedia, Contribution } from '../lib/supabase';
 
 const steps = [
   {
@@ -43,70 +32,132 @@ const steps = [
 ];
 
 export default function Contribute() {
-  const [user, setUser] = useState<User | null>(null);
+  const supabase = getSupabase();
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [myContributions, setMyContributions] = useState<UserContribution[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [myContributions, setMyContributions] = useState<Contribution[]>([]);
+  
+  // Auth Form State
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     type: 'photo'
   });
 
+  // Track Auth state
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
-    return () => unsubscribe();
-  }, []);
+    if (!supabase) return;
 
+    supabase.auth.getSession().then(({ data: { session } }: any) => {
+      setUser(session?.user || null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  // Load contributions
   useEffect(() => {
     if (!user) {
       setMyContributions([]);
       return;
     }
 
-    const q = query(
-      collection(db, 'contributions'),
-      where('userId', '==', user.uid),
-      orderBy('submittedAt', 'desc')
-    );
+    async function loadMyContributions() {
+      const list = await getContributions(user.id);
+      setMyContributions(list);
+    }
+    loadMyContributions();
+  }, [user, submitted]);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as UserContribution[];
-      setMyContributions(items);
-    }, (error) => {
-      console.error("Error fetching my contributions:", error);
-    });
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase) return;
+    setLoading(true);
+    setAuthError(null);
 
-    return () => unsubscribe();
-  }, [user]);
-
-  const handleLogin = async () => {
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login failed:", error);
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email: authEmail,
+          password: authPassword
+        });
+        if (error) throw error;
+        
+        // Auto insert profile row
+        await supabase.from('profiles').upsert({
+          id: data.user?.id,
+          email: authEmail,
+          role: 'customer',
+          is_admin: false,
+          updated_at: new Date().toISOString()
+        });
+
+        alert("Sign up successful! You are now logged in.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: authPassword
+        });
+        if (error) throw error;
+      }
+    } catch (err: any) {
+      setAuthError(err.message || 'Authentication failed.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLoginWithGoogle = async () => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/contribute'
+        }
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("OAuth login failed:", error);
+      setAuthError("Google Sign-In is unavailable or blocked in this context. Please use the email form.");
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 800000) { // Limit to ~800KB for Firestore safety
-        alert("Photo is too large for the demo database (Limit 800KB). Please select a smaller image.");
-        return;
+      setUploadingFile(true);
+      try {
+        const { url, error } = await uploadMedia(file, 'images');
+        if (error) throw error;
+        setPreviewUrl(url);
+      } catch (err: any) {
+        alert(err.message || "Failed to upload image. Using local preview fallback.");
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreviewUrl(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } finally {
+        setUploadingFile(false);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -115,25 +166,25 @@ export default function Contribute() {
     if (!user) return;
 
     setLoading(true);
-    const path = 'contributions';
     try {
-      await addDoc(collection(db, path), {
-        userId: user.uid,
-        userEmail: user.email,
-        title: formData.title,
-        description: formData.description,
-        type: formData.type,
-        status: 'pending',
-        submittedAt: serverTimestamp(),
-        // Storing the base64 string in Firestore for this demo
-        imageUrl: previewUrl || "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800" 
-      });
+      const imgUrl = previewUrl || "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800";
+      const { error } = await createContribution(
+        formData.title,
+        formData.description,
+        formData.type,
+        imgUrl,
+        user.email || 'anonymous@bakenyi.org',
+        user.id
+      );
+
+      if (error) throw error;
+
       setSubmitted(true);
       setFormData({ title: '', description: '', type: 'photo' });
       setPreviewUrl(null);
       setTimeout(() => setSubmitted(false), 5000);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, path);
+    } catch (error: any) {
+      alert(error.message || "Failed to submit contribution.");
     } finally {
       setLoading(false);
     }
@@ -162,52 +213,114 @@ export default function Contribute() {
       <section className="py-24 px-4 max-w-4xl mx-auto">
         <div className="heritage-card bg-white p-8 md:p-12 shadow-xl rounded-[40px] border-2 border-heritage-brown/5">
           {!user ? (
-            <div className="text-center py-12">
-              <div className="w-20 h-20 bg-heritage-terracotta/10 rounded-full flex items-center justify-center mx-auto mb-8">
-                <LogIn className="w-10 h-10 text-heritage-terracotta" />
+            <div className="max-w-md mx-auto py-6">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-heritage-terracotta/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <LogIn className="w-8 h-8 text-heritage-terracotta" />
+                </div>
+                <h2 className="text-2xl font-serif font-bold text-heritage-brown">Sign In to Contribute</h2>
+                <p className="text-sm text-heritage-brown/60 mt-2">
+                  To keep our archive secure and credit our contributors, we require a verified account.
+                </p>
               </div>
-              <h2 className="text-3xl font-serif font-bold text-heritage-brown mb-4">First, Sign In</h2>
-              <p className="text-heritage-brown/60 mb-10 max-w-md mx-auto">
-                To keep our archive secure and credit our contributors, we require a verified account.
-              </p>
-              <button 
-                onClick={handleLogin}
-                className="btn-primary flex items-center mx-auto space-x-3 px-10 py-4 shadow-lg shadow-heritage-terracotta/20"
-              >
-                <Globe className="w-5 h-5" />
-                <span>Continue with Google</span>
-              </button>
+
+              {authError && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-bold text-left">
+                  {authError}
+                </div>
+              )}
+
+              <form onSubmit={handleEmailAuth} className="space-y-4 text-left">
+                <div className="space-y-1">
+                  <label className="text-xs font-black uppercase tracking-wider text-heritage-brown/60">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-heritage-brown/40" />
+                    <input 
+                      required
+                      type="email"
+                      placeholder="you@example.com"
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                      className="w-full pl-12 pr-6 py-3.5 bg-heritage-cream/30 border-2 border-transparent focus:border-heritage-terracotta/20 rounded-xl outline-none font-medium text-heritage-brown"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-black uppercase tracking-wider text-heritage-brown/60">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-heritage-brown/40" />
+                    <input 
+                      required
+                      type="password"
+                      placeholder="••••••••"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      className="w-full pl-12 pr-6 py-3.5 bg-heritage-cream/30 border-2 border-transparent focus:border-heritage-terracotta/20 rounded-xl outline-none font-medium text-heritage-brown"
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  disabled={loading}
+                  type="submit"
+                  className="w-full btn-primary py-4 font-bold flex items-center justify-center space-x-2 mt-6 cursor-pointer"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                  <span>{isSignUp ? 'Create Cultural Profile' : 'Sign In Now'}</span>
+                </button>
+              </form>
+
+              <div className="mt-6 text-center space-y-4">
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-xs font-bold uppercase tracking-widest text-heritage-terracotta hover:underline cursor-pointer"
+                >
+                  {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+                </button>
+
+                <div className="relative flex py-2 items-center">
+                  <div className="flex-grow border-t border-heritage-brown/10"></div>
+                  <span className="flex-shrink mx-4 text-xs font-black uppercase tracking-widest text-heritage-brown/30">Or</span>
+                  <div className="flex-grow border-t border-heritage-brown/10"></div>
+                </div>
+
+                <button 
+                  onClick={handleLoginWithGoogle}
+                  className="w-full py-3 px-6 bg-white border-2 border-heritage-brown/10 hover:border-heritage-terracotta/30 text-heritage-brown font-bold rounded-xl flex items-center justify-center space-x-3 transition-colors cursor-pointer"
+                >
+                  <Globe className="w-5 h-5 text-blue-500" />
+                  <span>Continue with Google</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div>
               <div className="flex items-center justify-between mb-12 pb-8 border-b border-heritage-brown/10">
                 <div className="flex items-center space-x-4">
-                  {user.photoURL ? (
-                    <img src={user.photoURL} className="w-12 h-12 rounded-full border-2 border-heritage-terracotta" alt="Profile" />
-                  ) : (
-                    <div className="w-12 h-12 bg-heritage-brown rounded-full flex items-center justify-center text-white">
-                      {user.displayName?.charAt(0)}
-                    </div>
-                  )}
-                  <div>
+                  <div className="w-12 h-12 bg-heritage-terracotta rounded-full flex items-center justify-center text-white font-bold uppercase">
+                    {user.email?.charAt(0)}
+                  </div>
+                  <div className="text-left">
                     <p className="text-xs font-black uppercase tracking-widest text-heritage-terracotta">Logged in as</p>
-                    <p className="font-serif font-bold text-heritage-brown">{user.displayName || user.email}</p>
+                    <p className="font-serif font-bold text-heritage-brown">{user.email}</p>
                   </div>
                 </div>
                 <button 
-                  onClick={() => auth.signOut()}
-                  className="text-xs font-black uppercase tracking-widest text-heritage-brown/40 hover:text-heritage-terracotta transition-colors"
+                  onClick={handleSignOut}
+                  className="text-xs font-black uppercase tracking-widest text-heritage-brown/40 hover:text-heritage-terracotta transition-colors cursor-pointer"
                 >
                   Log Out
                 </button>
               </div>
 
-              <h2 className="text-3xl font-serif font-bold text-heritage-brown mb-8 flex items-center">
+              <h2 className="text-3xl font-serif font-bold text-heritage-brown mb-8 flex items-center text-left">
                 <Camera className="w-8 h-8 mr-4 text-heritage-terracotta" />
                 Submit a Local Photo
               </h2>
 
-              <form onSubmit={handleSubmit} className="space-y-8">
+              <form onSubmit={handleSubmit} className="space-y-8 text-left">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
                     <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Title of Item</label>
@@ -258,7 +371,12 @@ export default function Contribute() {
                       onChange={handleFileChange}
                     />
                     <label htmlFor="file-upload" className="cursor-pointer block">
-                      {previewUrl ? (
+                      {uploadingFile ? (
+                        <div className="py-8">
+                          <Loader2 className="w-8 h-8 text-heritage-terracotta animate-spin mx-auto mb-2" />
+                          <p className="text-xs font-bold text-heritage-brown/50 uppercase tracking-widest">Uploading to Cloud...</p>
+                        </div>
+                      ) : previewUrl ? (
                         <div className="relative group">
                           <img src={previewUrl} className="max-h-64 mx-auto rounded-xl shadow-lg border-4 border-white" alt="Preview" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-xl transition-opacity">
@@ -284,9 +402,9 @@ export default function Contribute() {
                     By submitting, you agree to allow the Bakenyi Heritage Committee to archive and display this content publicly.
                   </p>
                   <button 
-                    disabled={loading || submitted}
+                    disabled={loading || submitted || uploadingFile}
                     type="submit"
-                    className={`btn-primary flex items-center space-x-3 px-12 py-4 transition-all ${
+                    className={`btn-primary flex items-center space-x-3 px-12 py-4 transition-all cursor-pointer ${
                       submitted ? 'bg-heritage-olive ring-4 ring-heritage-olive/20' : ''
                     }`}
                   >
@@ -331,7 +449,7 @@ export default function Contribute() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {myContributions.map((item) => (
-                <div key={item.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-heritage-brown/5 flex flex-col">
+                <div key={item.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-heritage-brown/5 flex flex-col text-left">
                   <div className="aspect-video relative overflow-hidden bg-heritage-cream/50">
                     <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
                     <div className="absolute top-2 left-2">
@@ -348,7 +466,7 @@ export default function Contribute() {
                     <div className="text-[9px] font-black uppercase tracking-widest text-heritage-terracotta mb-1">{item.type}</div>
                     <h4 className="font-serif font-bold text-heritage-brown truncate">{item.title}</h4>
                     <p className="text-[10px] text-heritage-brown/40 mt-2">
-                      {item.submittedAt?.toDate().toLocaleDateString()}
+                      {item.created_at ? new Date(item.created_at).toLocaleDateString() : new Date().toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -363,7 +481,7 @@ export default function Contribute() {
         <h3 className="text-center text-heritage-brown/40 text-[10px] font-black uppercase tracking-[0.5em] mb-16">The Archiving Process</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {steps.map((step) => (
-            <div key={step.id} className="relative p-8 bg-white border border-heritage-brown/5 rounded-3xl hover:shadow-lg transition-all group">
+            <div key={step.id} className="relative p-8 bg-white border border-heritage-brown/5 rounded-3xl hover:shadow-lg transition-all group text-left">
               <div className="text-4xl font-serif font-black text-heritage-brown/5 absolute top-4 right-6">{step.id}</div>
               <div className={`w-14 h-14 rounded-2xl bg-${step.color}/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
                 <step.icon className={`w-7 h-7 text-${step.color}`} />
@@ -377,5 +495,3 @@ export default function Contribute() {
     </div>
   );
 }
-
-
