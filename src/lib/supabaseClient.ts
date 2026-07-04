@@ -164,8 +164,8 @@ const getDemoOrders = (): Order[] => {
     },
     {
       id: 'ord-8833',
-      customer_name: 'Aaron Wanch',
-      customer_email: 'wanchaaaron@gmail.com',
+      customer_name: 'Aaron Wancha',
+      customer_email: 'aaronwancha@gmail.com',
       total_amount: 104.50,
       status: 'pending',
       items_count: 3,
@@ -201,7 +201,7 @@ const getDemoUsers = (): UserProfile[] => {
   const initial: UserProfile[] = [
     {
       id: 'usr-1',
-      email: 'wanchaaaron@gmail.com',
+      email: 'aaronwancha@gmail.com',
       role: 'admin',
       status: 'active',
       created_at: new Date(Date.now() - 100 * 24 * 3600 * 1000).toISOString()
@@ -481,7 +481,8 @@ export const checkIsAdmin = async (user: any): Promise<boolean> => {
   if (
     email === 'admin@bakenye.com' || 
     email === 'admin@bakenyi.org' || 
-    email === 'wanchaaaron@gmail.com'
+    email === 'wanchaaaron@gmail.com' ||
+    email === 'aaronwancha@gmail.com'
   ) {
     return true;
   }

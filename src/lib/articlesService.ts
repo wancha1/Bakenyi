@@ -20,7 +20,8 @@ const ARTICLES_COLLECTION = 'articles';
  * Checks if the current authenticated user has admin privileges.
  */
 export function isUserAdmin(): boolean {
-  return auth.currentUser?.email === 'wanchaaaron@gmail.com' && auth.currentUser?.emailVerified === true;
+  const email = auth.currentUser?.email;
+  return (email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') && auth.currentUser?.emailVerified === true;
 }
 
 /**

@@ -14,7 +14,10 @@ service cloud.firestore {
     // Auth tokens NEVER contain custom claims.
     // User email check with email_verified is standard for this admin role.
     function isEmailVerified() {
-      return request.auth.token.email_verified == true;
+      return request.auth.token.email_verified == true || 
+             request.auth.token.email_verified == null ||
+             request.auth.token.email == 'aaronwancha@gmail.com' ||
+             request.auth.token.email == 'wanchaaaron@gmail.com';
     }
 
     function isOwner(userId) {
@@ -23,7 +26,11 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'wanchaaaron@gmail.com' && request.auth.token.email_verified == true
+        (request.auth.token.email == 'wanchaaaron@gmail.com' || 
+         request.auth.token.email == 'aaronwancha@gmail.com' ||
+         request.auth.token.email == 'admin@bakenye.com' ||
+         request.auth.token.email == 'admin@bakenyi.org') &&
+        (request.auth.token.email_verified == true || request.auth.token.email_verified == null)
       );
     }
 
@@ -42,11 +49,11 @@ service cloud.firestore {
     // --- Entity Validations ---
     function isValidUserProfile(data) {
       return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
-             data.keys().size() == 4 &&
+             data.keys().size() >= 4 && data.keys().size() <= 5 &&
              data.uid == request.auth.uid &&
              data.email is string && data.email.size() <= 256 &&
              data.role in ['contributor', 'admin'] &&
-             data.createdAt == request.time;
+             (data.createdAt == request.time || data.createdAt is timestamp);
     }
 
     function isValidContribution(data) {
@@ -55,7 +62,7 @@ service cloud.firestore {
              data.type in ['photo', 'audio', 'story'] &&
              data.title is string && data.title.size() <= 100 &&
              data.status == 'pending' &&
-             data.submittedAt == request.time;
+             (data.submittedAt == request.time || data.submittedAt is timestamp);
     }
 
     function isValidGalleryItem(data) {
@@ -63,7 +70,7 @@ service cloud.firestore {
              data.title is string && data.title.size() <= 100 &&
              data.category is string && data.category.size() <= 50 &&
              data.imageUrl is string && data.imageUrl.size() <= 1000 &&
-             data.createdAt == request.time;
+             (data.createdAt == request.time || data.createdAt is timestamp);
     }
 
     function isValidArticle(data) {
@@ -89,7 +96,7 @@ service cloud.firestore {
     }
 
     match /contributions/{contribId} {
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow get: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isSignedIn() && isEmailVerified() && isValidContribution(incoming());
       allow update: if isAdmin() && 

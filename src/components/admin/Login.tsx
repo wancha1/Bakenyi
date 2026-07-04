@@ -148,7 +148,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         if (mode === 'signin') {
           // Match standard sandbox credentials
           if (
-            (lowerEmail === 'admin@bakenye.com' || lowerEmail === 'wanchaaaron@gmail.com' || lowerEmail === 'admin@bakenyi.org') && 
+            (lowerEmail === 'admin@bakenye.com' || lowerEmail === 'wanchaaaron@gmail.com' || lowerEmail === 'aaronwancha@gmail.com' || lowerEmail === 'admin@bakenyi.org') && 
             password === 'admin123'
           ) {
             const mockUser = {
@@ -207,7 +207,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         setIsLoading(false);
         const mockUser = {
           id: 'sandbox-google-user-uuid',
-          email: 'wanchaaaron@gmail.com',
+          email: 'aaronwancha@gmail.com',
           role: 'admin',
           user_metadata: { name: 'Google Admin' }
         };

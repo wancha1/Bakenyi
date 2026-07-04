@@ -46,7 +46,7 @@ export async function signIn(email: string, password: string): Promise<{ user: a
     return { user: userCredential.user, error: null };
   } catch (fbErr: any) {
     // Fallback to emulated credentials if Firebase Auth fails or is unconfigured
-    if ((email.includes('admin') || email === 'wanchaaaron@gmail.com') && password === 'admin123') {
+    if ((email.includes('admin') || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') && password === 'admin123') {
       const mockUser: EmulatedUser = {
         id: 'emulated-admin-uuid-123456',
         email,
