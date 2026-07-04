@@ -1,0 +1,143 @@
+import React, { useState } from 'react';
+import { 
+  Menu, 
+  Sun, 
+  Moon, 
+  Bell, 
+  Search, 
+  User, 
+  HelpCircle,
+  Database,
+  CheckCircle,
+  AlertTriangle
+} from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
+import { getSupabaseConfig } from '../../lib/supabaseClient';
+
+interface HeaderProps {
+  onMobileMenuToggle: () => void;
+  activeTab: string;
+  userEmail?: string;
+}
+
+export default function Header({ onMobileMenuToggle, activeTab, userEmail }: HeaderProps) {
+  const { theme, toggleTheme } = useTheme();
+  const { isConfigured } = getSupabaseConfig();
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Tab Titles dictionary for clean display
+  const tabTitles: { [key: string]: string } = {
+    dashboard: 'Dashboard Overview',
+    products: 'Products Listing',
+    orders: 'Sales Orders log',
+    users: 'Verified Customers Database',
+    media: 'Storefront Media Assets',
+    settings: 'System Configurations',
+  };
+
+  const currentTitle = tabTitles[activeTab] || 'Admin Suite';
+
+  // Demo Alerts
+  const notifications = [
+    { id: 1, title: 'Low Stock Alert', desc: 'Bakenye Handmade Craft Basket is below 15 units.', time: '1 hour ago' },
+    { id: 2, title: 'New Customer SignUp', desc: 'sarah.nak@example.com signed up.', time: '3 hours ago' },
+    { id: 3, title: 'Order Dispatched', desc: 'Order #ord-8834 has been shipped.', time: 'Yesterday' }
+  ];
+
+  return (
+    <header className="h-16 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between px-6 sticky top-0 z-10 transition-colors duration-300">
+      {/* Left items: Mobile Menu trigger + Current Page Title */}
+      <div className="flex items-center gap-4 text-left">
+        <button
+          onClick={onMobileMenuToggle}
+          className="md:hidden p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="hidden sm:block">
+          <h2 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none font-sans">
+            Store Admin
+          </h2>
+          <span className="text-base font-bold text-slate-800 dark:text-white leading-none font-sans">
+            {currentTitle}
+          </span>
+        </div>
+      </div>
+
+      {/* Right controls: Theme Switch, Supabase Indicator, Notifications, Profiler */}
+      <div className="flex items-center gap-3">
+        {/* Supabase Status Chip */}
+        <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider select-none border dark:border-slate-700 border-slate-100 bg-slate-50 dark:bg-slate-900/50">
+          <span className={`w-1.5 h-1.5 rounded-full ${isConfigured ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+          <span className={isConfigured ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+            {isConfigured ? 'Live Database' : 'Local Sandbox'}
+          </span>
+        </div>
+
+        {/* Theme Toggler Button */}
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-xl border border-slate-100 dark:border-slate-700/60 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {theme === 'dark' ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
+        </button>
+
+        {/* Notifications Icon with Toggle list */}
+        <div className="relative">
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="p-2 rounded-xl border border-slate-100 dark:border-slate-700/60 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors relative"
+          >
+            <Bell className="w-4.5 h-4.5" />
+            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500" />
+          </button>
+
+          {/* Notifications Dropdown menu */}
+          {showNotifications && (
+            <>
+              {/* Backdrop Click Dismiss */}
+              <div className="fixed inset-0 z-20" onClick={() => setShowNotifications(false)} />
+              
+              <div className="absolute right-0 mt-3.5 w-72 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 p-4 z-30 space-y-3 animation-slide-up text-left">
+                <div className="flex items-center justify-between pb-2 border-b dark:border-slate-700">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">Alert Center</h4>
+                  <span className="text-[10px] font-bold text-indigo-500 hover:underline cursor-pointer">Mark all read</span>
+                </div>
+
+                <div className="divide-y divide-slate-100/50 dark:divide-slate-700/30">
+                  {notifications.map((n) => (
+                    <div key={n.id} className="py-2.5 space-y-0.5 text-xs">
+                      <div className="font-bold text-slate-800 dark:text-white flex justify-between">
+                        <span>{n.title}</span>
+                        <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">{n.time}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">{n.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Profiler Details */}
+        {userEmail && (
+          <div className="flex items-center gap-2 border-l border-slate-100 dark:border-slate-700/50 pl-3 select-none">
+            <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-900 border dark:border-slate-700/50 text-slate-800 dark:text-slate-200 font-bold text-[11px] flex items-center justify-center uppercase">
+              {userEmail.substring(0, 2)}
+            </div>
+            <div className="hidden lg:flex flex-col text-left">
+              <span className="text-xs font-bold text-slate-800 dark:text-white leading-none">
+                {userEmail.split('@')[0]}
+              </span>
+              <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-wider">
+                Store Manager
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}

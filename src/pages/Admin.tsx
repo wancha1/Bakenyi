@@ -378,7 +378,7 @@ create policy "Allow full access to authenticated admins"
             )}
           </button>
 
-          {/* Tab: Supabase configuration setup */}
+          {/* Tab: Firestore database setup */}
           <button
             onClick={() => setActiveTab('integration')}
             className={`py-5 border-b-2 font-black uppercase text-xs tracking-widest flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
@@ -388,7 +388,7 @@ create policy "Allow full access to authenticated admins"
             }`}
           >
             <Database className="w-4 h-4" />
-            <span>Supabase Setup</span>
+            <span>Database Config</span>
           </button>
         </div>
       </div>
@@ -499,42 +499,24 @@ create policy "Allow full access to authenticated admins"
             {/* Status Check Card */}
             <div className="bg-white border border-heritage-brown/10 rounded-[32px] p-6 md:p-8 shadow-sm space-y-4">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  isSupabaseConfigured() ? 'bg-heritage-olive/10 text-heritage-olive' : 'bg-amber-50 text-amber-600'
-                }`}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-heritage-olive/10 text-heritage-olive">
                   <Database className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-lg font-serif font-bold text-heritage-brown">Connection Verification</h3>
-                  <p className="text-xs text-heritage-brown/50 font-medium">Supabase service status monitoring</p>
+                  <p className="text-xs text-heritage-brown/50 font-medium">Firestore database status monitoring</p>
                 </div>
               </div>
 
-              {isSupabaseConfigured() ? (
-                <div className="bg-heritage-olive/5 border border-heritage-olive/10 p-4 rounded-xl flex items-start gap-3">
-                  <Check className="w-5 h-5 text-heritage-olive mt-0.5 shrink-0" />
-                  <div className="text-xs text-heritage-olive space-y-1">
-                    <p className="font-bold uppercase tracking-wider">SUPABASE ACTIVE & CONFIGURED</p>
-                    <p className="font-medium text-heritage-brown/80 leading-relaxed">
-                      Your app is connected to the live Supabase instance at <code className="font-mono bg-white px-1 py-0.5 border rounded">{(import.meta as any).env.VITE_SUPABASE_URL}</code>. Secure authentication, publishing tables, and media storage buckets are fully active.
-                    </p>
-                  </div>
+              <div className="bg-heritage-olive/5 border border-heritage-olive/10 p-4 rounded-xl flex items-start gap-3">
+                <Check className="w-5 h-5 text-heritage-olive mt-0.5 shrink-0" />
+                <div className="text-xs text-heritage-olive space-y-1">
+                  <p className="font-bold uppercase tracking-wider">FIRESTORE ACTIVE & CONFIGURED</p>
+                  <p className="font-medium text-heritage-brown/80 leading-relaxed">
+                    The platform is securely connected to your cloud-hosted, zero-trust Firebase Firestore database. All articles, research, assets, and community contribution pipelines are persisted natively on Firestore. No SQL/Supabase schema setup is required!
+                  </p>
                 </div>
-              ) : (
-                <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-                  <div className="text-xs text-amber-800 space-y-1">
-                    <p className="font-bold uppercase tracking-wider">LOCAL EMULATION ACTIVE</p>
-                    <p className="font-medium text-heritage-brown/80 leading-relaxed">
-                      This environment is running a flawless client-side simulation. To link a real Supabase database and storage, click <strong>Settings</strong> in the AI Studio editor sidebar, and provide the credentials below:
-                    </p>
-                    <div className="pt-2 font-mono text-[10px] space-y-1 text-heritage-brown/70">
-                      <div>🗝️ <span className="font-bold">VITE_SUPABASE_URL</span> = <span className="italic">Your Supabase Endpoint URL</span></div>
-                      <div>🗝️ <span className="font-bold">VITE_SUPABASE_ANON_KEY</span> = <span className="italic">Your Supabase Anon API Key</span></div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
 
             {/* SQL Blueprint Copy Card */}
