@@ -13,7 +13,8 @@ import {
   Check,
   X
 } from 'lucide-react';
-import { fetchUsers, updateUserRole, UserProfile } from '../../../lib/supabaseClient';
+import { fetchUsers, updateUserRole, UserProfile, getSupabase } from '../../../lib/supabaseClient';
+import { logAdminActivity } from '../../../lib/operations';
 
 export default function RolesView() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -23,9 +24,61 @@ export default function RolesView() {
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+  // Authentication & Authorization state
+  const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'staff' | 'customer' | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
   useEffect(() => {
-    loadUsers();
+    async function init() {
+      await loadCurrentUserRole();
+      await loadUsers();
+    }
+    init();
   }, []);
+
+  async function loadCurrentUserRole() {
+    setIsAuthLoading(true);
+    try {
+      const client = getSupabase();
+      if (client) {
+        const { data: { user } } = await client.auth.getUser();
+        if (user) {
+          setCurrentUserEmail(user.email);
+          const { data, error } = await client
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+          if (!error && data) {
+            setCurrentUserRole(data.role);
+            return;
+          }
+        }
+      }
+      
+      // Sandbox fallback mode check
+      const stored = localStorage.getItem('bakenye_demo_users');
+      if (stored) {
+        const demoUsers = JSON.parse(stored);
+        const activeEmail = 'aaronwancha@gmail.com'; // Admin default session
+        setCurrentUserEmail(activeEmail);
+        const matched = demoUsers.find((u: any) => u.email === activeEmail);
+        if (matched) {
+          setCurrentUserRole(matched.role);
+          return;
+        }
+      }
+      
+      setCurrentUserEmail('aaronwancha@gmail.com');
+      setCurrentUserRole('admin');
+    } catch (err) {
+      console.error('Failed to resolve authenticated session role:', err);
+      setCurrentUserRole('admin');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  }
 
   useEffect(() => {
     let result = [...users];
@@ -52,11 +105,41 @@ export default function RolesView() {
   }
 
   async function handleRoleChange(id: string, newRole: UserProfile['role']) {
+    if (currentUserRole !== 'admin') {
+      alert('Access Denied: You do not have Super Admin authority required to change system roles.');
+      return;
+    }
+
+    const userToChange = users.find(u => u.id === id);
+    if (!userToChange) return;
+
+    if (userToChange.email === 'aaronwancha@gmail.com' && newRole !== 'admin') {
+      alert('Action Blocked: To prevent lockout, you cannot revoke Super Admin role from the primary account (aaronwancha@gmail.com).');
+      logAdminActivity(
+        'Super Admin',
+        'Role Demotion Blocked',
+        `Attempted to demote primary Super Admin ${userToChange.email} to ${newRole.toUpperCase()} but was blocked to prevent platform lockout.`,
+        'Roles',
+        'Warning',
+        id
+      );
+      return;
+    }
+
     setUpdatingId(id);
     try {
       const updated = await updateUserRole(id, newRole);
       if (updated) {
         setUsers(prev => prev.map(u => u.id === id ? updated : u));
+        
+        logAdminActivity(
+          'Super Admin',
+          'Role Delegated',
+          `Elevated user account ${updated.email} to administrative role: [${newRole.toUpperCase()}].`,
+          'Roles',
+          'Success',
+          id
+        );
       }
     } catch (err) {
       console.error('Failed to update user role:', err);
@@ -96,12 +179,42 @@ export default function RolesView() {
   return (
     <div className="space-y-8 text-left">
       {/* Page Title */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-sans">Roles & Permissions</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 font-sans">
-          Verify system roles, inspect fine-grained permissions, and delegate administration responsibilities.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-sans">Roles & Permissions</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-sans">
+            Verify system roles, inspect fine-grained permissions, and delegate administration responsibilities.
+          </p>
+        </div>
+        
+        {isAuthLoading ? (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <span>Resolving session credentials...</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/40 dark:border-slate-700/50">
+            <Shield className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 font-mono uppercase">
+              Current Session: <span className="text-slate-800 dark:text-slate-200 font-black">{currentUserRole || 'customer'}</span>
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* Security Authorization Banner for Non-Authorized Users */}
+      {!isAuthLoading && currentUserRole !== 'admin' && (
+        <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 animate-fade-in shadow-xs">
+          <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold text-amber-800 dark:text-amber-400">Read-Only Mode Enabled</h4>
+            <p className="text-xs text-amber-700/80 dark:text-amber-300/80 font-semibold leading-relaxed">
+              Your account ({currentUserEmail}) is authenticated under the role level <span className="font-bold uppercase text-amber-600 dark:text-amber-400">[{currentUserRole || 'customer'}]</span>. 
+              Modifying system access tiers or re-assigning administrative user roles is strictly restricted to authorized <strong>Super Administrators</strong> to ensure platform security.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Role Definitions Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -210,6 +323,113 @@ export default function RolesView() {
 
       </div>
 
+      {/* Detailed Side-by-Side Permissions Matrix Grid */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-[28px] border border-slate-100 dark:border-slate-700/50 shadow-sm space-y-4">
+        <div>
+          <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Sliders className="w-5 h-5 text-indigo-500" />
+            <span>Detailed Permission Control Matrix</span>
+          </h3>
+          <p className="text-xs text-slate-400">Cross-reference administrative capability limits across all three security tiers.</p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-slate-700/40 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                <th className="py-3 px-4">System Capability / Operational Scope</th>
+                <th className="py-3 px-4 text-center">Public Contributor</th>
+                <th className="py-3 px-4 text-center">Staff Member</th>
+                <th className="py-3 px-4 text-center">Super Administrator</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100/50 dark:divide-slate-700/30 text-xs font-medium text-slate-750 dark:text-slate-300">
+              {[
+                { 
+                  name: 'Explore Public Historiographies & Archives', 
+                  desc: 'Read-only access to published heritage articles, clans registries, and visual galleries.',
+                  customer: true, staff: true, admin: true 
+                },
+                { 
+                  name: 'Submit Cultural Artifacts & Stories', 
+                  desc: 'Upload images to the public gallery or submit clans narratives for review.',
+                  customer: true, staff: true, admin: true 
+                },
+                { 
+                  name: 'Moderate Public Contributions', 
+                  desc: 'Vetting community-submitted stories and media items for public publication.',
+                  customer: false, staff: true, admin: true 
+                },
+                { 
+                  name: 'Write & Edit Archival Historiographies', 
+                  desc: 'Draft and format custom heritage articles, clan pages, or dictionary keywords.',
+                  customer: false, staff: true, admin: true 
+                },
+                { 
+                  name: 'Publish Archival Content Live', 
+                  desc: 'Instantly publish drafted content to the live site feed, bypassing vetting queues.',
+                  customer: false, staff: false, admin: true 
+                },
+                { 
+                  name: 'Approve & Verify Registered Users', 
+                  desc: 'Approve or reject pending registration accounts in the system signup hub.',
+                  customer: false, staff: false, admin: true 
+                },
+                { 
+                  name: 'Assign & Re-Delegate Access Roles', 
+                  desc: 'Assign roles (Admin, Staff, Customer) to users or revoke administrative powers.',
+                  customer: false, staff: false, admin: true 
+                },
+                { 
+                  name: 'View Administrative Activity Audits', 
+                  desc: 'Browse complete historical logs of administrative and system configuration actions.',
+                  customer: false, staff: false, admin: true 
+                },
+                { 
+                  name: 'Access Platform Health Telemetry', 
+                  desc: 'Monitor database uptime, API response metrics, and connection latency.',
+                  customer: false, staff: false, admin: true 
+                }
+              ].map((row, idx) => (
+                <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/10 transition-colors">
+                  <td className="py-3.5 px-4 max-w-sm">
+                    <div className="font-bold text-slate-900 dark:text-white text-xs">{row.name}</div>
+                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-normal leading-relaxed mt-0.5">{row.desc}</div>
+                  </td>
+                  <td className="py-3.5 px-4 text-center">
+                    <div className="flex justify-center">
+                      {row.customer ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500 bg-emerald-500/10 rounded-full p-0.5" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-slate-300 dark:text-slate-650" />
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3.5 px-4 text-center">
+                    <div className="flex justify-center">
+                      {row.staff ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500 bg-emerald-500/10 rounded-full p-0.5" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-slate-300 dark:text-slate-650" />
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3.5 px-4 text-center">
+                    <div className="flex justify-center">
+                      {row.admin ? (
+                        <CheckCircle2 className="w-5 h-5 text-indigo-500 bg-indigo-500/10 rounded-full p-0.5" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-slate-300 dark:text-slate-650" />
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* User Roles Assignment Database Panel */}
       <div className="space-y-4 bg-white dark:bg-slate-800 p-6 rounded-[28px] border border-slate-100 dark:border-slate-700/50 shadow-sm">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -272,15 +492,24 @@ export default function RolesView() {
                         {updatingId === u.id ? (
                           <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" />
                         ) : (
-                          <select
-                            value={u.role}
-                            onChange={(e) => handleRoleChange(u.id, e.target.value as UserProfile['role'])}
-                            className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          >
-                            <option value="admin">🛡️ Administrator</option>
-                            <option value="staff">💼 Staff Member</option>
-                            <option value="customer">👤 Public User</option>
-                          </select>
+                          <>
+                            {currentUserRole !== 'admin' && (
+                              <span className="text-[10px] text-slate-450 dark:text-slate-500 flex items-center gap-1 select-none font-black uppercase tracking-wider mr-1">
+                                <Shield className="w-3.5 h-3.5 text-amber-500" />
+                                <span>Read-Only</span>
+                              </span>
+                            )}
+                            <select
+                              value={u.role}
+                              disabled={currentUserRole !== 'admin'}
+                              onChange={(e) => handleRoleChange(u.id, e.target.value as UserProfile['role'])}
+                              className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              <option value="admin">🛡️ Administrator</option>
+                              <option value="staff">💼 Staff Member</option>
+                              <option value="customer">👤 Public User</option>
+                            </select>
+                          </>
                         )}
                       </div>
                     </td>

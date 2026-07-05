@@ -27,7 +27,7 @@ export interface UserProfile {
   id: string;
   email: string;
   role: 'admin' | 'staff' | 'customer';
-  status: 'active' | 'suspended';
+  status: 'active' | 'suspended' | 'pending';
   created_at: string;
 }
 
@@ -36,6 +36,7 @@ export interface MediaFile {
   url: string;
   size: number;
   created_at: string;
+  status: 'approved' | 'pending';
 }
 
 // Check configuration status
@@ -210,14 +211,14 @@ const getDemoUsers = (): UserProfile[] => {
       id: 'usr-2',
       email: 'sarah.nak@example.com',
       role: 'customer',
-      status: 'active',
-      created_at: new Date(Date.now() - 12 * 24 * 3600 * 1000).toISOString()
+      status: 'pending',
+      created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString() // 30m ago
     },
     {
       id: 'usr-3',
       email: 'j.mukasa@example.org',
       role: 'customer',
-      status: 'active',
+      status: 'pending',
       created_at: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString()
     },
     {
@@ -233,6 +234,13 @@ const getDemoUsers = (): UserProfile[] => {
       role: 'customer',
       status: 'suspended',
       created_at: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString()
+    },
+    {
+      id: 'usr-6',
+      email: 'p.mukibi@bakenyi.org',
+      role: 'customer',
+      status: 'pending',
+      created_at: new Date(Date.now() - 3 * 3600 * 1000).toISOString()
     }
   ];
   localStorage.setItem('bakenye_demo_users', JSON.stringify(initial));
@@ -245,28 +253,46 @@ const getDemoMedia = (): MediaFile[] => {
   
   const initial: MediaFile[] = [
     {
+      name: 'traditional_canoe_bow.jpg',
+      url: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=400',
+      size: 194500,
+      created_at: new Date(Date.now() - 4 * 3600 * 1000).toISOString(), // 4h ago
+      status: 'pending'
+    },
+    {
+      name: 'clan_regalia_drum.jpg',
+      url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=400',
+      size: 285400,
+      created_at: new Date(Date.now() - 1 * 24 * 3600 * 1000).toISOString(),
+      status: 'pending'
+    },
+    {
       name: 'ugandan_shea_butter.jpg',
       url: 'https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?auto=format&fit=crop&q=80&w=400',
       size: 142050,
-      created_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString()
+      created_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
+      status: 'approved'
     },
     {
       name: 'handmade_basket.jpg',
       url: 'https://images.unsplash.com/photo-1531835551805-16d864c8d311?auto=format&fit=crop&q=80&w=400',
       size: 210540,
-      created_at: new Date(Date.now() - 15 * 24 * 3600 * 1000).toISOString()
+      created_at: new Date(Date.now() - 15 * 24 * 3600 * 1000).toISOString(),
+      status: 'approved'
     },
     {
       name: 'arabica_coffee_beans.jpg',
       url: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&q=80&w=400',
       size: 180320,
-      created_at: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString()
+      created_at: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString(),
+      status: 'approved'
     },
     {
       name: 'barkcloth_designer_bag.jpg',
       url: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=80&w=400',
       size: 345110,
-      created_at: new Date(Date.now() - 22 * 24 * 3600 * 1000).toISOString()
+      created_at: new Date(Date.now() - 22 * 24 * 3600 * 1000).toISOString(),
+      status: 'approved'
     }
   ];
   localStorage.setItem('bakenye_demo_media', JSON.stringify(initial));
@@ -416,7 +442,8 @@ export const fetchMediaFiles = async (): Promise<MediaFile[]> => {
           name: f.name,
           url: client.storage.from('media').getPublicUrl(f.name).data.publicUrl,
           size: f.metadata?.size || 0,
-          created_at: f.created_at || new Date().toISOString()
+          created_at: f.created_at || new Date().toISOString(),
+          status: 'approved'
         }));
       }
     } catch (e) {
@@ -438,7 +465,8 @@ export const uploadMediaFile = async (file: File): Promise<MediaFile> => {
           name: fileName,
           url: publicUrl,
           size: file.size,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          status: 'pending'
         };
         // Log inside standard lists
         const list = getDemoMedia();
@@ -459,7 +487,8 @@ export const uploadMediaFile = async (file: File): Promise<MediaFile> => {
         name: file.name,
         url: reader.result as string,
         size: file.size,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        status: 'pending'
       };
       const list = getDemoMedia();
       list.unshift(newMedia);
@@ -469,6 +498,24 @@ export const uploadMediaFile = async (file: File): Promise<MediaFile> => {
     reader.onerror = () => reject(new Error('Failed to read and store file in sandbox.'));
     reader.readAsDataURL(file);
   });
+};
+
+export const updateMediaStatus = async (name: string, status: 'approved' | 'rejected'): Promise<MediaFile | null> => {
+  const list = getDemoMedia();
+  const index = list.findIndex(m => m.name === name);
+  if (index !== -1) {
+    if (status === 'rejected') {
+      // Remove from list
+      list.splice(index, 1);
+      localStorage.setItem('bakenye_demo_media', JSON.stringify(list));
+      return null;
+    } else {
+      list[index].status = 'approved';
+      localStorage.setItem('bakenye_demo_media', JSON.stringify(list));
+      return list[index];
+    }
+  }
+  return null;
 };
 
 export const deleteMediaFile = async (name: string): Promise<boolean> => {

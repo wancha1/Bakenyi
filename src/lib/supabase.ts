@@ -86,11 +86,38 @@ export async function getCurrentUser(): Promise<any> {
 export async function getArticles(onlyPublished = true): Promise<Article[]> {
   const client = getSupabase();
   if (!client) {
-    // If no client, fallback to static articles
-    const list = bakenyiArticles.map(art => ({
-      ...art,
-      status: art.status || 'published'
-    }));
+    // If no client, fallback to localStorage with pre-seeded data
+    const stored = localStorage.getItem('bakenye_demo_articles');
+    let list: Article[] = [];
+    if (stored) {
+      list = JSON.parse(stored);
+    } else {
+      list = bakenyiArticles.map(art => ({
+        ...art,
+        status: art.status || 'published'
+      }));
+      localStorage.setItem('bakenye_demo_articles', JSON.stringify(list));
+    }
+    
+    // Inject a pending article if missing to support the vetting workflow
+    const hasPending = list.some(a => a.status === 'pending');
+    if (!hasPending) {
+      const pendingMock: Article = {
+        id: 'mock-pending-art-1',
+        title: 'Preserving the Soga Clan Drums: Oral Traditions',
+        excerpt: 'A comprehensive study on the rhythmic heritage of Soga clan drums and their communicative historical purposes.',
+        content: '# Oral Rhythms of the Soga\n\nFor generations, the drums have signaled times of harvesting, celebration, and spiritual consensus. This report details the specific timber used in drumming construction and the lineage of the master drummers.',
+        category: 'Heritage',
+        author: 'Reporter Nakabuye',
+        publishedAt: new Date(Date.now() - 3600 * 1000).toISOString().split('T')[0],
+        status: 'pending',
+        views: 0,
+        tags: ['Heritage', 'Oral Tradition']
+      };
+      list.unshift(pendingMock);
+      localStorage.setItem('bakenye_demo_articles', JSON.stringify(list));
+    }
+    
     return onlyPublished ? list.filter(a => a.status === 'published') : list;
   }
 
@@ -172,6 +199,12 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
 export async function getArticleById(id: string): Promise<Article | null> {
   const client = getSupabase();
   if (!client) {
+    const stored = localStorage.getItem('bakenye_demo_articles');
+    if (stored) {
+      const list: Article[] = JSON.parse(stored);
+      const art = list.find(a => a.id === id);
+      if (art) return art;
+    }
     const localArticle = bakenyiArticles.find(a => a.id === id);
     return localArticle || null;
   }
@@ -223,6 +256,12 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
     status: article.status || 'draft'
   };
 
+  // Sandbox Save
+  const stored = localStorage.getItem('bakenye_demo_articles');
+  const list = stored ? JSON.parse(stored) : [];
+  list.unshift(newArticle);
+  localStorage.setItem('bakenye_demo_articles', JSON.stringify(list));
+
   if (!client) {
     return { data: newArticle, error: null };
   }
@@ -253,8 +292,25 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
  */
 export async function updateArticle(id: string, articleUpdates: Partial<Article>): Promise<{ data: Article | null; error: Error | null }> {
   const client = getSupabase();
+  
+  // Sandbox update
+  const stored = localStorage.getItem('bakenye_demo_articles');
+  let updatedRecord: Article | null = null;
+  if (stored) {
+    const list: Article[] = JSON.parse(stored);
+    const index = list.findIndex(a => a.id === id);
+    if (index !== -1) {
+      list[index] = { ...list[index], ...articleUpdates };
+      updatedRecord = list[index];
+      localStorage.setItem('bakenye_demo_articles', JSON.stringify(list));
+    }
+  }
+
   if (!client) {
-    return { data: null, error: new Error('Supabase is not configured.') };
+    if (updatedRecord) {
+      return { data: updatedRecord, error: null };
+    }
+    return { data: null, error: new Error('Article not found in sandbox.') };
   }
 
   try {
@@ -288,6 +344,14 @@ export async function updateArticle(id: string, articleUpdates: Partial<Article>
  */
 export async function deleteArticle(id: string): Promise<{ success: boolean; error: Error | null }> {
   const client = getSupabase();
+  
+  const stored = localStorage.getItem('bakenye_demo_articles');
+  if (stored) {
+    const list: Article[] = JSON.parse(stored);
+    const filtered = list.filter(a => a.id !== id);
+    localStorage.setItem('bakenye_demo_articles', JSON.stringify(filtered));
+  }
+
   if (!client) {
     return { success: true, error: null };
   }

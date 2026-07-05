@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { Article } from '../../types/article';
 import { getArticles, createArticle, updateArticle, deleteArticle, uploadMedia, isSupabaseConfigured } from '../../lib/supabase';
+import { logAdminActivity } from '../../lib/operations';
 
 export default function ArticlesManager() {
   // State
@@ -37,6 +38,9 @@ export default function ArticlesManager() {
   const [success, setSuccess] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
+  
+  // Simulated Role Switch for testing workflows
+  const [simulatedRole, setSimulatedRole] = useState<'admin' | 'staff'>('admin');
   
   // Editor State
   const [isEditing, setIsEditing] = useState(false);
@@ -68,6 +72,52 @@ export default function ArticlesManager() {
       setError('Failed to load articles from database.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApproveArticle = async (id: string) => {
+    try {
+      const art = articles.find(a => a.id === id);
+      if (!art) return;
+      const { error: err } = await updateArticle(id, { status: 'published', publishedAt: new Date().toISOString().split('T')[0] });
+      if (err) throw err;
+      
+      logAdminActivity(
+        'Super Admin',
+        'Article Approved & Published',
+        `Approved and dynamically published reporter article "${art.title}" to the public repository.`,
+        'Content',
+        'Success',
+        id
+      );
+      
+      showNotification(`Article "${art.title}" successfully approved and published!`);
+      loadArticles();
+    } catch (err: any) {
+      showNotification(err.message || 'Failed to approve article.', false);
+    }
+  };
+
+  const handleRejectArticle = async (id: string) => {
+    try {
+      const art = articles.find(a => a.id === id);
+      if (!art) return;
+      const { error: err } = await updateArticle(id, { status: 'draft' });
+      if (err) throw err;
+      
+      logAdminActivity(
+        'Super Admin',
+        'Article Vetting Rejected',
+        `Rejected reporter article "${art.title}" and reverted it to a secure draft.`,
+        'Content',
+        'Success',
+        id
+      );
+      
+      showNotification(`Article "${art.title}" rejected and reverted to draft status.`);
+      loadArticles();
+    } catch (err: any) {
+      showNotification(err.message || 'Failed to reject article.', false);
     }
   };
 
@@ -212,18 +262,67 @@ export default function ArticlesManager() {
       return;
     }
 
+    // Enforce Reporter Workflow: Staff cannot publish directly.
+    let finalStatus = editingArticle.status || 'draft';
+    if (simulatedRole === 'staff') {
+      if (finalStatus === 'published') {
+        finalStatus = 'pending';
+      }
+    }
+
+    const payload = {
+      ...editingArticle,
+      status: finalStatus,
+      author: simulatedRole === 'staff' ? 'Reporter Nakabuye' : (editingArticle.author || 'Super Admin')
+    };
+
     setLoading(true);
     try {
       if (editingArticle.id) {
         // Update
-        const { error: saveErr } = await updateArticle(editingArticle.id, editingArticle);
+        const { error: saveErr } = await updateArticle(editingArticle.id, payload);
         if (saveErr) throw saveErr;
-        showNotification('Article updated successfully.');
+        
+        // Log Activity
+        logAdminActivity(
+          simulatedRole === 'staff' ? 'Reporter Nakabuye' : 'Super Admin',
+          simulatedRole === 'staff' ? 'Article Edited & Submitted' : 'Article Modified',
+          simulatedRole === 'staff' 
+            ? `Resubmitted article "${payload.title}" (status: pending) for Super Admin vetting.`
+            : `Updated article "${payload.title}" with status: ${payload.status}.`,
+          'Content',
+          'Success',
+          editingArticle.id
+        );
+        
+        showNotification(
+          simulatedRole === 'staff'
+            ? 'Article updated and submitted for vetting.'
+            : 'Article updated successfully.'
+        );
       } else {
         // Create
-        const { error: saveErr } = await createArticle(editingArticle as Omit<Article, 'id'>);
+        const { data: created, error: saveErr } = await createArticle(payload as Omit<Article, 'id'>);
         if (saveErr) throw saveErr;
-        showNotification('New article created successfully.');
+        
+        const newId = created?.id || 'new-article';
+        // Log Activity
+        logAdminActivity(
+          simulatedRole === 'staff' ? 'Reporter Nakabuye' : 'Super Admin',
+          simulatedRole === 'staff' ? 'Article Created & Submitted' : 'Article Drafted',
+          simulatedRole === 'staff'
+            ? `Drafted and submitted new article "${payload.title}" (status: pending) for approval.`
+            : `Created new article "${payload.title}" as ${payload.status}.`,
+          'Content',
+          'Success',
+          newId
+        );
+        
+        showNotification(
+          simulatedRole === 'staff'
+            ? 'New article submitted for Super Admin review.'
+            : 'New article created successfully.'
+        );
       }
       setIsEditing(false);
       setEditingArticle(null);
@@ -304,17 +403,44 @@ export default function ArticlesManager() {
                 >
                   Draft
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleInputChange('status', 'published')}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                    editingArticle.status === 'published' 
-                      ? 'bg-heritage-olive text-white' 
-                      : 'text-white/60 hover:text-white'
-                  }`}
-                >
-                  Publish
-                </button>
+                {simulatedRole === 'staff' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange('status', 'published')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                      editingArticle.status === 'pending' || editingArticle.status === 'published'
+                        ? 'bg-amber-500 text-white' 
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    Submit for Vetting
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('status', 'pending')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        editingArticle.status === 'pending' 
+                          ? 'bg-amber-500 text-white' 
+                          : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      Pending Vetting
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('status', 'published')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        editingArticle.status === 'published' 
+                          ? 'bg-heritage-olive text-white' 
+                          : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      Publish
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -743,8 +869,109 @@ export default function ArticlesManager() {
           </form>
         </div>
       ) : (
-        /* List & Search View of articles */
-        <div className="bg-white rounded-[32px] border border-heritage-brown/5 shadow-sm p-6 md:p-8 space-y-6">
+        <div className="space-y-6">
+          {/* SIMULATED ROLE WORKFLOW CONSOLE */}
+          <div className="bg-slate-950 text-white rounded-[24px] p-6 shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="text-left">
+              <span className="bg-indigo-600 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full text-white inline-block mb-2">
+                WORKFLOW SIMULATOR
+              </span>
+              <h3 className="text-sm font-bold tracking-tight">Reporter / Publisher Interactive Sandbox</h3>
+              <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                Toggle active roles below to simulate content submissions by reporters, and approvals by Super Admins.
+              </p>
+            </div>
+            
+            <div className="flex gap-2 p-1 bg-slate-900 border border-slate-800 rounded-xl w-full md:w-auto shrink-0">
+              <button
+                type="button"
+                onClick={() => setSimulatedRole('admin')}
+                className={`flex-1 md:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  simulatedRole === 'admin'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                Super Admin Role
+              </button>
+              <button
+                type="button"
+                onClick={() => setSimulatedRole('staff')}
+                className={`flex-1 md:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  simulatedRole === 'staff'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                Content Reporter Role
+              </button>
+            </div>
+          </div>
+
+          {/* SUPER ADMIN WORK QUEUE - REVIEW QUEUE BENTO BOX */}
+          {simulatedRole === 'admin' && articles.filter(a => a.status === 'pending').length > 0 && (
+            <div className="bg-amber-500/5 border border-amber-500/15 rounded-[28px] p-6 md:p-8 space-y-4 text-left">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-black text-[9px] uppercase tracking-wider px-2.5 py-1 rounded-full">
+                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                    Vetting Required ({articles.filter(a => a.status === 'pending').length})
+                  </span>
+                  <h3 className="text-lg font-serif font-black text-heritage-brown mt-2">Reporter Submissions Vetting Workspace</h3>
+                  <p className="text-xs text-heritage-brown/50">
+                    Reviews drafts submitted by content reporters. Approve to publish immediately, or reject to return to reporter draft mode.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {articles.filter(a => a.status === 'pending').map((art) => (
+                  <div key={art.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-amber-500/15 p-5 shadow-xs space-y-4 flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-[10px] font-mono text-heritage-brown/40">{art.category}</span>
+                        <span className="text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-md">
+                          Pending Approval
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-serif font-bold text-heritage-brown mt-1 line-clamp-2">{art.title}</h4>
+                      <p className="text-xs text-heritage-brown/60 dark:text-slate-300 mt-1 line-clamp-2">{art.excerpt}</p>
+                      
+                      <div className="flex items-center gap-1.5 text-[10px] text-heritage-brown/40 font-mono mt-3">
+                        <User className="w-3.5 h-3.5 shrink-0" />
+                        <span>Submitted by: <strong>{art.author || 'Reporter'}</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-700/50 mt-2">
+                      <button
+                        onClick={() => handleApproveArticle(art.id)}
+                        className="flex-1 bg-heritage-olive hover:bg-heritage-brown text-white text-[10px] font-black uppercase tracking-wider py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Approve & Publish
+                      </button>
+                      <button
+                        onClick={() => handleRejectArticle(art.id)}
+                        className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-wider py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Reject & Draft
+                      </button>
+                      <button
+                        onClick={() => handleEdit(art)}
+                        className="p-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-700/50 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-300 rounded-xl transition-colors cursor-pointer"
+                        title="Open for Editing"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* List & Search View of articles */}
+          <div className="bg-white rounded-[32px] border border-heritage-brown/5 shadow-sm p-6 md:p-8 space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-heritage-brown/5">
             <div>
               <h2 className="text-xl font-serif font-bold text-heritage-brown">Manage Repository Articles</h2>
@@ -843,7 +1070,9 @@ export default function ArticlesManager() {
                         <span className={`px-2.5 py-1 rounded-full font-black text-[9px] uppercase tracking-wider ${
                           art.status === 'published' 
                             ? 'bg-heritage-olive/10 text-heritage-olive' 
-                            : 'bg-amber-50 text-amber-600'
+                            : art.status === 'pending'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-heritage-cream text-heritage-brown/50'
                         }`}>
                           {art.status || 'draft'}
                         </span>
@@ -881,6 +1110,7 @@ export default function ArticlesManager() {
               </table>
             </div>
           )}
+        </div>
         </div>
       )}
     </div>

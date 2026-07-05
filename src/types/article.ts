@@ -12,5 +12,5 @@ export interface Article {
   views?: number;
   tags?: string[];
   additionalImages?: string[];
-  status?: 'draft' | 'published';
+  status?: 'draft' | 'published' | 'pending';
 }
