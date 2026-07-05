@@ -27,11 +27,14 @@ import Search from './pages/Search';
 
 // Admin View Panels
 import DashboardView from './components/admin/views/DashboardView';
-import ProductsView from './components/admin/views/ProductsView';
-import OrdersView from './components/admin/views/OrdersView';
 import UsersView from './components/admin/views/UsersView';
+import RolesView from './components/admin/views/RolesView';
+import ContentView from './components/admin/views/ContentView';
 import MediaView from './components/admin/views/MediaView';
+import ReportsView from './components/admin/views/ReportsView';
+import ActivityLogsView from './components/admin/views/ActivityLogsView';
 import SettingsView from './components/admin/views/SettingsView';
+import SystemHealthView from './components/admin/views/SystemHealthView';
 
 /**
  * Public Layout which includes the global Navbar and Footer.
@@ -167,16 +170,22 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardView onNavigate={(tab) => setActiveTab(tab)} />;
-      case 'products':
-        return <ProductsView />;
-      case 'orders':
-        return <OrdersView />;
       case 'users':
         return <UsersView />;
+      case 'roles':
+        return <RolesView />;
+      case 'content':
+        return <ContentView />;
       case 'media':
         return <MediaView />;
+      case 'reports':
+        return <ReportsView />;
+      case 'activity_logs':
+        return <ActivityLogsView />;
       case 'settings':
         return <SettingsView />;
+      case 'system_health':
+        return <SystemHealthView />;
       default:
         return <DashboardView onNavigate={(tab) => setActiveTab(tab)} />;
     }

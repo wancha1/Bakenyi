@@ -27,21 +27,24 @@ export default function Header({ onMobileMenuToggle, activeTab, userEmail }: Hea
 
   // Tab Titles dictionary for clean display
   const tabTitles: { [key: string]: string } = {
-    dashboard: 'Dashboard Overview',
-    products: 'Products Listing',
-    orders: 'Sales Orders log',
-    users: 'Verified Customers Database',
-    media: 'Storefront Media Assets',
-    settings: 'System Configurations',
+    dashboard: 'Operational Dashboard',
+    users: 'Platform Users Database',
+    roles: 'Roles & Permissions Control',
+    content: 'Preservation Content Manager',
+    media: 'Storage Media Library',
+    reports: 'Live Platform Reports',
+    activity_logs: 'System Activity Logs',
+    settings: 'Platform Configurations',
+    system_health: 'Preservation Core Health',
   };
 
   const currentTitle = tabTitles[activeTab] || 'Admin Suite';
 
   // Demo Alerts
   const notifications = [
-    { id: 1, title: 'Low Stock Alert', desc: 'Bakenye Handmade Craft Basket is below 15 units.', time: '1 hour ago' },
-    { id: 2, title: 'New Customer SignUp', desc: 'sarah.nak@example.com signed up.', time: '3 hours ago' },
-    { id: 3, title: 'Order Dispatched', desc: 'Order #ord-8834 has been shipped.', time: 'Yesterday' }
+    { id: 1, title: 'New Community Submission', desc: 'A new cultural artifact was submitted for review.', time: '1 hour ago' },
+    { id: 2, title: 'New Preserver SignUp', desc: 'sarah.nak@example.com signed up.', time: '3 hours ago' },
+    { id: 3, title: 'Role Grant Action', desc: 'Jane Nakiganda was granted Reporter access.', time: 'Yesterday' }
   ];
 
   return (
@@ -56,7 +59,7 @@ export default function Header({ onMobileMenuToggle, activeTab, userEmail }: Hea
         </button>
         <div className="hidden sm:block">
           <h2 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none font-sans">
-            Store Admin
+            Bakenye Platform
           </h2>
           <span className="text-base font-bold text-slate-800 dark:text-white leading-none font-sans">
             {currentTitle}
@@ -132,7 +135,7 @@ export default function Header({ onMobileMenuToggle, activeTab, userEmail }: Hea
                 {userEmail.split('@')[0]}
               </span>
               <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-wider">
-                Store Manager
+                Platform Admin
               </span>
             </div>
           </div>

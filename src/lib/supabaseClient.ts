@@ -387,6 +387,23 @@ export const updateUserStatus = async (id: string, status: UserProfile['status']
   return null;
 };
 
+export const updateUserRole = async (id: string, role: UserProfile['role']): Promise<UserProfile | null> => {
+  const client = getSupabase();
+  if (client) {
+    const { data, error } = await client.from('profiles').update({ role }).eq('id', id).select().single();
+    if (!error && data) return data;
+  }
+  
+  const list = getDemoUsers();
+  const index = list.findIndex(u => u.id === id);
+  if (index !== -1) {
+    list[index].role = role;
+    localStorage.setItem('bakenye_demo_users', JSON.stringify(list));
+    return list[index];
+  }
+  return null;
+};
+
 // 4. MEDIA
 export const fetchMediaFiles = async (): Promise<MediaFile[]> => {
   const client = getSupabase();

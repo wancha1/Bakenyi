@@ -2,8 +2,6 @@ import React from 'react';
 import { 
   Shield, 
   LayoutDashboard, 
-  ShoppingBag, 
-  ShoppingCart, 
   Users, 
   Image, 
   Settings, 
@@ -11,7 +9,11 @@ import {
   ChevronLeft, 
   ChevronRight,
   Menu,
-  X
+  X,
+  FileText,
+  BarChart2,
+  Activity,
+  Heart
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -38,11 +40,14 @@ export default function Sidebar({
   
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'products', label: 'Products', icon: ShoppingBag },
-    { id: 'orders', label: 'Orders', icon: ShoppingCart },
     { id: 'users', label: 'Users', icon: Users },
-    { id: 'media', label: 'Media', icon: Image },
+    { id: 'roles', label: 'Roles & Permissions', icon: Shield },
+    { id: 'content', label: 'Content', icon: FileText },
+    { id: 'media', label: 'Media Library', icon: Image },
+    { id: 'reports', label: 'Reports', icon: BarChart2 },
+    { id: 'activity_logs', label: 'Activity Logs', icon: Activity },
     { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'system_health', label: 'System Health', icon: Heart },
   ];
 
   const sidebarContent = (
