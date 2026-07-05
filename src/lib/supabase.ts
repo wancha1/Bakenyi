@@ -80,45 +80,13 @@ export async function getCurrentUser(): Promise<any> {
 // ==========================================
 
 /**
- * Fetches all articles from Supabase with dynamic seeding fallback.
+ * Fetches all articles from Supabase.
  * @param onlyPublished If true, only returns articles with status === 'published'.
  */
 export async function getArticles(onlyPublished = true): Promise<Article[]> {
   const client = getSupabase();
   if (!client) {
-    // If no client, fallback to localStorage with pre-seeded data
-    const stored = localStorage.getItem('bakenye_demo_articles');
-    let list: Article[] = [];
-    if (stored) {
-      list = JSON.parse(stored);
-    } else {
-      list = bakenyiArticles.map(art => ({
-        ...art,
-        status: art.status || 'published'
-      }));
-      localStorage.setItem('bakenye_demo_articles', JSON.stringify(list));
-    }
-    
-    // Inject a pending article if missing to support the vetting workflow
-    const hasPending = list.some(a => a.status === 'pending');
-    if (!hasPending) {
-      const pendingMock: Article = {
-        id: 'mock-pending-art-1',
-        title: 'Preserving the Soga Clan Drums: Oral Traditions',
-        excerpt: 'A comprehensive study on the rhythmic heritage of Soga clan drums and their communicative historical purposes.',
-        content: '# Oral Rhythms of the Soga\n\nFor generations, the drums have signaled times of harvesting, celebration, and spiritual consensus. This report details the specific timber used in drumming construction and the lineage of the master drummers.',
-        category: 'Heritage',
-        author: 'Reporter Nakabuye',
-        publishedAt: new Date(Date.now() - 3600 * 1000).toISOString().split('T')[0],
-        status: 'pending',
-        views: 0,
-        tags: ['Heritage', 'Oral Tradition']
-      };
-      list.unshift(pendingMock);
-      localStorage.setItem('bakenye_demo_articles', JSON.stringify(list));
-    }
-    
-    return onlyPublished ? list.filter(a => a.status === 'published') : list;
+    return [];
   }
 
   try {
@@ -147,49 +115,10 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
       return onlyPublished ? articles.filter(a => a.status === 'published') : articles;
     }
 
-    // Database is empty - let's seed it dynamically from bakenyiArticles
-    console.log('Articles table is empty, seeding with bakenyiArticles...');
-    const seedList = bakenyiArticles.map(art => ({
-      id: art.id,
-      title: art.title,
-      content: art.content || '',
-      status: 'published',
-      published_at: art.publishedAt || new Date().toISOString(),
-      summary: art.excerpt || '',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }));
-
-    // Perform individual inserts or bulk insert to bypass schema constraint differences
-    for (const record of seedList) {
-      await client.from('articles').upsert(record);
-    }
-
-    // Fetch again after seeding
-    const { data: reFetched } = await client
-      .from('articles')
-      .select('id, title, content, status, created_at, updated_at, published_at, summary');
-
-    if (reFetched) {
-      const articles = reFetched.map((row: any) => ({
-        id: row.id,
-        title: row.title,
-        excerpt: row.summary || '',
-        content: row.content || '',
-        category: 'Heritage',
-        author: 'Bakenyi Committee',
-        publishedAt: row.published_at || row.created_at || new Date().toISOString().split('T')[0],
-        status: row.status || 'published',
-        views: 0,
-        tags: ['Heritage']
-      }));
-      return onlyPublished ? articles.filter(a => a.status === 'published') : articles;
-    }
-
-    return bakenyiArticles;
+    return [];
   } catch (err) {
-    console.warn('Supabase fetch failed, falling back to static list:', err);
-    return bakenyiArticles;
+    console.warn('Supabase fetch failed:', err);
+    return [];
   }
 }
 
@@ -199,14 +128,7 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
 export async function getArticleById(id: string): Promise<Article | null> {
   const client = getSupabase();
   if (!client) {
-    const stored = localStorage.getItem('bakenye_demo_articles');
-    if (stored) {
-      const list: Article[] = JSON.parse(stored);
-      const art = list.find(a => a.id === id);
-      if (art) return art;
-    }
-    const localArticle = bakenyiArticles.find(a => a.id === id);
-    return localArticle || null;
+    return null;
   }
 
   try {
@@ -235,8 +157,7 @@ export async function getArticleById(id: string): Promise<Article | null> {
     console.warn(`Supabase read for ID ${id} failed:`, err);
   }
 
-  const localArticle = bakenyiArticles.find(a => a.id === id);
-  return localArticle || null;
+  return null;
 }
 
 /**
@@ -557,41 +478,8 @@ export interface GalleryImage {
 
 export async function getGalleryImages(): Promise<GalleryImage[]> {
   const client = getSupabase();
-  
-  const staticGallery = [
-    {
-      id: "h1",
-      title: "Canoe on Lake Kyoga",
-      imageUrl: "https://images.unsplash.com/photo-1523805009345-7448845a9e53?auto=format&fit=crop&q=80&w=800",
-      category: "Landscape",
-      description: "A traditional wooden canoe at sunset, reflecting the Bakenyi's deep connection to the floating islands of Lake Kyoga."
-    },
-    {
-      id: "h2",
-      title: "Basket Weaving Art",
-      imageUrl: "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800",
-      category: "Craft",
-      description: "Intricate patterns passed down through generations, utilizing local reeds and papyrus from the marshlands."
-    },
-    {
-      id: "h3",
-      title: "Ancestral Site",
-      imageUrl: "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&q=80&w=800",
-      category: "History",
-      description: "A sacred gathering place where Lukenye is still spoken in its purest form during seasonal ceremonies."
-    },
-    {
-      id: "h4",
-      title: "Community Festival",
-      imageUrl: "https://images.unsplash.com/photo-1493246507139-91e8bef99c02?auto=format&fit=crop&q=80&w=800",
-      category: "Tradition",
-      description: "Celebration of the harvest, bringing together clans from across the region to share stories and feast."
-    }
-  ];
-
   if (!client) {
-    const stored = localStorage.getItem('supabase_emulated_gallery') || '[]';
-    return [...JSON.parse(stored), ...staticGallery];
+    return [];
   }
 
   try {
@@ -599,7 +487,7 @@ export async function getGalleryImages(): Promise<GalleryImage[]> {
     if (error) throw error;
 
     if (data && data.length > 0) {
-      const list = data.map((row: any) => {
+      return data.map((row: any) => {
         let titleVal = row.title;
         let desc = '';
         let cat = 'General';
@@ -623,53 +511,12 @@ export async function getGalleryImages(): Promise<GalleryImage[]> {
           category: cat
         };
       });
-
-      return [...list, ...staticGallery];
     }
 
-    // Database is empty, let's seed with staticGallery
-    console.log('Gallery table is empty, seeding...');
-    for (const img of staticGallery) {
-      const titleStr = JSON.stringify({ title: img.title, description: img.description, category: img.category });
-      await client.from('gallery').upsert({
-        id: img.id,
-        title: titleStr,
-        image_url: img.imageUrl,
-        created_at: new Date().toISOString()
-      });
-    }
-
-    // Fetch again
-    const { data: reFetched } = await client.from('gallery').select('id, title, image_url, created_at');
-    if (reFetched) {
-      return reFetched.map((row: any) => {
-        let titleVal = row.title;
-        let desc = '';
-        let cat = 'General';
-        try {
-          if (titleVal.startsWith('{')) {
-            const parsed = JSON.parse(titleVal);
-            titleVal = parsed.title;
-            desc = parsed.description || '';
-            cat = parsed.category || 'General';
-          }
-        } catch (e) {}
-
-        return {
-          id: row.id,
-          title: titleVal,
-          imageUrl: row.image_url,
-          created_at: row.created_at,
-          description: desc,
-          category: cat
-        };
-      });
-    }
-
-    return staticGallery;
+    return [];
   } catch (err) {
     console.error('getGalleryImages failed:', err);
-    return staticGallery;
+    return [];
   }
 }
 
@@ -693,11 +540,7 @@ export async function addGalleryImage(
   };
 
   if (!client) {
-    const stored = localStorage.getItem('supabase_emulated_gallery') || '[]';
-    const list = JSON.parse(stored);
-    list.unshift(galleryObj);
-    localStorage.setItem('supabase_emulated_gallery', JSON.stringify(list));
-    return { data: galleryObj, error: null };
+    return { data: null, error: new Error('Supabase client is not configured.') };
   }
 
   try {

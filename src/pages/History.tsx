@@ -23,6 +23,7 @@ import {
   Headphones,
   Languages
 } from 'lucide-react';
+import { getSupabase } from '../lib/supabaseClient';
 
 interface AudioTrack {
   id: string;
@@ -43,96 +44,12 @@ interface AudioTrack {
   }[];
 }
 
-const oralHistoryTracks: AudioTrack[] = [
-  {
-    id: "track-1",
-    title: "The Legend of the Floating Islands (Ebiswa)",
-    elder: "Mzee Yosefu Mwula",
-    clan: "Abakenge Clan",
-    role: "Preserver of the Clan Staff",
-    topic: "Migration",
-    duration: "2:45",
-    durationSeconds: 165,
-    imageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300",
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-    recordingDate: "September 2023",
-    transcription: [
-      { time: 0, textLukenye: "Bakenyi baali bantu ba mazzi n'ebiswa eby'omunyanja.", textEnglish: "The Bakenyi were always people of the water and the floating marsh islands." },
-      { time: 10, textLukenye: "Twatunga ebiswa mulyango lwa Kyoga okwetangira ebitongole eby'amaani.", textEnglish: "We constructed floating islands (ebiswa) on Lake Kyoga to shelter ourselves from hostile groups." },
-      { time: 25, textLukenye: "Ebiswa bino byali bityo, byatutwalanga buli wamu w'enyanja we twaba twagala okugoba ebyennyanja...", textEnglish: "These islands were mobile, drifting with the wind, allowing us to follow fish migrations safely." },
-      { time: 45, textLukenye: "Abakulembeze baffe baasomanga ebigere n'empewo n'okusala ebiswa eby'amaato...", textEnglish: "Our elders read the waves and wind currents, guiding our floating homes to calm and fertile bays." },
-      { time: 65, textLukenye: "N'olwekyo, amaka gaffe gaasigalanga mu mirembe, ku mazzi amatendo agatuwa emmere n'obukuumi.", textEnglish: "Thus, our families remained at peace upon the glorious waters that provided both sustenance and safety." },
-      { time: 85, textLukenye: "Buli mwana we kika kyaffe ateekwa okukoppa ebyo eby'edda...", textEnglish: "Every child of our clan must remember these ancient ways of navigation..." },
-      { time: 105, textLukenye: "Ne baka mbeera ku ttaka kaakano, emmeeme yaffe eri ku nyanja Kyoga.", textEnglish: "Even though we live on the mainland now, our spirits belong to the tides of Lake Kyoga." }
-    ]
-  },
-  {
-    id: "track-2",
-    title: "Secrets of Lukenye Language Preservation",
-    elder: "Mama Grace Namutosi",
-    clan: "Abasenyi Clan",
-    role: "Elder Storyteller",
-    topic: "Language",
-    duration: "3:12",
-    durationSeconds: 192,
-    imageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300",
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-    recordingDate: "November 2024",
-    transcription: [
-      { time: 0, textLukenye: "Olunimi lwaffe Lukenye n'olulimi lwa banyasaye n'abakuru baffe.", textEnglish: "Our language, Lukenye, is the voice of our creators and our ancestors." },
-      { time: 15, textLukenye: "Twagamba abana baffe nti mwebere olunimi luno, kubanga bwe twogera, abakuru baffe batuwulira.", textEnglish: "We teach our children to speak this language with pride, for when we speak, the ancestors listen." },
-      { time: 32, textLukenye: "Buli bigambo, buli 'Engero' biriko amakulu amagobansolo ag'obulamu.", textEnglish: "Every word and proverb holds deep teachings about the interconnectedness of all life." },
-      { time: 50, textLukenye: "Tusaba abavubuka obutaba na nsonyi kwogera lulimi lwabwe mu bantu bangi.", textEnglish: "We plead with the youth never to feel ashamed of speaking our tongue in public spaces." },
-      { time: 68, textLukenye: "Kubanga obugagga bwaffe we buli. Bwe lufaa, n'omwoyo gwa Bakenyi gugenda nagwo.", textEnglish: "For our language is our true wealth. If it fades, the very soul of the Bakenyi fades with it." },
-      { time: 90, textLukenye: "Ka tukume ekitangaala kya Lukenye okuyaka mu myaka egijja.", textEnglish: "Let us keep the light of Lukenye burning brightly for all generations to come." }
-    ]
-  },
-  {
-    id: "track-3",
-    title: "Clan Totems & Sacred Water Spirits",
-    elder: "Mzee Peter Mukama",
-    clan: "Abagaya Clan",
-    role: "Traditional Ritual Custodian",
-    topic: "Tradition",
-    duration: "2:18",
-    durationSeconds: 138,
-    imageUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=300",
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-    recordingDate: "January 2026",
-    transcription: [
-      { time: 0, textLukenye: "Abagaya n'abantu abesiga ebyennyanja ebikulu.", textEnglish: "The Abagaya clan is the guardian of the deep waters." },
-      { time: 10, textLukenye: "Akanyoni n'omuziro gwaffe gwa mazzi, ate omuziiro gwe mamba gutukuma.", textEnglish: "Our totem is the lungfish, and we respect the currents that shield us from harm." },
-      { time: 25, textLukenye: "Bwe tulaba mamba e Lake Kyoga, tituyinza okugirya kubanga ye muganda waffe.", textEnglish: "When we see the lungfish in Lake Kyoga, we do not harm it, for it is our brother." },
-      { time: 42, textLukenye: "Ennyanja Kyoga terina mutima mubi, naye bwe wejjula emiziro, ekyama kyakugoba.", textEnglish: "Lake Kyoga has a generous spirit, but if you disrespect the ancient taboos, the waters will turn silent." },
-      { time: 60, textLukenye: "Bwe twesigama ku buyigirize bwa bajjajja, ennyanja etuwa emmeere n'amaato bulijjo.", textEnglish: "When we honor the teachings of our grandparents, the lake grants us abundant harvest and safe passage." },
-      { time: 80, textLukenye: "Obulombolombo buno bwe bulamu bwaffe obw'obusungufu.", textEnglish: "These sacred customs are what define our harmonious co-existence with nature." }
-    ]
-  },
-  {
-    id: "track-4",
-    title: "Traditional Canoe Crafting Techniques",
-    elder: "Mzee Kadhiri Waako",
-    clan: "Abanyele Clan",
-    role: "Master Boatbuilder",
-    topic: "Crafts",
-    duration: "3:45",
-    durationSeconds: 225,
-    imageUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=300",
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-    recordingDate: "March 2026",
-    transcription: [
-      { time: 0, textLukenye: "Okubajja amaato kye mulimu gwa kika gye twatunga okuva edda.", textEnglish: "Carving traditional canoes is a sacred lineage craft we inherited from long ago." },
-      { time: 15, textLukenye: "Twatema emiti eminene mu kibira eginaamalamu emyaka mingi mu mazzi.", textEnglish: "We select massive trees from the lakeside forest that can withstand the waters for decades." },
-      { time: 35, textLukenye: "Tukozesa emizigo gye mpeke okusiiga amaato gano, okugatangira okuyingiza amaizi.", textEnglish: "We apply natural oils and resins to coat the canoes, making them waterproof and resilient." },
-      { time: 55, textLukenye: "Omubajji buli lwayambuka mu lyato lye, asaba ebiswa okumuwa obulyo.", textEnglish: "A canoe-carver always sings prayers to the floating papyrus to grant them swift, gliding paths." },
-      { time: 75, textLukenye: "Lwakuba ebintu bino bikyuse kaakano, twagala nnyo abavubuka okubiyiga buli lukya.", textEnglish: "Even though modern methods exist, we wish for our youth to learn these master carving arts." },
-      { time: 95, textLukenye: "Kubanga amaato gaffe g'ennyanja gegaleese eggwanga lya Bakenyi wano.", textEnglish: "For our water vessels are what carried the Bakenyi nation through the waves of time to this day." }
-    ]
-  }
-];
-
 export default function History() {
   const [searchParams] = useSearchParams();
+  const [oralHistoryTracks, setOralHistoryTracks] = useState<AudioTrack[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [activeTrackIndex, setActiveTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -144,8 +61,79 @@ export default function History() {
   const [selectedTopic, setSelectedTopic] = useState('All');
   const [translationLang, setTranslationLang] = useState<'lukenye' | 'english' | 'both'>('both');
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const transcriptionContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Fetch dynamic timeline and audio recordings from Supabase
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      const client = getSupabase();
+      if (!client) {
+        setOralHistoryTracks([]);
+        setTimelineEvents([]);
+        setLoading(false);
+        return;
+      }
+
+      // 1. Fetch oral history recordings
+      try {
+        const { data, error } = await client.from('oral_history').select('*');
+        if (!error && data) {
+          const mapped: AudioTrack[] = data.map((row: any) => ({
+            id: String(row.id),
+            title: row.title || 'Untitled Narrative',
+            elder: row.elder || row.narrator || 'Elder Storyteller',
+            clan: row.clan || 'Bakenyi',
+            role: row.role || 'Traditional Guardian',
+            topic: (row.topic || 'Tradition') as any,
+            duration: row.duration || '2:30',
+            durationSeconds: row.duration_seconds || 150,
+            imageUrl: row.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300',
+            audioUrl: row.audio_url || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+            recordingDate: row.recording_date || 'September 2023',
+            transcription: Array.isArray(row.transcription) ? row.transcription : []
+          }));
+          setOralHistoryTracks(mapped);
+        } else {
+          setOralHistoryTracks([]);
+        }
+      } catch (e) {
+        console.error('History: failed to load oral history table:', e);
+        setOralHistoryTracks([]);
+      }
+
+      // 2. Fetch history timeline events
+      try {
+        const { data, error } = await client
+          .from('timeline_events')
+          .select('*')
+          .order('year_order', { ascending: true });
+        
+        if (!error && data) {
+          const mappedTimeline = data.map((row: any) => ({
+            period: row.period || row.year || 'Unknown Era',
+            title: row.title || 'Historical Event',
+            desc: row.desc || row.description || ''
+          }));
+          setTimelineEvents(mappedTimeline);
+        } else {
+          setTimelineEvents([]);
+        }
+      } catch (e) {
+        console.error('History: failed to load timeline events table:', e);
+        setTimelineEvents([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
   // Parse track parameter to select and play specific oral history recording
   useEffect(() => {
+    if (oralHistoryTracks.length === 0) return;
     const trackParam = searchParams.get('track');
     if (trackParam) {
       const index = oralHistoryTracks.findIndex(t => t.id === trackParam);
@@ -162,7 +150,7 @@ export default function History() {
         }, 100);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, oralHistoryTracks]);
 
   // Parse section parameter to scroll to specific history timeline event
   useEffect(() => {
@@ -187,15 +175,12 @@ export default function History() {
   };
   const activeSectionIdx = getSectionIndex(sectionParam);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const transcriptionContainerRef = useRef<HTMLDivElement | null>(null);
-
   const currentTrack = oralHistoryTracks[activeTrackIndex];
 
-  const activeSegmentIndex = currentTrack.transcription.findIndex((seg, i) => {
+  const activeSegmentIndex = currentTrack?.transcription ? currentTrack.transcription.findIndex((seg, i) => {
     const nextSeg = currentTrack.transcription[i + 1];
     return currentTime >= seg.time && (!nextSeg || currentTime < nextSeg.time);
-  });
+  }) : -1;
 
   useEffect(() => {
     if (transcriptionContainerRef.current) {
@@ -210,7 +195,7 @@ export default function History() {
   }, [activeSegmentIndex]);
 
   useEffect(() => {
-    if (audioRef.current) {
+    if (audioRef.current && currentTrack) {
       audioRef.current.src = currentTrack.audioUrl;
       audioRef.current.load();
       audioRef.current.playbackRate = playbackRate;
@@ -227,7 +212,7 @@ export default function History() {
         setCurrentTime(0);
       }
     }
-  }, [activeTrackIndex]);
+  }, [activeTrackIndex, oralHistoryTracks]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -317,33 +302,6 @@ export default function History() {
     const matchesTopic = selectedTopic === 'All' || track.topic === selectedTopic;
     return matchesSearch && matchesTopic;
   });
-  const timelineEvents = [
-    {
-      period: "15th - 16th Century",
-      title: "Ancient Roots & Migration",
-      desc: "The Bakenyi precursors evolved from the wider Bantu-speaking groups around Lake Victoria and the Bunyoro-Kitara Empire, eventually settling along the Nile-Kyoga waterways."
-    },
-    {
-      period: "17th Century",
-      title: "Establishment on floating islands",
-      desc: "Survival through adaptation. The Bakenyi became famous for living on 'Ebiswa' (floating islands formed by papyrus), which provided natural defense and immediate access to fishing grounds."
-    },
-    {
-      period: "18th - 19th Century",
-      title: "Regional Expansion",
-      desc: "Migration further into current districts like Paliisa, Kamuli, and Budaka. Establishing relationships with the Baganda, Basoga, and Bagwere while maintaining a distinct linguistic identity."
-    },
-    {
-      period: "1900s - Colonial Era",
-      title: "Administrative Recognition",
-      desc: "Formal recording of Bakenyi as a distinct ethnic group under the Uganda Protectorate documentation. Settlement patterns moved more towards stable land-based villages."
-    },
-    {
-      period: "Present Day",
-      title: "Cultural Digital Era",
-      desc: "A focus on educational revival and digital documentation of the Lukenye language and clan systems to prevent cultural erosion."
-    }
-  ];
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
@@ -415,41 +373,52 @@ export default function History() {
               Timeline of Milestones
             </h3>
             
-            <div className="relative pl-8 border-l-2 border-heritage-brown/10 ml-4 space-y-12">
-              {timelineEvents.map((event, idx) => {
-                const isSectionHighlighted = idx === activeSectionIdx;
-                return (
-                  <motion.div 
-                    key={idx}
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: idx * 0.1 }}
-                    className={`relative p-4 rounded-2xl transition-all duration-500 ${
-                      isSectionHighlighted ? 'bg-heritage-terracotta/10 ring-2 ring-heritage-terracotta shadow-md scale-[1.02]' : ''
-                    }`}
-                  >
-                    {isSectionHighlighted && (
-                      <span className="absolute -top-3 right-4 bg-heritage-terracotta text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full shadow-sm">
-                        Timeline Match
+            {loading ? (
+              <div className="flex items-center space-x-3 text-heritage-brown/40 font-bold uppercase tracking-wider py-8">
+                <div className="w-4 h-4 border-2 border-heritage-terracotta border-t-transparent animate-spin rounded-full"></div>
+                <span>Reading Chronicles...</span>
+              </div>
+            ) : timelineEvents.length === 0 ? (
+              <div className="p-8 border border-heritage-brown/10 rounded-2xl bg-white italic text-heritage-brown/40">
+                No timeline events have been cataloged yet.
+              </div>
+            ) : (
+              <div className="relative pl-8 border-l-2 border-heritage-brown/10 ml-4 space-y-12">
+                {timelineEvents.map((event, idx) => {
+                  const isSectionHighlighted = idx === activeSectionIdx;
+                  return (
+                    <motion.div 
+                      key={idx}
+                      initial={{ opacity: 0, x: 20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: idx * 0.1 }}
+                      className={`relative p-4 rounded-2xl transition-all duration-500 ${
+                        isSectionHighlighted ? 'bg-heritage-terracotta/10 ring-2 ring-heritage-terracotta shadow-md scale-[1.02]' : ''
+                      }`}
+                    >
+                      {isSectionHighlighted && (
+                        <span className="absolute -top-3 right-4 bg-heritage-terracotta text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full shadow-sm">
+                          Timeline Match
+                        </span>
+                      )}
+                      {/* Dot */}
+                      <div className={`absolute -left-[41px] w-4 h-4 rounded-full border-4 border-heritage-cream transition-colors ${
+                        isSectionHighlighted ? 'bg-heritage-terracotta scale-110' : 'bg-heritage-terracotta'
+                      }`} style={{ top: '22px' }} />
+                      
+                      <span className="text-xs font-bold text-heritage-terracotta uppercase tracking-tighter block mb-1">
+                        {event.period}
                       </span>
-                    )}
-                    {/* Dot */}
-                    <div className={`absolute -left-[41px] w-4 h-4 rounded-full border-4 border-heritage-cream transition-colors ${
-                      isSectionHighlighted ? 'bg-heritage-terracotta scale-110' : 'bg-heritage-terracotta'
-                    }`} style={{ top: isSectionHighlighted ? '22px' : '22px' }} />
-                    
-                    <span className="text-xs font-bold text-heritage-terracotta uppercase tracking-tighter block mb-1">
-                      {event.period}
-                    </span>
-                    <h4 className="text-lg font-bold text-heritage-brown mb-2">{event.title}</h4>
-                    <p className="text-sm text-heritage-brown/60 leading-relaxed tracking-tight font-medium">
-                      {event.desc}
-                    </p>
-                  </motion.div>
-                );
-              })}
-            </div>
+                      <h4 className="text-lg font-bold text-heritage-brown mb-2">{event.title}</h4>
+                      <p className="text-sm text-heritage-brown/60 leading-relaxed tracking-tight font-medium">
+                        {event.desc}
+                      </p>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -473,405 +442,416 @@ export default function History() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-            
-            {/* LEFT COLUMN: ACTIVE MEDIA PLAYER & SYNCHRONIZED TRANSCRIPTION */}
-            <div className="lg:col-span-7 flex flex-col space-y-6">
-              
-              <div className="bg-[#443022] rounded-[40px] p-8 md:p-10 border border-heritage-sand/20 shadow-2xl relative overflow-hidden flex flex-col h-full justify-between">
-                
-                {/* Hidden Audio element */}
-                <audio 
-                  ref={audioRef}
-                  onTimeUpdate={() => {
-                    if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
-                  }}
-                  onDurationChange={() => {
-                    if (audioRef.current) setDuration(audioRef.current.duration);
-                  }}
-                  onEnded={() => {
-                    setIsPlaying(false);
-                    setCurrentTime(0);
-                  }}
-                />
-
-                {/* Elder Portrait & Quick info */}
-                <div className="flex flex-col sm:flex-row items-center gap-6 pb-8 border-b border-white/10">
-                  <div className="relative shrink-0">
-                    <img 
-                      src={currentTrack.imageUrl} 
-                      alt={currentTrack.elder}
-                      className="w-24 h-24 rounded-3xl object-cover border-4 border-heritage-sand shadow-lg"
-                    />
-                    {isPlaying && (
-                      <div className="absolute -bottom-2 -right-2 bg-heritage-terracotta text-white p-1.5 rounded-full shadow-md animate-bounce">
-                        <Sparkles className="w-4 h-4" />
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="text-center sm:text-left flex-grow">
-                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mb-2">
-                      <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-heritage-terracotta/20 text-heritage-sand border border-heritage-terracotta/40">
-                        {currentTrack.topic}
-                      </span>
-                      <span className="text-xs text-white/40 font-mono flex items-center">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {currentTrack.recordingDate}
-                      </span>
-                    </div>
-                    <h3 className="text-2xl font-serif font-bold text-white mb-1">{currentTrack.title}</h3>
-                    <p className="text-heritage-sand font-semibold text-sm flex items-center justify-center sm:justify-start">
-                      <User className="w-3.5 h-3.5 mr-1.5" />
-                      {currentTrack.elder}
-                      <span className="text-white/40 mx-2">•</span>
-                      <span className="text-white/70 font-normal">{currentTrack.clan}</span>
-                    </p>
-                    <p className="text-white/50 text-xs mt-1 italic font-medium">{currentTrack.role}</p>
-                  </div>
-                </div>
-
-                {/* Animated Wave visualizer when playing */}
-                <div className="py-6 flex items-center justify-center bg-black/10 rounded-2xl border border-white/5 my-6 min-h-[50px]">
-                  {isPlaying ? (
-                    <div className="flex items-center space-x-1.5 h-8">
-                      {[...Array(16)].map((_, i) => (
-                        <motion.div
-                          key={i}
-                          animate={{ height: ["20%", "100%", "20%"] }}
-                          transition={{
-                            repeat: Infinity,
-                            duration: 0.6 + (i % 5) * 0.15,
-                            ease: "easeInOut"
-                          }}
-                          className="w-1 bg-heritage-sand rounded-full"
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-1.5 h-8 opacity-40">
-                      {[...Array(16)].map((_, i) => (
-                        <div key={i} className="w-1 h-1 bg-heritage-sand/40 rounded-full" />
-                      ))}
-                      <span className="text-xs text-heritage-sand/60 uppercase font-black tracking-widest ml-4">Player Paused</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Media Player Seek Slider Controls */}
-                <div className="space-y-4">
-                  
-                  {/* Progress bar */}
-                  <div className="space-y-1.5">
-                    <input 
-                      type="range"
-                      min={0}
-                      max={duration || currentTrack.durationSeconds}
-                      step={0.1}
-                      value={currentTime}
-                      onChange={handleProgressChange}
-                      className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-heritage-sand focus:outline-none transition-all"
-                    />
-                    <div className="flex justify-between text-xs text-white/50 font-mono">
-                      <span>{formatTime(currentTime)}</span>
-                      <span>{formatTime(duration || currentTrack.durationSeconds)}</span>
-                    </div>
-                  </div>
-
-                  {/* Operational Controls Buttons */}
-                  <div className="flex items-center justify-between pt-2">
-                    
-                    {/* Left speed option */}
-                    <button 
-                      onClick={handleSpeedChange}
-                      className="px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-mono font-bold text-heritage-sand tracking-wide border border-white/5 transition-all"
-                      title="Adjust playback speed"
-                    >
-                      {playbackRate}x
-                    </button>
-
-                    <div className="flex items-center space-x-5">
-                      <button 
-                        onClick={() => handleSkip(-10)}
-                        className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-full border border-white/5 transition-all"
-                        title="Skip backward 10s"
-                      >
-                        <SkipBack className="w-5 h-5 text-heritage-sand" />
-                      </button>
-
-                      <button 
-                        onClick={togglePlay}
-                        className="w-16 h-16 rounded-full bg-heritage-terracotta hover:bg-heritage-sand hover:scale-105 active:scale-95 text-white flex items-center justify-center shadow-lg transition-all border border-white/10 group"
-                        title={isPlaying ? "Pause" : "Play"}
-                      >
-                        {isPlaying ? (
-                          <Pause className="w-7 h-7 fill-white text-white group-hover:scale-95 transition-transform" />
-                        ) : (
-                          <Play className="w-7 h-7 fill-white text-white translate-x-0.5 group-hover:scale-105 transition-transform" />
-                        )}
-                      </button>
-
-                      <button 
-                        onClick={() => handleSkip(10)}
-                        className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-full border border-white/5 transition-all"
-                        title="Skip forward 10s"
-                      >
-                        <SkipForward className="w-5 h-5 text-heritage-sand" />
-                      </button>
-                    </div>
-
-                    {/* Mute toggle with small slider */}
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={toggleMute}
-                        className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 text-heritage-sand transition-all"
-                        title={isMuted ? "Unmute" : "Mute"}
-                      >
-                        {isMuted || volume === 0 ? (
-                          <VolumeX className="w-4 h-4" />
-                        ) : volume < 0.4 ? (
-                          <Volume className="w-4 h-4" />
-                        ) : volume < 0.7 ? (
-                          <Volume1 className="w-4 h-4" />
-                        ) : (
-                          <Volume2 className="w-4 h-4" />
-                        )}
-                      </button>
-                      <input 
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={isMuted ? 0 : volume}
-                        onChange={handleVolumeChange}
-                        className="w-16 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-heritage-sand focus:outline-none hidden sm:block"
-                      />
-                    </div>
-
-                  </div>
-                </div>
-
-              </div>
-
-              {/* SYNCHRONIZED TRANSCRIPTION BOX */}
-              <div className="bg-[#443022] rounded-[32px] p-6 border border-white/10 flex flex-col h-[280px]">
-                <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-4 shrink-0">
-                  <div className="flex items-center space-x-2 text-heritage-sand">
-                    <Languages className="w-4 h-4 text-heritage-sand" />
-                    <span className="text-xs font-black uppercase tracking-widest">Interactive Transcript</span>
-                  </div>
-
-                  {/* Language switch toggles */}
-                  <div className="flex bg-black/20 p-1 rounded-xl border border-white/5">
-                    <button 
-                      onClick={() => setTranslationLang('lukenye')}
-                      className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                        translationLang === 'lukenye' ? 'bg-heritage-terracotta text-white' : 'text-white/50 hover:text-white'
-                      }`}
-                    >
-                      Lukenye
-                    </button>
-                    <button 
-                      onClick={() => setTranslationLang('english')}
-                      className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                        translationLang === 'english' ? 'bg-heritage-terracotta text-white' : 'text-white/50 hover:text-white'
-                      }`}
-                    >
-                      English
-                    </button>
-                    <button 
-                      onClick={() => setTranslationLang('both')}
-                      className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                        translationLang === 'both' ? 'bg-heritage-terracotta text-white' : 'text-white/50 hover:text-white'
-                      }`}
-                    >
-                      Both
-                    </button>
-                  </div>
-                </div>
-
-                {/* Subtitle scroll box */}
-                <div 
-                  ref={transcriptionContainerRef}
-                  className="flex-grow overflow-y-auto pr-2 space-y-3 scrollbar-thin scrollbar-thumb-white/10"
-                >
-                  {currentTrack.transcription.map((seg, i) => {
-                    const isActive = i === activeSegmentIndex;
-                    return (
-                      <div 
-                        key={i}
-                        onClick={() => handleSeekToSegment(seg.time)}
-                        data-active={isActive ? "true" : "false"}
-                        className={`p-3.5 rounded-2xl cursor-pointer transition-all duration-300 border text-left flex items-start gap-3 group/line ${
-                          isActive 
-                            ? 'bg-heritage-terracotta/20 border-heritage-sand text-white shadow-md' 
-                            : 'bg-white/5 border-transparent text-white/70 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <div className={`text-[10px] font-mono shrink-0 px-2 py-0.5 rounded-md ${
-                          isActive ? 'bg-heritage-sand text-heritage-brown font-bold' : 'bg-white/5 text-white/40'
-                        }`}>
-                          {formatTime(seg.time)}
-                        </div>
-                        <div className="space-y-1.5 flex-grow">
-                          {(translationLang === 'lukenye' || translationLang === 'both') && (
-                            <p className={`text-sm leading-relaxed ${isActive ? 'font-serif font-bold text-heritage-sand' : 'font-serif'}`}>
-                              {seg.textLukenye}
-                            </p>
-                          )}
-                          {(translationLang === 'english' || translationLang === 'both') && (
-                            <p className={`text-xs leading-relaxed ${isActive ? 'text-white font-medium' : 'text-white/50'}`}>
-                              {seg.textEnglish}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-[#443022] rounded-[32px] border border-white/10">
+              <div className="w-12 h-12 border-4 border-heritage-sand/20 border-t-heritage-sand animate-spin rounded-full"></div>
+              <p className="mt-4 text-xs font-bold text-heritage-sand uppercase tracking-wider animate-pulse">Loading oral histories...</p>
             </div>
-
-            {/* RIGHT COLUMN: SEARCH & TRACK PLAYLIST */}
-            <div className="lg:col-span-5 flex flex-col space-y-6">
+          ) : oralHistoryTracks.length === 0 ? (
+            <div className="text-center py-20 bg-[#443022] rounded-[32px] border-2 border-dashed border-white/10 max-w-3xl mx-auto px-6">
+              <Volume2 className="w-16 h-16 text-heritage-sand/20 mx-auto mb-6" />
+              <h3 className="text-xl font-serif font-bold text-white mb-2">No audio archives are available yet</h3>
+              <p className="text-sm text-heritage-sand/60 max-w-md mx-auto">
+                Oral recordings are being processed and digitized by our linguistic archivists. Please check back later.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
               
-              <div className="bg-[#443022] rounded-[40px] p-6 md:p-8 border border-white/10 flex flex-col h-full justify-between">
+              {/* LEFT COLUMN: ACTIVE MEDIA PLAYER & SYNCHRONIZED TRANSCRIPTION */}
+              <div className="lg:col-span-7 flex flex-col space-y-6">
                 
-                {/* Search and filtering */}
-                <div className="space-y-4 pb-6 border-b border-white/10 shrink-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <ListMusic className="w-5 h-5 text-heritage-sand" />
-                      <span className="text-sm font-black uppercase tracking-widest">Story Collection</span>
-                    </div>
-                    <span className="text-xs text-white/40 font-mono font-bold uppercase">
-                      {filteredTracks.length} recordings
-                    </span>
-                  </div>
+                <div className="bg-[#443022] rounded-[40px] p-8 md:p-10 border border-heritage-sand/20 shadow-2xl relative overflow-hidden flex flex-col h-full justify-between">
+                  
+                  {/* Hidden Audio element */}
+                  <audio 
+                    ref={audioRef}
+                    onTimeUpdate={() => {
+                      if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+                    }}
+                    onDurationChange={() => {
+                      if (audioRef.current) setDuration(audioRef.current.duration);
+                    }}
+                    onEnded={() => {
+                      setIsPlaying(false);
+                      setCurrentTime(0);
+                    }}
+                  />
 
-                  {/* Search box */}
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                    <input 
-                      type="text"
-                      placeholder="Search elders, clans, titles..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-black/20 border border-white/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-white/30 outline-none focus:border-heritage-sand/50 transition-all"
-                    />
-                  </div>
+                  {currentTrack && (
+                    <>
+                      {/* Elder Portrait & Quick info */}
+                      <div className="flex flex-col sm:flex-row items-center gap-6 pb-8 border-b border-white/10">
+                        <div className="relative shrink-0">
+                          <img 
+                            src={currentTrack.imageUrl} 
+                            alt={currentTrack.elder}
+                            className="w-24 h-24 rounded-3xl object-cover border-4 border-heritage-sand shadow-lg"
+                          />
+                          {isPlaying && (
+                            <div className="absolute -bottom-2 -right-2 bg-heritage-terracotta text-white p-1.5 rounded-full shadow-md animate-bounce">
+                              <Sparkles className="w-4 h-4" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="text-center sm:text-left flex-grow">
+                          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mb-2">
+                            <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-heritage-terracotta/20 text-heritage-sand border border-heritage-terracotta/40">
+                              {currentTrack.topic}
+                            </span>
+                            <span className="text-xs text-white/40 font-mono flex items-center">
+                              <Clock className="w-3 h-3 mr-1" />
+                              {currentTrack.recordingDate}
+                            </span>
+                          </div>
+                          <h3 className="text-2xl font-serif font-bold text-white mb-1">{currentTrack.title}</h3>
+                          <p className="text-heritage-sand font-semibold text-sm flex items-center justify-center sm:justify-start">
+                            <User className="w-3.5 h-3.5 mr-1.5" />
+                            {currentTrack.elder}
+                            <span className="text-white/40 mx-2">•</span>
+                            <span className="text-white/70 font-normal">{currentTrack.clan}</span>
+                          </p>
+                          <p className="text-white/50 text-xs mt-1 italic font-medium">{currentTrack.role}</p>
+                        </div>
+                      </div>
 
-                  {/* Pill filters */}
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {['All', 'Migration', 'Language', 'Tradition', 'Crafts'].map((topic) => {
-                      const count = topic === 'All' 
-                        ? oralHistoryTracks.length 
-                        : oralHistoryTracks.filter(t => t.topic === topic).length;
-                      return (
-                        <button
-                          key={topic}
-                          onClick={() => setSelectedTopic(topic)}
-                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
-                            selectedTopic === topic 
-                              ? 'bg-heritage-sand text-heritage-brown border-heritage-sand font-bold' 
-                              : 'bg-white/5 hover:bg-white/10 text-white/60 border-white/5'
-                          }`}
-                        >
-                          {topic} <span className="opacity-40 ml-1 font-mono">{count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                      {/* Animated Wave visualizer when playing */}
+                      <div className="py-6 flex items-center justify-center bg-black/10 rounded-2xl border border-white/5 my-6 min-h-[50px]">
+                        {isPlaying ? (
+                          <div className="flex items-center space-x-1.5 h-8">
+                            {[...Array(16)].map((_, i) => (
+                              <motion.div
+                                key={i}
+                                animate={{ height: ["20%", "100%", "20%"] }}
+                                transition={{
+                                  repeat: Infinity,
+                                  duration: 0.6 + (i % 5) * 0.15,
+                                  ease: "easeInOut"
+                                }}
+                                className="w-1 bg-heritage-sand rounded-full"
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-1.5 h-8 opacity-40">
+                            {[...Array(16)].map((_, i) => (
+                              <div key={i} className="w-1 h-1 bg-heritage-sand/40 rounded-full" />
+                            ))}
+                            <span className="text-xs text-heritage-sand/60 uppercase font-black tracking-widest ml-4">Player Paused</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Media Player Seek Slider Controls */}
+                      <div className="space-y-4">
+                        {/* Progress bar */}
+                        <div className="space-y-1.5">
+                          <input 
+                            type="range"
+                            min={0}
+                            max={duration || currentTrack.durationSeconds}
+                            step={0.1}
+                            value={currentTime}
+                            onChange={handleProgressChange}
+                            className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-heritage-sand focus:outline-none transition-all"
+                          />
+                          <div className="flex justify-between text-xs text-white/50 font-mono">
+                            <span>{formatTime(currentTime)}</span>
+                            <span>{formatTime(duration || currentTrack.durationSeconds)}</span>
+                          </div>
+                        </div>
+
+                        {/* Operational Controls Buttons */}
+                        <div className="flex items-center justify-between pt-2">
+                          <button 
+                            onClick={handleSpeedChange}
+                            className="px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-mono font-bold text-heritage-sand tracking-wide border border-white/5 transition-all cursor-pointer"
+                            title="Adjust playback speed"
+                          >
+                            {playbackRate}x
+                          </button>
+
+                          <div className="flex items-center space-x-5">
+                            <button 
+                              onClick={() => handleSkip(-10)}
+                              className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-full border border-white/5 transition-all cursor-pointer"
+                              title="Skip backward 10s"
+                            >
+                              <SkipBack className="w-5 h-5 text-heritage-sand" />
+                            </button>
+
+                            <button 
+                              onClick={togglePlay}
+                              className="w-16 h-16 rounded-full bg-heritage-terracotta hover:bg-heritage-sand hover:scale-105 active:scale-95 text-white flex items-center justify-center shadow-lg transition-all border border-white/10 group cursor-pointer"
+                              title={isPlaying ? "Pause" : "Play"}
+                            >
+                              {isPlaying ? (
+                                <Pause className="w-7 h-7 fill-white text-white group-hover:scale-95 transition-transform" />
+                              ) : (
+                                <Play className="w-7 h-7 fill-white text-white translate-x-0.5 group-hover:scale-105 transition-transform" />
+                              )}
+                            </button>
+
+                            <button 
+                              onClick={() => handleSkip(10)}
+                              className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-full border border-white/5 transition-all cursor-pointer"
+                              title="Skip forward 10s"
+                            >
+                              <SkipForward className="w-5 h-5 text-heritage-sand" />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <button 
+                              onClick={toggleMute}
+                              className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full border border-white/5 text-heritage-sand transition-all cursor-pointer"
+                              title={isMuted ? "Unmute" : "Mute"}
+                            >
+                              {isMuted || volume === 0 ? (
+                                <VolumeX className="w-4 h-4" />
+                              ) : volume < 0.4 ? (
+                                <Volume className="w-4 h-4" />
+                              ) : volume < 0.7 ? (
+                                <Volume1 className="w-4 h-4" />
+                              ) : (
+                                <Volume2 className="w-4 h-4" />
+                              )}
+                            </button>
+                            <input 
+                              type="range"
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              value={isMuted ? 0 : volume}
+                              onChange={handleVolumeChange}
+                              className="w-16 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-heritage-sand focus:outline-none hidden sm:block"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
                 </div>
 
-                {/* Playlist Tracks List */}
-                <div className="flex-grow overflow-y-auto max-h-[380px] pr-2 space-y-3.5 mt-6 scrollbar-thin scrollbar-thumb-white/10">
-                  {filteredTracks.length === 0 ? (
-                    <div className="text-center py-12 text-white/40">
-                      <p className="text-sm font-medium">No archived histories match your search.</p>
-                      <button 
-                        onClick={() => { setSearchQuery(''); setSelectedTopic('All'); }}
-                        className="text-xs text-heritage-sand font-bold uppercase tracking-wider mt-2 hover:underline"
-                      >
-                        Reset filters
-                      </button>
-                    </div>
-                  ) : (
-                    filteredTracks.map((track) => {
-                      const isSelected = oralHistoryTracks[activeTrackIndex].id === track.id;
-                      const trackIndexInMaster = oralHistoryTracks.findIndex(t => t.id === track.id);
-                      return (
-                        <div 
-                          key={track.id}
-                          onClick={() => {
-                            setActiveTrackIndex(trackIndexInMaster);
-                            if (!isPlaying) setIsPlaying(true);
-                          }}
-                          className={`p-4 rounded-[24px] cursor-pointer transition-all duration-300 border text-left flex items-center gap-4 group/item ${
-                            isSelected 
-                              ? 'bg-heritage-terracotta text-white border-heritage-sand shadow-lg' 
-                              : 'bg-white/5 border-white/5 text-white/80 hover:bg-white/10 hover:border-white/10'
+                {/* SYNCHRONIZED TRANSCRIPTION BOX */}
+                {currentTrack && currentTrack.transcription && currentTrack.transcription.length > 0 && (
+                  <div className="bg-[#443022] rounded-[32px] p-6 border border-white/10 flex flex-col h-[280px] mt-6">
+                    <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-4 shrink-0">
+                      <div className="flex items-center space-x-2 text-heritage-sand">
+                        <Languages className="w-4 h-4 text-heritage-sand" />
+                        <span className="text-xs font-black uppercase tracking-widest">Interactive Transcript</span>
+                      </div>
+
+                      <div className="flex bg-black/20 p-1 rounded-xl border border-white/5">
+                        <button 
+                          onClick={() => setTranslationLang('lukenye')}
+                          className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                            translationLang === 'lukenye' ? 'bg-heritage-terracotta text-white' : 'text-white/50 hover:text-white'
                           }`}
                         >
-                          {/* Image Thumbnail with overlay hover */}
-                          <div className="relative shrink-0 w-14 h-14 rounded-2xl overflow-hidden shadow-md">
-                            <img 
-                              src={track.imageUrl} 
-                              alt={track.elder} 
-                              className="w-full h-full object-cover transition-transform group-hover/item:scale-105"
-                            />
-                            <div className={`absolute inset-0 bg-black/30 flex items-center justify-center transition-all ${
-                              isSelected ? 'opacity-100 bg-heritage-terracotta/40' : 'opacity-0 group-hover/item:opacity-100'
+                          Lukenye
+                        </button>
+                        <button 
+                          onClick={() => setTranslationLang('english')}
+                          className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                            translationLang === 'english' ? 'bg-heritage-terracotta text-white' : 'text-white/50 hover:text-white'
+                          }`}
+                        >
+                          English
+                        </button>
+                        <button 
+                          onClick={() => setTranslationLang('both')}
+                          className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                            translationLang === 'both' ? 'bg-heritage-terracotta text-white' : 'text-white/50 hover:text-white'
+                          }`}
+                        >
+                          Both
+                        </button>
+                      </div>
+                    </div>
+
+                    <div 
+                      ref={transcriptionContainerRef}
+                      className="flex-grow overflow-y-auto pr-2 space-y-3 scrollbar-thin scrollbar-thumb-white/10"
+                    >
+                      {currentTrack.transcription.map((seg, i) => {
+                        const isActive = i === activeSegmentIndex;
+                        return (
+                          <div 
+                            key={i}
+                            onClick={() => handleSeekToSegment(seg.time)}
+                            data-active={isActive ? "true" : "false"}
+                            className={`p-3.5 rounded-2xl cursor-pointer transition-all duration-300 border text-left flex items-start gap-3 group/line ${
+                              isActive 
+                                ? 'bg-heritage-terracotta/20 border-heritage-sand text-white shadow-md' 
+                                : 'bg-white/5 border-transparent text-white/70 hover:bg-white/10 hover:text-white'
+                            }`}
+                          >
+                            <div className={`text-[10px] font-mono shrink-0 px-2 py-0.5 rounded-md ${
+                              isActive ? 'bg-heritage-sand text-heritage-brown font-bold' : 'bg-white/5 text-white/40'
                             }`}>
-                              {isSelected && isPlaying ? (
-                                <Pause className="w-5 h-5 text-white fill-white animate-pulse" />
-                              ) : (
-                                <Play className="w-5 h-5 text-white fill-white" />
+                              {formatTime(seg.time)}
+                            </div>
+                            <div className="space-y-1.5 flex-grow">
+                              {(translationLang === 'lukenye' || translationLang === 'both') && (
+                                <p className={`text-sm leading-relaxed ${isActive ? 'font-serif font-bold text-heritage-sand' : 'font-serif'}`}>
+                                  {seg.textLukenye}
+                                </p>
+                              )}
+                              {(translationLang === 'english' || translationLang === 'both') && (
+                                <p className={`text-xs leading-relaxed ${isActive ? 'text-white font-medium' : 'text-white/50'}`}>
+                                  {seg.textEnglish}
+                                </p>
                               )}
                             </div>
                           </div>
-
-                          {/* Info */}
-                          <div className="flex-grow min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
-                                isSelected ? 'bg-white/20 text-white' : 'bg-heritage-sand/20 text-heritage-sand'
-                              }`}>
-                                {track.topic}
-                              </span>
-                              <span className="text-[10px] text-white/40 font-mono font-medium">{track.duration}</span>
-                            </div>
-                            <h4 className={`text-base font-serif font-bold truncate ${isSelected ? 'text-white' : 'text-white'}`}>
-                              {track.title}
-                            </h4>
-                            <p className={`text-xs truncate ${isSelected ? 'text-heritage-sand font-semibold' : 'text-white/60'}`}>
-                              {track.elder} <span className="opacity-40">•</span> <span className="font-normal opacity-80">{track.clan}</span>
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {/* Simulated listener community notes section */}
-                <div className="pt-6 border-t border-white/10 mt-6 shrink-0 flex items-center justify-between text-xs text-white/40 font-medium">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-2 w-2 relative">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-heritage-sand opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-heritage-sand"></span>
-                    </span>
-                    <span>Broadcasting Preservation</span>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <span className="text-heritage-sand/60">Bakenyi Heritage Project</span>
+                )}
+
+              </div>
+
+              {/* RIGHT COLUMN: SEARCH & TRACK PLAYLIST */}
+              <div className="lg:col-span-5 flex flex-col space-y-6">
+                
+                <div className="bg-[#443022] rounded-[40px] p-6 md:p-8 border border-white/10 flex flex-col h-full justify-between">
+                  
+                  {/* Search and filtering */}
+                  <div className="space-y-4 pb-6 border-b border-white/10 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <ListMusic className="w-5 h-5 text-heritage-sand" />
+                        <span className="text-sm font-black uppercase tracking-widest">Story Collection</span>
+                      </div>
+                      <span className="text-xs text-white/40 font-mono font-bold uppercase">
+                        {filteredTracks.length} recordings
+                      </span>
+                    </div>
+
+                    {/* Search box */}
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <input 
+                        type="text"
+                        placeholder="Search elders, clans, titles..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-black/20 border border-white/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-white/30 outline-none focus:border-heritage-sand/50 transition-all"
+                      />
+                    </div>
+
+                    {/* Pill filters */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {['All', 'Migration', 'Language', 'Tradition', 'Crafts'].map((topic) => {
+                        const count = topic === 'All' 
+                          ? oralHistoryTracks.length 
+                          : oralHistoryTracks.filter(t => t.topic === topic).length;
+                        return (
+                          <button
+                            key={topic}
+                            onClick={() => setSelectedTopic(topic)}
+                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border cursor-pointer ${
+                              selectedTopic === topic 
+                                ? 'bg-heritage-sand text-heritage-brown border-heritage-sand font-bold' 
+                                : 'bg-white/5 hover:bg-white/10 text-white/60 border-white/5'
+                            }`}
+                          >
+                            {topic} <span className="opacity-40 ml-1 font-mono">{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Playlist Tracks List */}
+                  <div className="flex-grow overflow-y-auto max-h-[380px] pr-2 space-y-3.5 mt-6 scrollbar-thin scrollbar-thumb-white/10">
+                    {filteredTracks.length === 0 ? (
+                      <div className="text-center py-12 text-white/40">
+                        <p className="text-sm font-medium">No archived histories match your search.</p>
+                        <button 
+                          onClick={() => { setSearchQuery(''); setSelectedTopic('All'); }}
+                          className="text-xs text-heritage-sand font-bold uppercase tracking-wider mt-2 hover:underline cursor-pointer"
+                        >
+                          Reset filters
+                        </button>
+                      </div>
+                    ) : (
+                      filteredTracks.map((track) => {
+                        const isSelected = currentTrack && currentTrack.id === track.id;
+                        const trackIndexInMaster = oralHistoryTracks.findIndex(t => t.id === track.id);
+                        return (
+                          <div 
+                            key={track.id}
+                            onClick={() => {
+                              setActiveTrackIndex(trackIndexInMaster);
+                              if (!isPlaying) setIsPlaying(true);
+                            }}
+                            className={`p-4 rounded-[24px] cursor-pointer transition-all duration-300 border text-left flex items-center gap-4 group/item ${
+                              isSelected 
+                                ? 'bg-heritage-terracotta text-white border-heritage-sand shadow-lg' 
+                                : 'bg-white/5 border-white/5 text-white/80 hover:bg-white/10 hover:border-white/10'
+                            }`}
+                          >
+                            <div className="relative shrink-0 w-14 h-14 rounded-2xl overflow-hidden shadow-md">
+                              <img 
+                                src={track.imageUrl} 
+                                alt={track.elder} 
+                                className="w-full h-full object-cover transition-transform group-hover/item:scale-105"
+                              />
+                              <div className={`absolute inset-0 bg-black/30 flex items-center justify-center transition-all ${
+                                isSelected ? 'opacity-100 bg-heritage-terracotta/40' : 'opacity-0 group-hover/item:opacity-100'
+                              }`}>
+                                {isSelected && isPlaying ? (
+                                  <Pause className="w-5 h-5 text-white fill-white animate-pulse" />
+                                ) : (
+                                  <Play className="w-5 h-5 text-white fill-white" />
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex-grow min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                                  isSelected ? 'bg-white/20 text-white' : 'bg-heritage-sand/20 text-heritage-sand'
+                                }`}>
+                                  {track.topic}
+                                </span>
+                                <span className="text-[10px] text-white/40 font-mono font-medium">{track.duration}</span>
+                              </div>
+                              <h4 className="text-base font-serif font-bold truncate">
+                                {track.title}
+                              </h4>
+                              <p className={`text-xs truncate ${isSelected ? 'text-heritage-sand font-semibold' : 'text-white/60'}`}>
+                                {track.elder} <span className="opacity-40">•</span> <span className="font-normal opacity-80">{track.clan}</span>
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="pt-6 border-t border-white/10 mt-6 shrink-0 flex items-center justify-between text-xs text-white/40 font-medium">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-heritage-sand opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-heritage-sand"></span>
+                      </span>
+                      <span>Broadcasting Preservation</span>
+                    </div>
+                    <span className="text-heritage-sand/60">Bakenyi Heritage Project</span>
+                  </div>
+
                 </div>
 
               </div>
 
             </div>
-
-          </div>
+          )}
 
         </div>
       </section>

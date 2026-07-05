@@ -6,7 +6,6 @@ import {
   LayoutDashboard, LogIn, FileText, Users, PenTool 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { searchDatabase } from '../../data/searchDb';
 import { getSupabase, checkIsAdmin } from '../../lib/supabaseClient';
 
 const heritageItems = [
@@ -70,6 +69,7 @@ export default function Navbar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchDatabase, setSearchDatabase] = useState<any[]>([]);
   
   // Hover & Dropdown states
   const [activeMenu, setActiveMenu] = useState<'heritage' | 'community' | null>(null);
@@ -201,6 +201,67 @@ export default function Navbar() {
   useEffect(() => {
     if (isSearchOpen) {
       document.body.style.overflow = 'hidden';
+      
+      // Load search database dynamically
+      async function loadSearchData() {
+        const client = getSupabase();
+        if (!client) return;
+        
+        const items: any[] = [];
+        try {
+          const { data } = await client.from('articles').select('id, title, summary, content');
+          if (data) {
+            data.forEach((row: any) => {
+              items.push({
+                id: `article-${row.id}`,
+                category: 'Article',
+                title: row.title,
+                subtitle: row.summary || 'Heritage Article',
+                description: row.content || '',
+                targetPath: `/articles/${row.id}`
+              });
+            });
+          }
+        } catch (e) {}
+
+        try {
+          const { data } = await client.from('clans').select('*');
+          if (data) {
+            data.forEach((row: any) => {
+              items.push({
+                id: `clan-${row.id || row.name}`,
+                category: 'Clan',
+                title: row.name,
+                subtitle: row.totem || '',
+                description: row.desc || row.motto || '',
+                targetPath: `/clans?q=${row.name}`
+              });
+            });
+          }
+        } catch (e) {}
+
+        try {
+          const { data } = await client.from('leaders').select('*');
+          if (data) {
+            data.forEach((row: any) => {
+              items.push({
+                id: `leader-${row.id || row.name}`,
+                category: 'Leader',
+                title: row.name,
+                subtitle: row.role || '',
+                description: row.bio || row.expertise || '',
+                targetPath: `/leadership?q=${row.name}`
+              });
+            });
+          }
+        } catch (e) {}
+
+        setSearchDatabase(items);
+      }
+      
+      if (searchDatabase.length === 0) {
+        loadSearchData();
+      }
     } else {
       document.body.style.overflow = 'unset';
       setSelectedCategory('All');

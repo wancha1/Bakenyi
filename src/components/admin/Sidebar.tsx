@@ -13,7 +13,8 @@ import {
   FileText,
   BarChart2,
   Activity,
-  Heart
+  Heart,
+  Home
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -25,6 +26,7 @@ interface SidebarProps {
   isMobileOpen: boolean;
   setIsMobileOpen: (open: boolean) => void;
   userEmail?: string;
+  userRole?: 'super_admin' | 'admin' | 'reporter' | 'public' | 'staff' | 'customer';
 }
 
 export default function Sidebar({
@@ -35,20 +37,42 @@ export default function Sidebar({
   setIsCollapsed,
   isMobileOpen,
   setIsMobileOpen,
-  userEmail
+  userEmail,
+  userRole = 'public'
 }: SidebarProps) {
   
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  // Normalize user roles for clean checks
+  const resolvedRole = 
+    userRole === 'staff' ? 'reporter' : 
+    userRole === 'customer' ? 'public' : 
+    userRole;
+
+  const allNavItems = [
+    { id: 'dashboard', label: resolvedRole === 'reporter' ? 'My Workspace' : 'Dashboard', icon: LayoutDashboard },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'roles', label: 'Roles & Permissions', icon: Shield },
-    { id: 'content', label: 'Content', icon: FileText },
-    { id: 'media', label: 'Media Library', icon: Image },
+    { id: 'content', label: resolvedRole === 'reporter' ? 'My Submissions' : 'Content', icon: FileText },
+    { id: 'media', label: resolvedRole === 'reporter' ? 'My Media' : 'Media Library', icon: Image },
     { id: 'reports', label: 'Reports', icon: BarChart2 },
     { id: 'activity_logs', label: 'Activity Logs', icon: Activity },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'system_health', label: 'System Health', icon: Heart },
   ];
+
+  // Filter based on normalized role
+  let navItems = allNavItems;
+  if (resolvedRole === 'admin') {
+    // Admins see everything except roles, settings, system_health
+    navItems = allNavItems.filter(item => ['dashboard', 'users', 'content', 'media', 'reports', 'activity_logs'].includes(item.id));
+  } else if (resolvedRole === 'reporter') {
+    // Reporters see workspace, submissions, media
+    navItems = allNavItems.filter(item => ['dashboard', 'content', 'media'].includes(item.id));
+  } else if (resolvedRole === 'super_admin') {
+    navItems = allNavItems;
+  } else {
+    // Public user shouldn't usually see this, but give them minimal
+    navItems = allNavItems.filter(item => ['dashboard'].includes(item.id));
+  }
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700/50 shadow-xs transition-colors duration-300">
@@ -88,7 +112,23 @@ export default function Sidebar({
       </div>
 
       {/* Nav List */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {/* Global Return to Public Home Option */}
+        <button
+          onClick={() => {
+            window.location.href = '/';
+          }}
+          className={`w-full flex items-center gap-3.5 py-3 rounded-xl transition-all cursor-pointer select-none font-bold text-xs uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/20 ${
+            isCollapsed && !isMobileOpen ? 'justify-center px-0' : 'px-4'
+          }`}
+          title="Return to Public Site"
+        >
+          <Home className="w-5 h-5 shrink-0 text-amber-500" />
+          {(!isCollapsed || isMobileOpen) && <span>Public Home</span>}
+        </button>
+
+        <div className="h-px bg-slate-100 dark:bg-slate-700/50 my-2" />
+
         {navItems.map((item) => {
           const isActive = activeTab === item.id;
           const Icon = item.icon;

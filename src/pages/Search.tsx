@@ -16,7 +16,16 @@ import {
   Sparkles,
   HelpCircle
 } from 'lucide-react';
-import { searchDatabase, SearchItem } from '../data/searchDb';
+import { getSupabase } from '../lib/supabaseClient';
+
+export interface SearchItem {
+  id: string;
+  category: 'Clan' | 'Leader' | 'History Timeline' | 'Oral History' | 'Article';
+  title: string;
+  subtitle: string;
+  description: string;
+  targetPath: string;
+}
 
 type CategoryFilter = 'All' | 'Clan' | 'Leader' | 'History Timeline' | 'Oral History' | 'Article';
 type SortOrder = 'relevance' | 'alpha-asc' | 'alpha-desc';
@@ -42,6 +51,176 @@ export default function SearchPage() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>(categoryParam);
   const [sortBy, setSortBy] = useState<SortOrder>(sortParam);
   const [showFilters, setShowFilters] = useState(true);
+  const [searchDatabase, setSearchDatabase] = useState<SearchItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch dynamic search elements from Supabase
+  useEffect(() => {
+    async function fetchSearchDatabase() {
+      setLoading(true);
+      const client = getSupabase();
+      if (!client) {
+        setSearchDatabase([]);
+        setLoading(false);
+        return;
+      }
+
+      const items: SearchItem[] = [];
+
+      // 1. Fetch Articles
+      try {
+        const { data, error } = await client.from('articles').select('id, title, summary, content');
+        if (!error && data) {
+          data.forEach((row: any) => {
+            items.push({
+              id: `article-${row.id}`,
+              category: 'Article',
+              title: row.title,
+              subtitle: row.summary || 'Heritage Article',
+              description: row.content || '',
+              targetPath: `/articles/${row.id}`
+            });
+          });
+        }
+      } catch (e) {
+        console.warn('Search: failed to fetch articles:', e);
+      }
+
+      // 2. Fetch Gallery (Oral History/Media)
+      try {
+        const { data, error } = await client.from('gallery').select('id, title, image_url');
+        if (!error && data) {
+          data.forEach((row: any) => {
+            let titleVal = row.title;
+            let desc = '';
+            let cat = 'Oral History';
+            try {
+              if (titleVal.startsWith('{')) {
+                const parsed = JSON.parse(titleVal);
+                titleVal = parsed.title;
+                desc = parsed.description || '';
+                cat = parsed.category || 'Oral History';
+              }
+            } catch (e) {}
+
+            items.push({
+              id: `gallery-${row.id}`,
+              category: cat === 'History' ? 'History Timeline' : 'Oral History',
+              title: titleVal,
+              subtitle: desc || 'Media File',
+              description: desc || '',
+              targetPath: `/gallery`
+            });
+          });
+        }
+      } catch (e) {
+        console.warn('Search: failed to fetch gallery:', e);
+      }
+
+      // 3. Fetch Clans
+      try {
+        const { data, error } = await client.from('clans').select('*');
+        if (!error && data) {
+          data.forEach((row: any) => {
+            items.push({
+              id: `clan-${row.id || row.name}`,
+              category: 'Clan',
+              title: row.name,
+              subtitle: row.totem || '',
+              description: row.desc || row.motto || '',
+              targetPath: `/clans?q=${row.name}`
+            });
+          });
+        }
+      } catch (e) {
+        console.warn('Search: clans table query failed:', e);
+      }
+
+      // 4. Fetch Leaders
+      let leadersLoaded = false;
+      try {
+        const { data, error } = await client.from('leaders').select('*');
+        if (!error && data) {
+          leadersLoaded = true;
+          data.forEach((row: any) => {
+            items.push({
+              id: `leader-${row.id || row.name}`,
+              category: 'Leader',
+              title: row.name,
+              subtitle: row.role || '',
+              description: row.bio || row.expertise || '',
+              targetPath: `/leadership?q=${row.name}`
+            });
+          });
+        }
+      } catch (e) {
+        console.warn('Search: leaders table query failed:', e);
+      }
+
+      if (!leadersLoaded) {
+        try {
+          const { data, error } = await client.from('profiles').select('*').in('role', ['admin', 'staff']);
+          if (!error && data) {
+            data.forEach((row: any) => {
+              items.push({
+                id: `leader-profile-${row.id}`,
+                category: 'Leader',
+                title: row.full_name || row.email,
+                subtitle: row.role === 'admin' ? 'Cultural Council Admin' : 'Cultural Council Staff',
+                description: 'Custodian of Bakenyi cultural heritage.',
+                targetPath: `/leadership`
+              });
+            });
+          }
+        } catch (e) {
+          console.warn('Search: failed to fetch profiles:', e);
+        }
+      }
+
+      // 5. Fetch Oral History tracks
+      try {
+        const { data, error } = await client.from('oral_history').select('*');
+        if (!error && data) {
+          data.forEach((row: any) => {
+            items.push({
+              id: `oral-${row.id || row.title}`,
+              category: 'Oral History',
+              title: row.title,
+              subtitle: row.elder || '',
+              description: row.topic || '',
+              targetPath: `/history?track=${row.id}`
+            });
+          });
+        }
+      } catch (e) {
+        console.warn('Search: oral_history table query failed:', e);
+      }
+
+      // 6. Fetch History timeline events
+      try {
+        const { data, error } = await client.from('timeline_events').select('*');
+        if (!error && data) {
+          data.forEach((row: any) => {
+            items.push({
+              id: `timeline-${row.id || row.title}`,
+              category: 'History Timeline',
+              title: row.title,
+              subtitle: row.period || '',
+              description: row.desc || '',
+              targetPath: `/history`
+            });
+          });
+        }
+      } catch (e) {
+        console.warn('Search: timeline_events table query failed:', e);
+      }
+
+      setSearchDatabase(items);
+      setLoading(false);
+    }
+
+    fetchSearchDatabase();
+  }, []);
 
   // Sync state with URL Search Params
   useEffect(() => {
@@ -138,7 +317,7 @@ export default function SearchPage() {
       counts[item.category] = (counts[item.category] || 0) + 1;
     });
     return counts;
-  }, []);
+  }, [searchDatabase]);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -384,7 +563,17 @@ export default function SearchPage() {
 
             {/* Results Grid / List */}
             <AnimatePresence mode="popLayout">
-              {processedResults.length > 0 ? (
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-heritage-cream/5 border border-heritage-brown/10 rounded-[32px]">
+                  <div className="relative w-12 h-12">
+                    <div className="absolute top-0 left-0 w-full h-full border-4 border-heritage-terracotta/20 rounded-full"></div>
+                    <div className="absolute top-0 left-0 w-full h-full border-4 border-t-heritage-terracotta border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+                  </div>
+                  <p className="mt-4 text-xs font-bold text-heritage-brown/60 tracking-wider uppercase animate-pulse">
+                    Querying Bakenye knowledge tables...
+                  </p>
+                </div>
+              ) : processedResults.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {processedResults.map((item, index) => (
                     <motion.div

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { getSupabaseConfig, getSupabase, checkIsAdmin } from './lib/supabaseClient';
@@ -39,9 +40,29 @@ import SystemHealthView from './components/admin/views/SystemHealthView';
 /**
  * Public Layout which includes the global Navbar and Footer.
  */
-function StorefrontLayout() {
+function StorefrontLayout({ user, userRole }: { user: any; userRole: string | null }) {
+  // Check if super admin has opted to view the public site
+  const superAdminViewMode = localStorage.getItem('bakenye_superadmin_view_mode');
+
   return (
     <div className="flex flex-col min-h-screen bg-heritage-cream text-heritage-ink transition-colors duration-300">
+      {userRole === 'super_admin' && superAdminViewMode === 'public' && (
+        <div className="bg-slate-900 text-white text-[11px] font-bold py-2.5 px-4 flex items-center justify-between shadow-md select-none sticky top-0 z-50">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Logged in as <strong className="text-amber-400">Super Admin</strong> (Public Preview Mode)</span>
+          </div>
+          <button 
+            onClick={() => {
+              localStorage.removeItem('bakenye_superadmin_view_mode');
+              window.location.href = '/admin';
+            }}
+            className="bg-white/10 hover:bg-white/20 px-3 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all cursor-pointer text-white"
+          >
+            Switch back to Admin Panel &rarr;
+          </button>
+        </div>
+      )}
       <Navbar />
       <main className="flex-grow">
         <Outlet />
@@ -164,12 +185,81 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [userRole, setUserRole] = useState<'super_admin' | 'admin' | 'reporter' | 'public'>('public');
+  const [roleLoading, setRoleLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchRole() {
+      if (!user) return;
+      try {
+        const email = user.email?.toLowerCase() || '';
+        if (email === 'superadmin@bakenye.com') {
+          setUserRole('super_admin');
+          setRoleLoading(false);
+          return;
+        }
+
+        const client = getSupabase();
+        let rawRole = 'customer';
+        if (client) {
+          const { data, error } = await client
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+          if (!error && data?.role) {
+            rawRole = data.role;
+          }
+        }
+        
+        if (
+          email === 'admin@bakenye.com' || 
+          email === 'admin@bakenyi.org' || 
+          email === 'wanchaaaron@gmail.com' ||
+          email === 'aaronwancha@gmail.com' ||
+          rawRole === 'admin'
+        ) {
+          setUserRole('admin');
+        } else if (email.includes('staff') || email.includes('reporter') || rawRole === 'staff' || rawRole === 'reporter') {
+          setUserRole('reporter');
+        } else {
+          setUserRole('public');
+        }
+      } catch (e) {
+        console.error('Failed to resolve role in DashboardApp:', e);
+      } finally {
+        setRoleLoading(false);
+      }
+    }
+    fetchRole();
+  }, [user]);
+
+  // Handle reporter members attempting to load restricted tabs
+  useEffect(() => {
+    if (!roleLoading && userRole === 'reporter' && !['dashboard', 'content', 'media'].includes(activeTab)) {
+      setActiveTab('dashboard');
+    }
+  }, [activeTab, userRole, roleLoading]);
+
+  if (roleLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col justify-center items-center">
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+        <span className="text-xs text-slate-400 dark:text-slate-500 mt-3 font-semibold uppercase tracking-wider">Verifying permissions...</span>
+      </div>
+    );
+  }
 
   // Render view by tab ID
   const renderView = () => {
+    // Reporter role restriction guard
+    if (userRole === 'reporter' && !['dashboard', 'content', 'media'].includes(activeTab)) {
+      return <DashboardView onNavigate={(tab) => setActiveTab(tab)} user={user} userRole={userRole} />;
+    }
+
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardView onNavigate={(tab) => setActiveTab(tab)} />;
+        return <DashboardView onNavigate={(tab) => setActiveTab(tab)} user={user} userRole={userRole} />;
       case 'users':
         return <UsersView />;
       case 'roles':
@@ -187,7 +277,7 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
       case 'system_health':
         return <SystemHealthView />;
       default:
-        return <DashboardView onNavigate={(tab) => setActiveTab(tab)} />;
+        return <DashboardView onNavigate={(tab) => setActiveTab(tab)} user={user} userRole={userRole} />;
     }
   };
 
@@ -203,6 +293,7 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
         isMobileOpen={isMobileOpen}
         setIsMobileOpen={setIsMobileOpen}
         userEmail={user?.email || 'Admin'}
+        userRole={userRole}
       />
 
       {/* Main Container Area */}
@@ -214,6 +305,7 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
           onMobileMenuToggle={() => setIsMobileOpen(true)} 
           activeTab={activeTab}
           userEmail={user?.email || 'Admin'}
+          userRole={userRole}
         />
 
         {/* Inner Content Area */}
@@ -231,6 +323,54 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [appUserRole, setAppUserRole] = useState<'super_admin' | 'admin' | 'reporter' | 'public' | null>(null);
+
+  useEffect(() => {
+    async function resolveRole() {
+      if (!user) {
+        setAppUserRole(null);
+        return;
+      }
+      try {
+        const email = user.email?.toLowerCase() || '';
+        if (email === 'superadmin@bakenye.com') {
+          setAppUserRole('super_admin');
+          return;
+        }
+
+        const client = getSupabase();
+        let rawRole = 'customer';
+        if (client) {
+          const { data, error } = await client
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+          if (!error && data?.role) {
+            rawRole = data.role;
+          }
+        }
+        
+        if (
+          email === 'admin@bakenye.com' || 
+          email === 'admin@bakenyi.org' || 
+          email === 'wanchaaaron@gmail.com' ||
+          email === 'aaronwancha@gmail.com' ||
+          rawRole === 'admin'
+        ) {
+          setAppUserRole('admin');
+        } else if (email.includes('staff') || email.includes('reporter') || rawRole === 'staff' || rawRole === 'reporter') {
+          setAppUserRole('reporter');
+        } else {
+          setAppUserRole('public');
+        }
+      } catch (e) {
+        console.error('Failed to resolve role in root App:', e);
+        setAppUserRole('public');
+      }
+    }
+    resolveRole();
+  }, [user]);
 
   useEffect(() => {
     // Check auth status
@@ -290,7 +430,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           {/* Public Storefront Routes */}
-          <Route element={<StorefrontLayout />}>
+          <Route element={<StorefrontLayout user={user} userRole={appUserRole} />}>
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
             <Route path="/history" element={<History />} />

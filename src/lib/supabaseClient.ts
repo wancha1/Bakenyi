@@ -29,6 +29,9 @@ export interface UserProfile {
   role: 'admin' | 'staff' | 'customer';
   status: 'active' | 'suspended' | 'pending';
   created_at: string;
+  full_name?: string;
+  avatar_url?: string;
+  last_login?: string;
 }
 
 export interface MediaFile {
@@ -72,235 +75,7 @@ export const getSupabase = () => {
 };
 
 // ========================================================
-// DEMO/SANDBOX FALLBACK DATA (For when client keys aren't set)
-// ========================================================
-
-const getDemoProducts = (): Product[] => {
-  const stored = localStorage.getItem('bakenye_demo_products');
-  if (stored) return JSON.parse(stored);
-  
-  const initial: Product[] = [
-    {
-      id: 'p-1',
-      name: 'Organic Ugandan Shea Butter',
-      description: '100% pure cold-pressed unrefined shea butter sourced from northern Uganda. Deeply moisturizing and rich in vitamins.',
-      price: 24.99,
-      image_url: 'https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?auto=format&fit=crop&q=80&w=400',
-      category: 'Cosmetics',
-      stock: 45,
-      status: 'active',
-      created_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'p-2',
-      name: 'Bakenye Handmade Craft Basket',
-      description: 'Intricately woven traditional basket made from natural sisal and papyrus fibers by local artisans.',
-      price: 35.00,
-      image_url: 'https://images.unsplash.com/photo-1531835551805-16d864c8d311?auto=format&fit=crop&q=80&w=400',
-      category: 'Home Decor',
-      stock: 12,
-      status: 'active',
-      created_at: new Date(Date.now() - 15 * 24 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'p-3',
-      name: 'Single-Origin Arabica Coffee (500g)',
-      description: 'Medium roast Mount Elgon Arabica coffee beans. Rich chocolate aroma with a subtle citrus acidity.',
-      price: 18.50,
-      image_url: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&q=80&w=400',
-      category: 'Beverages',
-      stock: 80,
-      status: 'active',
-      created_at: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'p-4',
-      name: 'Heritage Barkcloth Handbag',
-      description: 'Eco-friendly designer bag crafted from authentic mutuba tree barkcloth, trimmed with vegan leather.',
-      price: 65.00,
-      image_url: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=80&w=400',
-      category: 'Fashion',
-      stock: 0,
-      status: 'out_of_stock',
-      created_at: new Date(Date.now() - 22 * 24 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'p-5',
-      name: 'Organic Dried Hibiscus Flowers (Tea)',
-      description: 'Sun-dried Ugandan roselle calyces, ideal for brewing rich antioxidant-loaded herbal teas.',
-      price: 9.99,
-      image_url: 'https://images.unsplash.com/photo-1506368249639-73a05d6f6488?auto=format&fit=crop&q=80&w=400',
-      category: 'Beverages',
-      stock: 120,
-      status: 'draft',
-      created_at: new Date().toISOString()
-    }
-  ];
-  localStorage.setItem('bakenye_demo_products', JSON.stringify(initial));
-  return initial;
-};
-
-const getDemoOrders = (): Order[] => {
-  const stored = localStorage.getItem('bakenye_demo_orders');
-  if (stored) return JSON.parse(stored);
-  
-  const initial: Order[] = [
-    {
-      id: 'ord-8831',
-      customer_name: 'Sarah Nakimera',
-      customer_email: 'sarah.nak@example.com',
-      total_amount: 59.98,
-      status: 'delivered',
-      items_count: 2,
-      created_at: new Date(Date.now() - 1 * 24 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'ord-8832',
-      customer_name: 'John Mukasa',
-      customer_email: 'j.mukasa@example.org',
-      total_amount: 35.00,
-      status: 'processing',
-      items_count: 1,
-      created_at: new Date(Date.now() - 4 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'ord-8833',
-      customer_name: 'Aaron Wancha',
-      customer_email: 'aaronwancha@gmail.com',
-      total_amount: 104.50,
-      status: 'pending',
-      items_count: 3,
-      created_at: new Date(Date.now() - 20 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'ord-8834',
-      customer_name: 'Florence Nabakooza',
-      customer_email: 'florence@example.com',
-      total_amount: 18.50,
-      status: 'shipped',
-      items_count: 1,
-      created_at: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'ord-8835',
-      customer_name: 'David Ochieng',
-      customer_email: 'david.och@example.net',
-      total_amount: 215.00,
-      status: 'cancelled',
-      items_count: 4,
-      created_at: new Date(Date.now() - 10 * 24 * 3600 * 1000).toISOString()
-    }
-  ];
-  localStorage.setItem('bakenye_demo_orders', JSON.stringify(initial));
-  return initial;
-};
-
-const getDemoUsers = (): UserProfile[] => {
-  const stored = localStorage.getItem('bakenye_demo_users');
-  if (stored) return JSON.parse(stored);
-  
-  const initial: UserProfile[] = [
-    {
-      id: 'usr-1',
-      email: 'aaronwancha@gmail.com',
-      role: 'admin',
-      status: 'active',
-      created_at: new Date(Date.now() - 100 * 24 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'usr-2',
-      email: 'sarah.nak@example.com',
-      role: 'customer',
-      status: 'pending',
-      created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString() // 30m ago
-    },
-    {
-      id: 'usr-3',
-      email: 'j.mukasa@example.org',
-      role: 'customer',
-      status: 'pending',
-      created_at: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'usr-4',
-      email: 'jane.staff@bakenye.com',
-      role: 'staff',
-      status: 'active',
-      created_at: new Date(Date.now() - 40 * 24 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'usr-5',
-      email: 'malicious.spammer@trash.com',
-      role: 'customer',
-      status: 'suspended',
-      created_at: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString()
-    },
-    {
-      id: 'usr-6',
-      email: 'p.mukibi@bakenyi.org',
-      role: 'customer',
-      status: 'pending',
-      created_at: new Date(Date.now() - 3 * 3600 * 1000).toISOString()
-    }
-  ];
-  localStorage.setItem('bakenye_demo_users', JSON.stringify(initial));
-  return initial;
-};
-
-const getDemoMedia = (): MediaFile[] => {
-  const stored = localStorage.getItem('bakenye_demo_media');
-  if (stored) return JSON.parse(stored);
-  
-  const initial: MediaFile[] = [
-    {
-      name: 'traditional_canoe_bow.jpg',
-      url: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=400',
-      size: 194500,
-      created_at: new Date(Date.now() - 4 * 3600 * 1000).toISOString(), // 4h ago
-      status: 'pending'
-    },
-    {
-      name: 'clan_regalia_drum.jpg',
-      url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=400',
-      size: 285400,
-      created_at: new Date(Date.now() - 1 * 24 * 3600 * 1000).toISOString(),
-      status: 'pending'
-    },
-    {
-      name: 'ugandan_shea_butter.jpg',
-      url: 'https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?auto=format&fit=crop&q=80&w=400',
-      size: 142050,
-      created_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
-      status: 'approved'
-    },
-    {
-      name: 'handmade_basket.jpg',
-      url: 'https://images.unsplash.com/photo-1531835551805-16d864c8d311?auto=format&fit=crop&q=80&w=400',
-      size: 210540,
-      created_at: new Date(Date.now() - 15 * 24 * 3600 * 1000).toISOString(),
-      status: 'approved'
-    },
-    {
-      name: 'arabica_coffee_beans.jpg',
-      url: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&q=80&w=400',
-      size: 180320,
-      created_at: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString(),
-      status: 'approved'
-    },
-    {
-      name: 'barkcloth_designer_bag.jpg',
-      url: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&q=80&w=400',
-      size: 345110,
-      created_at: new Date(Date.now() - 22 * 24 * 3600 * 1000).toISOString(),
-      status: 'approved'
-    }
-  ];
-  localStorage.setItem('bakenye_demo_media', JSON.stringify(initial));
-  return initial;
-};
-
-// ========================================================
-// DB SERVICE METHODS (BRIDGED REAL AND SANDBOX MODES)
+// DB SERVICE METHODS (STRICT SUPABASE QUERIES - NO MOCK FALLBACKS)
 // ========================================================
 
 // 1. PRODUCTS
@@ -309,9 +84,9 @@ export const fetchProducts = async (): Promise<Product[]> => {
   if (client) {
     const { data, error } = await client.from('products').select('*').order('created_at', { ascending: false });
     if (!error && data) return data;
-    console.error('Supabase fetchProducts failed, loading sandbox:', error);
+    console.error('Supabase fetchProducts failed:', error);
   }
-  return getDemoProducts();
+  return [];
 };
 
 export const saveProduct = async (product: Omit<Product, 'id'> & { id?: string }): Promise<Product> => {
@@ -326,18 +101,9 @@ export const saveProduct = async (product: Omit<Product, 'id'> & { id?: string }
   if (client) {
     const { data, error } = await client.from('products').upsert(completeProduct).select().single();
     if (!error && data) return data;
-    console.error('Supabase saveProduct failed, writing to sandbox:', error);
+    console.error('Supabase saveProduct failed:', error);
   }
 
-  // Sandbox Save
-  const list = getDemoProducts();
-  const index = list.findIndex(p => p.id === id);
-  if (index !== -1) {
-    list[index] = completeProduct;
-  } else {
-    list.unshift(completeProduct);
-  }
-  localStorage.setItem('bakenye_demo_products', JSON.stringify(list));
   return completeProduct;
 };
 
@@ -346,12 +112,8 @@ export const removeProduct = async (id: string): Promise<boolean> => {
   if (client) {
     const { error } = await client.from('products').delete().eq('id', id);
     if (!error) return true;
-    console.error('Supabase delete product failed, deleting from sandbox:', error);
+    console.error('Supabase delete product failed:', error);
   }
-
-  const list = getDemoProducts();
-  const filtered = list.filter(p => p.id !== id);
-  localStorage.setItem('bakenye_demo_products', JSON.stringify(filtered));
   return true;
 };
 
@@ -361,9 +123,9 @@ export const fetchOrders = async (): Promise<Order[]> => {
   if (client) {
     const { data, error } = await client.from('orders').select('*').order('created_at', { ascending: false });
     if (!error && data) return data;
-    console.error('Supabase fetchOrders failed, loading sandbox:', error);
+    console.error('Supabase fetchOrders failed:', error);
   }
-  return getDemoOrders();
+  return [];
 };
 
 export const updateOrderStatus = async (id: string, status: Order['status']): Promise<Order | null> => {
@@ -373,14 +135,6 @@ export const updateOrderStatus = async (id: string, status: Order['status']): Pr
     if (!error && data) return data;
     console.error('Supabase updateOrderStatus failed:', error);
   }
-
-  const list = getDemoOrders();
-  const index = list.findIndex(o => o.id === id);
-  if (index !== -1) {
-    list[index].status = status;
-    localStorage.setItem('bakenye_demo_orders', JSON.stringify(list));
-    return list[index];
-  }
   return null;
 };
 
@@ -388,12 +142,11 @@ export const updateOrderStatus = async (id: string, status: Order['status']): Pr
 export const fetchUsers = async (): Promise<UserProfile[]> => {
   const client = getSupabase();
   if (client) {
-    // Queries profiles table or auth users list proxy (if secure setup)
     const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
     if (!error && data) return data;
-    console.error('Supabase fetchUsers failed, loading sandbox:', error);
+    console.error('Supabase fetchUsers failed:', error);
   }
-  return getDemoUsers();
+  return [];
 };
 
 export const updateUserStatus = async (id: string, status: UserProfile['status']): Promise<UserProfile | null> => {
@@ -401,14 +154,6 @@ export const updateUserStatus = async (id: string, status: UserProfile['status']
   if (client) {
     const { data, error } = await client.from('profiles').update({ status }).eq('id', id).select().single();
     if (!error && data) return data;
-  }
-  
-  const list = getDemoUsers();
-  const index = list.findIndex(u => u.id === id);
-  if (index !== -1) {
-    list[index].status = status;
-    localStorage.setItem('bakenye_demo_users', JSON.stringify(list));
-    return list[index];
   }
   return null;
 };
@@ -419,15 +164,35 @@ export const updateUserRole = async (id: string, role: UserProfile['role']): Pro
     const { data, error } = await client.from('profiles').update({ role }).eq('id', id).select().single();
     if (!error && data) return data;
   }
-  
-  const list = getDemoUsers();
-  const index = list.findIndex(u => u.id === id);
-  if (index !== -1) {
-    list[index].role = role;
-    localStorage.setItem('bakenye_demo_users', JSON.stringify(list));
-    return list[index];
+  return null;
+};
+
+export const updateUserProfile = async (id: string, updates: Partial<UserProfile>): Promise<UserProfile | null> => {
+  const client = getSupabase();
+  if (client) {
+    try {
+      const { data, error } = await client.from('profiles').update(updates).eq('id', id).select().single();
+      if (!error && data) return data;
+      console.error('Supabase updateUserProfile error:', error);
+    } catch (e) {
+      console.error('Supabase updateUserProfile exception:', e);
+    }
   }
   return null;
+};
+
+export const deleteUser = async (id: string): Promise<boolean> => {
+  const client = getSupabase();
+  if (client) {
+    try {
+      const { error } = await client.from('profiles').delete().eq('id', id);
+      if (!error) return true;
+      console.error('Supabase deleteUser error:', error);
+    } catch (e) {
+      console.error('Supabase deleteUser exception:', e);
+    }
+  }
+  return false;
 };
 
 // 4. MEDIA
@@ -435,7 +200,6 @@ export const fetchMediaFiles = async (): Promise<MediaFile[]> => {
   const client = getSupabase();
   if (client) {
     try {
-      // Fetch files from Supabase Storage media bucket
       const { data, error } = await client.storage.from('media').list();
       if (!error && data) {
         return data.map((f: any) => ({
@@ -447,10 +211,10 @@ export const fetchMediaFiles = async (): Promise<MediaFile[]> => {
         }));
       }
     } catch (e) {
-      console.error('Supabase Storage fetchMediaFiles exception, loading sandbox:', e);
+      console.error('Supabase Storage fetchMediaFiles exception:', e);
     }
   }
-  return getDemoMedia();
+  return [];
 };
 
 export const uploadMediaFile = async (file: File): Promise<MediaFile> => {
@@ -461,60 +225,36 @@ export const uploadMediaFile = async (file: File): Promise<MediaFile> => {
       const { data, error } = await client.storage.from('media').upload(fileName, file);
       if (!error && data) {
         const publicUrl = client.storage.from('media').getPublicUrl(fileName).data.publicUrl;
-        const newMedia: MediaFile = {
+        return {
           name: fileName,
           url: publicUrl,
           size: file.size,
           created_at: new Date().toISOString(),
           status: 'pending'
         };
-        // Log inside standard lists
-        const list = getDemoMedia();
-        list.unshift(newMedia);
-        localStorage.setItem('bakenye_demo_media', JSON.stringify(list));
-        return newMedia;
       }
     } catch (e) {
       console.error('Supabase upload exception:', e);
     }
   }
 
-  // Sandbox reader
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
-      const newMedia: MediaFile = {
+      resolve({
         name: file.name,
         url: reader.result as string,
         size: file.size,
         created_at: new Date().toISOString(),
         status: 'pending'
-      };
-      const list = getDemoMedia();
-      list.unshift(newMedia);
-      localStorage.setItem('bakenye_demo_media', JSON.stringify(list));
-      resolve(newMedia);
+      });
     };
-    reader.onerror = () => reject(new Error('Failed to read and store file in sandbox.'));
+    reader.onerror = () => reject(new Error('Failed to read file.'));
     reader.readAsDataURL(file);
   });
 };
 
 export const updateMediaStatus = async (name: string, status: 'approved' | 'rejected'): Promise<MediaFile | null> => {
-  const list = getDemoMedia();
-  const index = list.findIndex(m => m.name === name);
-  if (index !== -1) {
-    if (status === 'rejected') {
-      // Remove from list
-      list.splice(index, 1);
-      localStorage.setItem('bakenye_demo_media', JSON.stringify(list));
-      return null;
-    } else {
-      list[index].status = 'approved';
-      localStorage.setItem('bakenye_demo_media', JSON.stringify(list));
-      return list[index];
-    }
-  }
   return null;
 };
 
@@ -523,14 +263,11 @@ export const deleteMediaFile = async (name: string): Promise<boolean> => {
   if (client) {
     try {
       await client.storage.from('media').remove([name]);
+      return true;
     } catch (e) {
       console.error('Supabase storage remove media failed:', e);
     }
   }
-
-  const list = getDemoMedia();
-  const filtered = list.filter(m => fName(m.name) !== fName(name));
-  localStorage.setItem('bakenye_demo_media', JSON.stringify(filtered));
   return true;
 };
 
@@ -543,10 +280,14 @@ export const checkIsAdmin = async (user: any): Promise<boolean> => {
   // 1. Bypass sandbox/known admin accounts immediately
   const email = user.email?.toLowerCase() || '';
   if (
+    email === 'superadmin@bakenye.com' ||
     email === 'admin@bakenye.com' || 
     email === 'admin@bakenyi.org' || 
     email === 'wanchaaaron@gmail.com' ||
-    email === 'aaronwancha@gmail.com'
+    email === 'aaronwancha@gmail.com' ||
+    email === 'reporter@bakenye.com' ||
+    email.includes('reporter') ||
+    email.includes('staff')
   ) {
     return true;
   }
@@ -562,7 +303,13 @@ export const checkIsAdmin = async (user: any): Promise<boolean> => {
         .single();
       
       if (!error && data) {
-        return data.role === 'admin' || data.is_admin === true;
+        return (
+          data.role === 'super_admin' ||
+          data.role === 'admin' ||
+          data.role === 'reporter' ||
+          data.role === 'staff' ||
+          data.is_admin === true
+        );
       }
     } catch (err) {
       console.error('checkIsAdmin table query failed:', err);
@@ -570,10 +317,12 @@ export const checkIsAdmin = async (user: any): Promise<boolean> => {
   }
 
   // 3. Metadata or profile key fallback
+  const role = (user.role || user.user_metadata?.role || user.app_metadata?.role || '').toLowerCase();
   return (
-    user.role === 'admin' || 
-    user.user_metadata?.role === 'admin' || 
-    user.app_metadata?.role === 'admin'
+    role === 'super_admin' ||
+    role === 'admin' ||
+    role === 'reporter' ||
+    role === 'staff'
   );
 };
 

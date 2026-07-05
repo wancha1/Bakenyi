@@ -18,20 +18,32 @@ interface HeaderProps {
   onMobileMenuToggle: () => void;
   activeTab: string;
   userEmail?: string;
+  userRole?: string;
 }
 
-export default function Header({ onMobileMenuToggle, activeTab, userEmail }: HeaderProps) {
+export default function Header({ onMobileMenuToggle, activeTab, userEmail, userRole }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { isConfigured } = getSupabaseConfig();
   const [showNotifications, setShowNotifications] = useState(false);
 
+  const resolvedRole = 
+    userRole === 'staff' ? 'reporter' : 
+    userRole === 'customer' ? 'public' : 
+    userRole;
+
+  const roleBadge = 
+    resolvedRole === 'super_admin' ? 'Super Admin' :
+    resolvedRole === 'admin' ? 'Platform Admin' :
+    resolvedRole === 'reporter' ? 'Heritage Reporter' :
+    'Public User';
+
   // Tab Titles dictionary for clean display
   const tabTitles: { [key: string]: string } = {
-    dashboard: 'Operational Dashboard',
+    dashboard: resolvedRole === 'reporter' ? 'Reporter Workspace' : 'Operational Dashboard',
     users: 'Platform Users Database',
     roles: 'Roles & Permissions Control',
-    content: 'Preservation Content Manager',
-    media: 'Storage Media Library',
+    content: resolvedRole === 'reporter' ? 'My Submissions Repository' : 'Preservation Content Manager',
+    media: resolvedRole === 'reporter' ? 'My Contributed Media' : 'Storage Media Library',
     reports: 'Live Platform Reports',
     activity_logs: 'System Activity Logs',
     settings: 'Platform Configurations',
@@ -124,6 +136,19 @@ export default function Header({ onMobileMenuToggle, activeTab, userEmail }: Hea
           )}
         </div>
 
+        {resolvedRole === 'super_admin' && (
+          <button
+            onClick={() => {
+              localStorage.setItem('bakenye_superadmin_view_mode', 'public');
+              window.location.href = '/';
+            }}
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+            title="Switch View to Public Storefront"
+          >
+            Switch to Public View
+          </button>
+        )}
+
         {/* Profiler Details */}
         {userEmail && (
           <div className="flex items-center gap-2 border-l border-slate-100 dark:border-slate-700/50 pl-3 select-none">
@@ -134,8 +159,8 @@ export default function Header({ onMobileMenuToggle, activeTab, userEmail }: Hea
               <span className="text-xs font-bold text-slate-800 dark:text-white leading-none">
                 {userEmail.split('@')[0]}
               </span>
-              <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-wider">
-                Platform Admin
+              <span className={`text-[9px] font-bold uppercase tracking-wider ${resolvedRole === 'super_admin' ? 'text-amber-500' : 'text-indigo-500'}`}>
+                {roleBadge}
               </span>
             </div>
           </div>

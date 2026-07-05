@@ -1,27 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Shield, Info, Filter } from 'lucide-react';
-
-const bakenyiClans = [
-  { name: "BaiseMugosa", totem: "Leopard (Egoonzu)", motto: "Strength & Swiftness", desc: "One of the largest clans, traditionally known for their leadership and tactical skills." },
-  { name: "BaiseIgoola", totem: "Egrets (Ennyaange)", motto: "Purity & Unity", desc: "Known for their diplomatic skills and mediating conflicts within the community." },
-  { name: "BaiseMusuusu", totem: "Bird (Enfulu)", motto: "Resourcefulness", desc: "Experts in navigating the complex waterways of Lake Kyoga." },
-  { name: "BaiseMunana", totem: "Colobus Monkey", motto: "Wisdom of the Tree", desc: "Historically provided many of the community's advisors and storytellers." },
-  { name: "BaiseKiingi", totem: "Lion", motto: "Royalty & Courage", desc: "A clan with deep roots in the original leadership structures of the Bakenyi people." },
-  { name: "BaiseMuduma", totem: "Hippopotamus", motto: "Power over Water", desc: "Respected for their bravery in protecting the floating islands from threats." },
-  { name: "BaiseNume", totem: "Bull", motto: "Stability & Wealth", desc: "Known for their early adoption of land-based agriculture alongside fishing." },
-  { name: "BaiseMpina", totem: "Fish (Emputa)", motto: "Sustenance", desc: "The masters of the net; traditionally the most successful fishers in the Kyoga basin." }
-];
+import { Search, Shield, Info, Filter, Sparkles } from 'lucide-react';
+import { getSupabase } from '../lib/supabaseClient';
 
 export default function Clans() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get('q') || "";
   const [searchTerm, setSearchTerm] = useState(queryParam);
+  const [clans, setClans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setSearchTerm(searchParams.get('q') || "");
   }, [searchParams]);
+
+  useEffect(() => {
+    async function fetchClans() {
+      setLoading(true);
+      const client = getSupabase();
+      if (!client) {
+        setClans([]);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await client
+          .from('clans')
+          .select('*')
+          .order('name', { ascending: true });
+        
+        if (!error && data) {
+          setClans(data);
+        } else {
+          setClans([]);
+        }
+      } catch (e) {
+        console.error('Clans: failed to fetch:', e);
+        setClans([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchClans();
+  }, []);
 
   const handleSearchChange = (val: string) => {
     setSearchTerm(val);
@@ -32,9 +56,9 @@ export default function Clans() {
     }
   };
 
-  const filteredClans = bakenyiClans.filter(clan => 
-    clan.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    clan.totem.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredClans = clans.filter(clan => 
+    (clan.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (clan.totem || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -60,7 +84,7 @@ export default function Clans() {
               <input
                 type="text"
                 placeholder="Search by clan name or totem..."
-                className="w-full pl-12 pr-4 py-4 rounded-full bg-white border-2 border-heritage-terracotta/20 focus:border-heritage-terracotta focus:outline-none text-heritage-brown transition-all"
+                className="w-full pl-12 pr-4 py-4 rounded-full bg-white border-2 border-heritage-terracotta/20 focus:border-heritage-terracotta focus:outline-none text-heritage-brown transition-all font-semibold"
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
               />
@@ -72,16 +96,34 @@ export default function Clans() {
       {/* Clans Grid */}
       <section className="py-16 px-4">
         <div className="max-w-7xl mx-auto">
-          {filteredClans.length > 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="relative w-12 h-12">
+                <div className="absolute top-0 left-0 w-full h-full border-4 border-heritage-terracotta/20 rounded-full"></div>
+                <div className="absolute top-0 left-0 w-full h-full border-4 border-t-heritage-terracotta border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+              </div>
+              <p className="mt-4 text-xs font-bold text-heritage-brown/60 tracking-wider uppercase animate-pulse">
+                Accessing Bakenyi Clan registries...
+              </p>
+            </div>
+          ) : clans.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-[32px] border-2 border-dashed border-heritage-brown/10 max-w-3xl mx-auto px-6">
+              <Shield className="w-16 h-16 text-heritage-brown/20 mx-auto mb-6" />
+              <h3 className="text-xl font-serif font-bold text-heritage-brown mb-2">No clans have been registered yet</h3>
+              <p className="text-sm text-heritage-brown/50 max-w-md mx-auto mb-6">
+                Our cultural registrars have not published any clans to the portal. Please check back later.
+              </p>
+            </div>
+          ) : filteredClans.length > 0 ? (
             <motion.div 
               layout
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
             >
               <AnimatePresence mode="popLayout">
-                {filteredClans.map((clan, idx) => (
+                {filteredClans.map((clan) => (
                   <motion.div 
                     layout
-                    key={clan.name}
+                    key={clan.id || clan.name}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
@@ -99,15 +141,10 @@ export default function Clans() {
                           <p className="text-xs font-bold text-heritage-terracotta uppercase tracking-wider">{clan.totem}</p>
                         </div>
                       </div>
-                      <p className="text-sm text-heritage-brown/70 italic mb-4">"{clan.motto}"</p>
+                      {clan.motto && <p className="text-sm text-heritage-brown/70 italic mb-4">"{clan.motto}"</p>}
                       <p className="text-sm text-heritage-brown/60 leading-relaxed">
-                        {clan.desc}
+                        {clan.desc || clan.description || 'Traditional Bakenyi lineage group with deep historical bonds.'}
                       </p>
-                      
-                      <button className="mt-6 w-full py-2 border border-heritage-brown/10 rounded-lg text-xs font-bold text-heritage-brown hover:bg-heritage-brown hover:text-white transition-colors flex items-center justify-center uppercase tracking-widest">
-                        <Info className="w-3 h-3 mr-2" />
-                        Clan Details
-                      </button>
                     </div>
                   </motion.div>
                 ))}
@@ -119,7 +156,7 @@ export default function Clans() {
               <p className="text-heritage-brown/60 text-lg">No clans found matching "{searchTerm}"</p>
               <button 
                 onClick={() => handleSearchChange("")}
-                className="mt-4 text-heritage-terracotta font-bold hover:underline"
+                className="mt-4 text-heritage-terracotta font-bold hover:underline cursor-pointer"
               >
                 Clear Search
               </button>
