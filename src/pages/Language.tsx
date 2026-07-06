@@ -1,53 +1,89 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Volume2, Book, MessageSquare, Headphones, Pause, Play, Music, AlertCircle } from 'lucide-react';
+import { Volume2, Book, MessageSquare, Headphones, Pause, Play, Music, AlertCircle, Plus, Check, X, ShieldAlert, FileAudio, Loader2 } from 'lucide-react';
 import { getSupabase } from '../lib/supabaseClient';
+import { getVocabulary, createVocabulary, updateVocabularyStatus, Vocabulary } from '../lib/supabase';
 
 export default function Language() {
   const [playingId, setPlayingId] = useState<any | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [phrases, setPhrases] = useState<any[]>([]);
-  const [counts, setCounts] = useState<any[]>([]);
+  const [phrases, setPhrases] = useState<Vocabulary[]>([]);
+  const [counts, setCounts] = useState<Vocabulary[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Authentication & Roles
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Modals state
+  const [showRecordModal, setShowRecordModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewList, setReviewList] = useState<Vocabulary[]>([]);
+  const [submittingPhrase, setSubmittingPhrase] = useState(false);
+
+  // Form State
+  const [newPhrase, setNewPhrase] = useState({
+    lukenye: '',
+    english: '',
+    category: 'phrase',
+    usage: 'conversational',
+    example_sentence: '',
+    audio_url: ''
+  });
+
+  const supabase = getSupabase();
+
   useEffect(() => {
-    async function fetchVocabulary() {
-      setLoading(true);
-      const client = getSupabase();
-      if (!client) {
-        setPhrases([]);
-        setCounts([]);
-        setLoading(false);
-        return;
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUser(session?.user || null);
+      if (session?.user) {
+        checkUserAdmin(session.user.id);
       }
+    });
 
-      try {
-        const { data, error } = await client
-          .from('vocabulary')
-          .select('*')
-          .order('id', { ascending: true });
-
-        if (!error && data) {
-          // Categorize numbers (counts) vs common phrases
-          const numbersList = data.filter((item: any) => item.category === 'number' || item.usage?.toLowerCase() === 'number');
-          const commonList = data.filter((item: any) => item.category !== 'number' && item.usage?.toLowerCase() !== 'number');
-          
-          setPhrases(commonList);
-          setCounts(numbersList);
-        } else {
-          setPhrases([]);
-          setCounts([]);
-        }
-      } catch (e) {
-        console.error('Language: failed to fetch vocabulary:', e);
-        setPhrases([]);
-        setCounts([]);
-      } finally {
-        setLoading(false);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user || null);
+      if (session?.user) {
+        checkUserAdmin(session.user.id);
+      } else {
+        setIsAdmin(false);
       }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  const checkUserAdmin = async (userId: string) => {
+    if (!supabase) return;
+    try {
+      const { data } = await supabase.from('profiles').select('role, is_admin').eq('id', userId).single();
+      if (data && (data.role === 'super_admin' || data.role === 'admin' || data.is_admin)) {
+        setIsAdmin(true);
+      }
+    } catch (e) {
+      console.error(e);
     }
+  };
 
-    fetchVocabulary();
+  const fetchVocabularyList = async () => {
+    setLoading(true);
+    try {
+      const allVocab = await getVocabulary(true); // Only approved
+      const numbersList = allVocab.filter(item => item.category === 'number' || item.usage?.toLowerCase() === 'number');
+      const commonList = allVocab.filter(item => item.category !== 'number' && item.usage?.toLowerCase() !== 'number');
+      
+      setPhrases(commonList);
+      setCounts(numbersList);
+    } catch (e) {
+      console.error('Language: failed to fetch vocabulary:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVocabularyList();
   }, []);
 
   const handlePlay = (id: any, audioUrl?: string) => {
@@ -73,6 +109,65 @@ export default function Language() {
   const onAudioEnded = () => {
     setPlayingId(null);
   };
+
+  const handleRecordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingPhrase(true);
+
+    try {
+      const { error } = await createVocabulary({
+        lukenye: newPhrase.lukenye,
+        english: newPhrase.english,
+        category: newPhrase.category,
+        usage: newPhrase.usage,
+        audio_url: newPhrase.audio_url || 'https://www.soundjay.com/button/button-3.mp3',
+        example_sentence: newPhrase.example_sentence,
+        status: 'pending'
+      });
+
+      if (error) throw error;
+      alert("Phrase successfully submitted for verification! Thank you for preserving Lukenye.");
+      setShowRecordModal(false);
+      setNewPhrase({
+        lukenye: '',
+        english: '',
+        category: 'phrase',
+        usage: 'conversational',
+        example_sentence: '',
+        audio_url: ''
+      });
+      fetchVocabularyList();
+    } catch (err: any) {
+      alert(err.message || "Failed to submit phrase.");
+    } finally {
+      setSubmittingPhrase(false);
+    }
+  };
+
+  const handleOpenReview = async () => {
+    // Fetch all pending vocabulary items for approval
+    const allPending = await getVocabulary(false); // get ALL including unapproved
+    const pendingList = allPending.filter(item => item.status === 'pending');
+    setReviewList(pendingList);
+    setShowReviewModal(true);
+  };
+
+  const handleApprove = async (vocabId: string) => {
+    const success = await updateVocabularyStatus(vocabId, 'approved');
+    if (success) {
+      setReviewList(prev => prev.filter(p => p.id !== vocabId));
+      fetchVocabularyList();
+    }
+  };
+
+  const handleReject = async (vocabId: string) => {
+    const success = await updateVocabularyStatus(vocabId, 'rejected');
+    if (success) {
+      setReviewList(prev => prev.filter(p => p.id !== vocabId));
+      fetchVocabularyList();
+    }
+  };
+
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
@@ -293,15 +388,233 @@ export default function Language() {
             Are you a fluent Lukenye speaker? Help us build the first complete digital dictionary for the Bakenyi people. Your recorded voice can help future generations learn our tongue correctly.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-6">
-            <button className="btn-primary !bg-heritage-sand !text-heritage-brown hover:!bg-white px-10 py-4 uppercase font-black tracking-widest text-xs cursor-pointer">
+            <button 
+              onClick={() => setShowRecordModal(true)}
+              className="btn-primary !bg-heritage-sand !text-heritage-brown hover:!bg-white px-10 py-4 uppercase font-black tracking-widest text-xs cursor-pointer"
+            >
               Record Phrases
             </button>
-            <button className="btn-secondary !text-white !border-white/20 hover:!border-white px-10 py-4 uppercase font-black tracking-widest text-xs cursor-pointer">
+            <button 
+              onClick={handleOpenReview}
+              className="btn-secondary !text-white !border-white/20 hover:!border-white px-10 py-4 uppercase font-black tracking-widest text-xs cursor-pointer"
+            >
               Review Glossary
             </button>
           </div>
         </div>
       </section>
+
+      {/* Record Phrases Modal */}
+      <AnimatePresence>
+        {showRecordModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl p-8 max-w-lg w-full relative shadow-2xl border border-heritage-brown/10 text-left"
+            >
+              <button 
+                onClick={() => setShowRecordModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-heritage-cream/50 text-heritage-brown/50 hover:text-heritage-brown transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-3 bg-heritage-terracotta/10 rounded-2xl">
+                  <Volume2 className="w-6 h-6 text-heritage-terracotta" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-serif font-bold text-heritage-brown">Record & Propose Phrase</h3>
+                  <p className="text-xs text-heritage-brown/50">Submit a Lukenye phrase for verification</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleRecordSubmit} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60">Lukenye Spelling</label>
+                  <input 
+                    required
+                    type="text"
+                    placeholder="e.g. Amadhi gasinga omuliro"
+                    value={newPhrase.lukenye}
+                    onChange={e => setNewPhrase({...newPhrase, lukenye: e.target.value})}
+                    className="w-full px-4 py-3 bg-heritage-cream/30 border border-heritage-brown/10 rounded-xl outline-none text-heritage-brown font-semibold focus:border-heritage-terracotta transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60">English Translation</label>
+                  <input 
+                    required
+                    type="text"
+                    placeholder="e.g. Water is stronger than fire"
+                    value={newPhrase.english}
+                    onChange={e => setNewPhrase({...newPhrase, english: e.target.value})}
+                    className="w-full px-4 py-3 bg-heritage-cream/30 border border-heritage-brown/10 rounded-xl outline-none text-heritage-brown font-semibold focus:border-heritage-terracotta transition-colors"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60">Category</label>
+                    <select 
+                      value={newPhrase.category}
+                      onChange={e => setNewPhrase({...newPhrase, category: e.target.value})}
+                      className="w-full px-4 py-3 bg-heritage-cream/30 border border-heritage-brown/10 rounded-xl outline-none text-heritage-brown font-semibold focus:border-heritage-terracotta transition-colors"
+                    >
+                      <option value="phrase">Phrase</option>
+                      <option value="number">Number / Counting</option>
+                      <option value="idiom">Proverb / Sayings</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60">Usage</label>
+                    <input 
+                      type="text"
+                      placeholder="e.g. Greetings"
+                      value={newPhrase.usage}
+                      onChange={e => setNewPhrase({...newPhrase, usage: e.target.value})}
+                      className="w-full px-4 py-3 bg-heritage-cream/30 border border-heritage-brown/10 rounded-xl outline-none text-heritage-brown font-semibold focus:border-heritage-terracotta transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60">Example Sentence</label>
+                  <textarea 
+                    rows={2}
+                    placeholder="Provide a sentence demonstrating how this is used..."
+                    value={newPhrase.example_sentence}
+                    onChange={e => setNewPhrase({...newPhrase, example_sentence: e.target.value})}
+                    className="w-full px-4 py-3 bg-heritage-cream/30 border border-heritage-brown/10 rounded-xl outline-none text-heritage-brown font-semibold focus:border-heritage-terracotta transition-colors resize-none"
+                  />
+                </div>
+
+                <div className="p-4 bg-heritage-cream/50 rounded-2xl border border-dashed border-heritage-brown/20 text-center">
+                  <p className="text-xs font-bold text-heritage-brown mb-2 uppercase tracking-widest">Audio Pronunciation</p>
+                  <div className="flex items-center justify-center space-x-3">
+                    <button 
+                      type="button" 
+                      className="p-3 rounded-full bg-heritage-terracotta text-white flex items-center justify-center shadow-md shadow-heritage-terracotta/20 hover:scale-105 transition-transform"
+                      onClick={() => alert("Simulating high-fidelity micro-recording...")}
+                    >
+                      <Volume2 className="w-5 h-5" />
+                    </button>
+                    <span className="text-[10px] text-heritage-brown/60 font-bold uppercase">Click to Record Voice Pronunciation</span>
+                  </div>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={submittingPhrase}
+                  className="w-full btn-primary py-4 font-bold flex items-center justify-center space-x-2 cursor-pointer"
+                >
+                  {submittingPhrase ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                  <span>Submit to Cultural Council</span>
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Review Glossary Modal */}
+      <AnimatePresence>
+        {showReviewModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl p-8 max-w-2xl w-full relative shadow-2xl border border-heritage-brown/10 text-left"
+            >
+              <button 
+                onClick={() => setShowReviewModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-heritage-cream/50 text-heritage-brown/50 hover:text-heritage-brown transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center space-x-3 mb-8">
+                <div className="p-3 bg-heritage-olive/10 rounded-2xl">
+                  <Book className="w-6 h-6 text-heritage-olive" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-serif font-bold text-heritage-brown">Linguistic Approval Queue</h3>
+                  <p className="text-xs text-heritage-brown/50">Authenticate entries prior to public release</p>
+                </div>
+              </div>
+
+              {reviewList.length === 0 ? (
+                <div className="text-center py-12 bg-heritage-cream/30 rounded-2xl border-2 border-dashed border-heritage-brown/10">
+                  <Check className="w-12 h-12 text-heritage-olive mx-auto mb-3" />
+                  <h4 className="font-bold text-heritage-brown">All Caught Up!</h4>
+                  <p className="text-xs text-heritage-brown/50">There are no pending phrases awaiting verification.</p>
+                </div>
+              ) : (
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                  {reviewList.map((item) => (
+                    <div key={item.id} className="p-5 bg-heritage-cream/30 rounded-2xl border border-heritage-brown/5 flex items-center justify-between gap-4">
+                      <div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-heritage-terracotta bg-heritage-terracotta/5 px-2 py-0.5 rounded-full mb-1 inline-block">
+                          {item.category} • {item.usage || 'Common'}
+                        </span>
+                        <h4 className="font-bold text-lg text-heritage-brown">{item.lukenye}</h4>
+                        <p className="text-sm text-heritage-brown/60 mb-2">{item.english}</p>
+                        {item.example_sentence && (
+                          <p className="text-xs text-heritage-brown/50 italic">Context: "{item.example_sentence}"</p>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <button 
+                          onClick={() => handlePlay(item.id, item.audio_url)}
+                          className="p-3 bg-white text-heritage-brown border border-heritage-brown/10 hover:bg-heritage-brown hover:text-white rounded-xl transition-colors cursor-pointer"
+                          title="Listen Pronunciation"
+                        >
+                          <Volume2 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleApprove(item.id)}
+                          className="p-3 bg-heritage-olive text-white rounded-xl hover:bg-heritage-olive/80 transition-colors cursor-pointer"
+                          title="Approve & Publish"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleReject(item.id)}
+                          className="p-3 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition-colors cursor-pointer"
+                          title="Reject"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-8 pt-6 border-t border-heritage-brown/10 flex items-center justify-between text-xs text-heritage-brown/50">
+                <span className="flex items-center">
+                  <ShieldAlert className="w-4 h-4 mr-1 text-heritage-terracotta" />
+                  Only certified committee members can publish to the dictionary.
+                </span>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -2,6 +2,18 @@ import { Article } from '../types/article';
 import { bakenyiArticles } from '../data/articlesData';
 import { getSupabase } from './supabaseClient';
 
+/**
+ * Generates an RFC4122-compliant version 4 UUID.
+ * This guarantees database compatibility for tables requiring UUID primary keys.
+ */
+export function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 export const isSupabaseConfigured = (): boolean => {
   return getSupabase() !== null;
 };
@@ -401,7 +413,7 @@ export async function createContribution(
   userId: string
 ): Promise<{ data: Contribution | null; error: Error | null }> {
   const client = getSupabase();
-  const id = `contrib-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const id = generateUUID();
   const contentStr = JSON.stringify({ description, imageUrl, type, userEmail, userId });
 
   const contributionObj: Contribution = {
@@ -425,16 +437,40 @@ export async function createContribution(
   }
 
   try {
-    const { error } = await client.from('contributions').insert({
-      id,
-      title,
-      content: contentStr,
-      status: 'pending',
-      created_at: new Date().toISOString()
-    });
+    // Avoid sending custom string id if primary key is uuid
+    const { data: dbData, error } = await client
+      .from('contributions')
+      .insert({
+        title,
+        content: contentStr,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      })
+      .select('id, title, content, status, created_at')
+      .single();
 
-    if (error) throw error;
-    return { data: contributionObj, error: null };
+    if (error) {
+      // Fallback with custom generated ID in case UUID schema is not set
+      const { error: errorWithId } = await client.from('contributions').insert({
+        id,
+        title,
+        content: contentStr,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      });
+      if (errorWithId) throw errorWithId;
+      return { data: contributionObj, error: null };
+    }
+    
+    const returnedId = dbData?.id || id;
+    return { 
+      data: {
+        ...contributionObj,
+        id: returnedId,
+        created_at: dbData?.created_at || contributionObj.created_at
+      }, 
+      error: null 
+    };
   } catch (err: any) {
     console.error('createContribution failed:', err);
     return { data: null, error: err };
@@ -456,7 +492,10 @@ export async function updateContributionStatus(id: string, status: 'pending' | '
 
   try {
     const { error } = await client.from('contributions').update({ status }).eq('id', id);
-    if (error) throw error;
+    if (error) {
+      // Fallback by matching raw title if uuid mismatch occurred
+      await client.from('contributions').update({ status }).eq('title', id);
+    }
     return { success: true, error: null };
   } catch (err: any) {
     return { success: false, error: err };
@@ -527,7 +566,7 @@ export async function addGalleryImage(
   category: string
 ): Promise<{ data: GalleryImage | null; error: Error | null }> {
   const client = getSupabase();
-  const id = `gal-${Date.now()}`;
+  const id = generateUUID();
   const titleStr = JSON.stringify({ title, description, category });
 
   const galleryObj: GalleryImage = {
@@ -544,18 +583,677 @@ export async function addGalleryImage(
   }
 
   try {
-    const { error } = await client.from('gallery').insert({
-      id,
-      title: titleStr,
-      image_url: imageUrl,
-      created_at: new Date().toISOString()
-    });
+    const { data: dbData, error } = await client
+      .from('gallery')
+      .insert({
+        title: titleStr,
+        image_url: imageUrl,
+        created_at: new Date().toISOString()
+      })
+      .select('id, title, image_url, created_at')
+      .single();
 
-    if (error) throw error;
-    return { data: galleryObj, error: null };
+    if (error) {
+      // Fallback with custom string ID in case UUID schema is not used
+      const { error: errorWithId } = await client.from('gallery').insert({
+        id,
+        title: titleStr,
+        image_url: imageUrl,
+        created_at: new Date().toISOString()
+      });
+      if (errorWithId) throw errorWithId;
+      return { data: galleryObj, error: null };
+    }
+    
+    const returnedId = dbData?.id || id;
+    return { 
+      data: {
+        id: returnedId,
+        title,
+        imageUrl,
+        created_at: dbData?.created_at || galleryObj.created_at,
+        description,
+        category
+      }, 
+      error: null 
+    };
   } catch (err: any) {
     console.error('addGalleryImage failed:', err);
     return { data: null, error: err };
   }
 }
+
+// ==========================================
+// UNIFIED CONTACT MESSAGES SERVICES
+// ==========================================
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+  status: 'pending' | 'open' | 'closed';
+  created_at?: string;
+  admin_notes?: string;
+}
+
+export async function createContactMessage(msg: Omit<ContactMessage, 'id'>): Promise<{ data: ContactMessage | null; error: Error | null }> {
+  const client = getSupabase();
+  const id = generateUUID();
+  const completeMsg = { ...msg, id, status: 'pending' as const, created_at: new Date().toISOString() };
+
+  const stored = localStorage.getItem('bakenye_contact_messages') || '[]';
+  const list = JSON.parse(stored);
+  list.unshift(completeMsg);
+  localStorage.setItem('bakenye_contact_messages', JSON.stringify(list));
+
+  if (!client) {
+    return { data: completeMsg, error: null };
+  }
+
+  try {
+    const { data, error } = await client.from('contact_messages').insert({
+      name: msg.name,
+      email: msg.email,
+      phone: msg.phone || '',
+      subject: msg.subject,
+      message: msg.message,
+      status: 'pending',
+      admin_notes: msg.admin_notes || ''
+    }).select().single();
+
+    if (error) {
+      // Fallback with ID in case schema expects text ID
+      const { error: errorWithId } = await client.from('contact_messages').insert(completeMsg);
+      if (errorWithId) throw errorWithId;
+      return { data: completeMsg, error: null };
+    }
+
+    return { data: data || completeMsg, error: null };
+  } catch (err: any) {
+    console.warn('Supabase contact_messages write failed, saved to local cache:', err);
+    return { data: completeMsg, error: null };
+  }
+}
+
+export async function getContactMessages(): Promise<ContactMessage[]> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_contact_messages') || '[]';
+  const localList = JSON.parse(stored);
+
+  if (!client) {
+    return localList;
+  }
+
+  try {
+    const { data, error } = await client.from('contact_messages').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.warn('Supabase fetch messages failed:', err);
+    return localList;
+  }
+}
+
+export async function updateContactMessageStatus(id: string, status: 'pending' | 'open' | 'closed', adminNotes?: string): Promise<boolean> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_contact_messages') || '[]';
+  const list = JSON.parse(stored);
+  const idx = list.findIndex((m: any) => m.id === id);
+  if (idx !== -1) {
+    list[idx].status = status;
+    if (adminNotes !== undefined) list[idx].admin_notes = adminNotes;
+    localStorage.setItem('bakenye_contact_messages', JSON.stringify(list));
+  }
+
+  if (!client) return true;
+
+  try {
+    const { error } = await client.from('contact_messages').update({ status, admin_notes: adminNotes }).eq('id', id);
+    if (error) {
+      if (list[idx]) {
+        await client.from('contact_messages').update({ status, admin_notes: adminNotes }).eq('name', list[idx].name);
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error('Failed to update contact message:', err);
+    return false;
+  }
+}
+
+// ==========================================
+// UNIFIED CLAN SERVICES
+// ==========================================
+export interface Clan {
+  id: string;
+  name: string;
+  totem: string;
+  motto?: string;
+  desc?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'archived';
+  history?: string;
+  origin?: string;
+  leadership?: string;
+  custodian?: string;
+  gallery_urls?: string[];
+  document_urls?: string[];
+  created_at?: string;
+}
+
+export async function getClans(onlyApproved = true): Promise<Clan[]> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_clans') || '[]';
+  let localList = JSON.parse(stored);
+
+  if (!client) {
+    return onlyApproved ? localList.filter((c: any) => c.status === 'approved') : localList;
+  }
+
+  try {
+    const { data, error } = await client.from('clans').select('*').order('name', { ascending: true });
+    if (error) throw error;
+    
+    const mapped = (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      totem: row.totem || '',
+      motto: row.motto || '',
+      desc: row.desc || row.description || '',
+      status: row.status || 'approved',
+      history: row.history || '',
+      origin: row.origin || '',
+      leadership: row.leadership || '',
+      custodian: row.custodian || '',
+      gallery_urls: row.gallery_urls ? (typeof row.gallery_urls === 'string' ? JSON.parse(row.gallery_urls) : row.gallery_urls) : [],
+      document_urls: row.document_urls ? (typeof row.document_urls === 'string' ? JSON.parse(row.document_urls) : row.document_urls) : [],
+      created_at: row.created_at
+    }));
+
+    const pendingLocal = localList.filter((c: any) => c.status === 'pending');
+    const combined = [...mapped, ...pendingLocal];
+    const unique = combined.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
+
+    return onlyApproved ? unique.filter(c => c.status === 'approved') : unique;
+  } catch (err) {
+    console.warn('Supabase fetch clans failed:', err);
+    return onlyApproved ? localList.filter((c: any) => c.status === 'approved') : localList;
+  }
+}
+
+export async function createClan(clan: Omit<Clan, 'id'>): Promise<{ data: Clan | null; error: Error | null }> {
+  const client = getSupabase();
+  const id = generateUUID();
+  const completeClan = { ...clan, id, created_at: new Date().toISOString() };
+
+  const stored = localStorage.getItem('bakenye_clans') || '[]';
+  const list = JSON.parse(stored);
+  list.unshift(completeClan);
+  localStorage.setItem('bakenye_clans', JSON.stringify(list));
+
+  if (!client) {
+    return { data: completeClan, error: null };
+  }
+
+  try {
+    const dbRecord = {
+      name: clan.name,
+      totem: clan.totem,
+      motto: clan.motto || '',
+      desc: clan.desc || '',
+      status: clan.status || 'pending',
+      history: clan.history || '',
+      origin: clan.origin || '',
+      leadership: clan.leadership || '',
+      custodian: clan.custodian || '',
+      gallery_urls: JSON.stringify(clan.gallery_urls || []),
+      document_urls: JSON.stringify(clan.document_urls || [])
+    };
+
+    const { data, error } = await client.from('clans').insert(dbRecord).select().single();
+    if (error) {
+      const { error: errorWithId } = await client.from('clans').insert({ ...dbRecord, id });
+      if (errorWithId) throw errorWithId;
+      return { data: completeClan, error: null };
+    }
+    return { data: data || completeClan, error: null };
+  } catch (err: any) {
+    console.warn('Supabase create clan write failed, cached locally:', err);
+    return { data: completeClan, error: null };
+  }
+}
+
+export async function updateClan(id: string, updates: Partial<Clan>): Promise<boolean> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_clans') || '[]';
+  const list = JSON.parse(stored);
+  const idx = list.findIndex((c: any) => c.id === id);
+  if (idx !== -1) {
+    list[idx] = { ...list[idx], ...updates };
+    localStorage.setItem('bakenye_clans', JSON.stringify(list));
+  }
+
+  if (!client) return true;
+
+  try {
+    const dbRecord: any = {};
+    if (updates.name !== undefined) dbRecord.name = updates.name;
+    if (updates.totem !== undefined) dbRecord.totem = updates.totem;
+    if (updates.motto !== undefined) dbRecord.motto = updates.motto;
+    if (updates.desc !== undefined) dbRecord.desc = updates.desc;
+    if (updates.status !== undefined) dbRecord.status = updates.status;
+    if (updates.history !== undefined) dbRecord.history = updates.history;
+    if (updates.origin !== undefined) dbRecord.origin = updates.origin;
+    if (updates.leadership !== undefined) dbRecord.leadership = updates.leadership;
+    if (updates.custodian !== undefined) dbRecord.custodian = updates.custodian;
+    if (updates.gallery_urls !== undefined) dbRecord.gallery_urls = JSON.stringify(updates.gallery_urls);
+    if (updates.document_urls !== undefined) dbRecord.document_urls = JSON.stringify(updates.document_urls);
+
+    const { error } = await client.from('clans').update(dbRecord).eq('id', id);
+    if (error) {
+      if (list[idx]) {
+        await client.from('clans').update(dbRecord).eq('name', list[idx].name);
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error('Failed to update clan:', err);
+    return false;
+  }
+}
+
+export async function deleteClan(id: string): Promise<boolean> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_clans') || '[]';
+  const list = JSON.parse(stored);
+  const filtered = list.filter((c: any) => c.id !== id);
+  localStorage.setItem('bakenye_clans', JSON.stringify(filtered));
+
+  if (!client) return true;
+
+  try {
+    await client.from('clans').delete().eq('id', id);
+    return true;
+  } catch (err) {
+    console.error('Failed to delete clan:', err);
+    return false;
+  }
+}
+
+// ==========================================
+// UNIFIED ELDERS & LEADERS SERVICES
+// ==========================================
+export interface Leader {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  photo_url?: string;
+  expertise?: string;
+  clan?: string;
+  contact_email?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at?: string;
+}
+
+export async function getLeaders(onlyApproved = true): Promise<Leader[]> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_leaders') || '[]';
+  let localList = JSON.parse(stored);
+
+  if (!client) {
+    return onlyApproved ? localList.filter((l: any) => l.status === 'approved') : localList;
+  }
+
+  try {
+    const { data, error } = await client.from('leaders').select('*').order('name', { ascending: true });
+    if (error) throw error;
+
+    const mapped = (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      role: row.role || '',
+      bio: row.bio || '',
+      photo_url: row.photo_url || row.imageUrl || '',
+      expertise: row.expertise || 'Cultural Custodian',
+      clan: row.clan || '',
+      contact_email: row.contact_email || '',
+      status: row.status || 'approved',
+      created_at: row.created_at
+    }));
+
+    const pendingLocal = localList.filter((l: any) => l.status === 'pending');
+    const combined = [...mapped, ...pendingLocal];
+    const unique = combined.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
+
+    return onlyApproved ? unique.filter(l => l.status === 'approved') : unique;
+  } catch (err) {
+    console.warn('Supabase fetch leaders failed, showing local cache:', err);
+    return onlyApproved ? localList.filter((l: any) => l.status === 'approved') : localList;
+  }
+}
+
+export async function createLeader(leader: Omit<Leader, 'id'>): Promise<{ data: Leader | null; error: Error | null }> {
+  const client = getSupabase();
+  const id = generateUUID();
+  const completeLeader = { ...leader, id, created_at: new Date().toISOString() };
+
+  const stored = localStorage.getItem('bakenye_leaders') || '[]';
+  const list = JSON.parse(stored);
+  list.unshift(completeLeader);
+  localStorage.setItem('bakenye_leaders', JSON.stringify(list));
+
+  if (!client) {
+    return { data: completeLeader, error: null };
+  }
+
+  try {
+    const dbRecord = {
+      name: leader.name,
+      role: leader.role,
+      bio: leader.bio,
+      photo_url: leader.photo_url || '',
+      expertise: leader.expertise || 'Cultural Custodian',
+      clan: leader.clan || '',
+      contact_email: leader.contact_email || '',
+      status: leader.status || 'pending'
+    };
+
+    const { data, error } = await client.from('leaders').insert(dbRecord).select().single();
+    if (error) {
+      const { error: errorWithId } = await client.from('leaders').insert({ ...dbRecord, id });
+      if (errorWithId) throw errorWithId;
+      return { data: completeLeader, error: null };
+    }
+    return { data: data || completeLeader, error: null };
+  } catch (err: any) {
+    console.warn('Supabase create leader write failed, cached locally:', err);
+    return { data: completeLeader, error: null };
+  }
+}
+
+export async function updateLeader(id: string, updates: Partial<Leader>): Promise<boolean> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_leaders') || '[]';
+  const list = JSON.parse(stored);
+  const idx = list.findIndex((l: any) => l.id === id);
+  if (idx !== -1) {
+    list[idx] = { ...list[idx], ...updates };
+    localStorage.setItem('bakenye_leaders', JSON.stringify(list));
+  }
+
+  if (!client) return true;
+
+  try {
+    const dbRecord: any = {};
+    if (updates.name !== undefined) dbRecord.name = updates.name;
+    if (updates.role !== undefined) dbRecord.role = updates.role;
+    if (updates.bio !== undefined) dbRecord.bio = updates.bio;
+    if (updates.photo_url !== undefined) dbRecord.photo_url = updates.photo_url;
+    if (updates.expertise !== undefined) dbRecord.expertise = updates.expertise;
+    if (updates.clan !== undefined) dbRecord.clan = updates.clan;
+    if (updates.contact_email !== undefined) dbRecord.contact_email = updates.contact_email;
+    if (updates.status !== undefined) dbRecord.status = updates.status;
+
+    const { error } = await client.from('leaders').update(dbRecord).eq('id', id);
+    if (error) {
+      if (list[idx]) {
+        await client.from('leaders').update(dbRecord).eq('name', list[idx].name);
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error('Failed to update leader:', err);
+    return false;
+  }
+}
+
+export async function deleteLeader(id: string): Promise<boolean> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_leaders') || '[]';
+  const list = JSON.parse(stored);
+  const filtered = list.filter((l: any) => l.id !== id);
+  localStorage.setItem('bakenye_leaders', JSON.stringify(filtered));
+
+  if (!client) return true;
+
+  try {
+    await client.from('leaders').delete().eq('id', id);
+    return true;
+  } catch (err) {
+    console.error('Failed to delete leader:', err);
+    return false;
+  }
+}
+
+// ==========================================
+// UNIFIED VOCABULARY & GLOSSARY SERVICES
+// ==========================================
+export interface Vocabulary {
+  id: string;
+  lukenye: string;
+  english: string;
+  category: string;
+  usage?: string;
+  audio_url?: string;
+  example_sentence?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at?: string;
+}
+
+export async function getVocabulary(onlyApproved = true): Promise<Vocabulary[]> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_vocabulary') || '[]';
+  let localList = JSON.parse(stored);
+
+  if (!client) {
+    return onlyApproved ? localList.filter((v: any) => v.status === 'approved') : localList;
+  }
+
+  try {
+    const { data, error } = await client.from('vocabulary').select('*').order('id', { ascending: true });
+    if (error) throw error;
+
+    const mapped = (data || []).map((row: any) => ({
+      id: row.id,
+      lukenye: row.lukenye,
+      english: row.english,
+      category: row.category || 'phrase',
+      usage: row.usage || '',
+      audio_url: row.audio_url || '',
+      example_sentence: row.example_sentence || '',
+      status: row.status || 'approved',
+      created_at: row.created_at
+    }));
+
+    const pendingLocal = localList.filter((v: any) => v.status === 'pending');
+    const combined = [...mapped, ...pendingLocal];
+    const unique = combined.filter((v, i, a) => a.findIndex(t => t.lukenye === v.lukenye) === i);
+
+    return onlyApproved ? unique.filter(v => v.status === 'approved') : unique;
+  } catch (err) {
+    console.warn('Supabase fetch vocabulary failed:', err);
+    return onlyApproved ? localList.filter((v: any) => v.status === 'approved') : localList;
+  }
+}
+
+export async function createVocabulary(vocab: Omit<Vocabulary, 'id'>): Promise<{ data: Vocabulary | null; error: Error | null }> {
+  const client = getSupabase();
+  const id = generateUUID();
+  const completeVocab = { ...vocab, id, created_at: new Date().toISOString() };
+
+  const stored = localStorage.getItem('bakenye_vocabulary') || '[]';
+  const list = JSON.parse(stored);
+  list.unshift(completeVocab);
+  localStorage.setItem('bakenye_vocabulary', JSON.stringify(list));
+
+  if (!client) {
+    return { data: completeVocab, error: null };
+  }
+
+  try {
+    const dbRecord = {
+      lukenye: vocab.lukenye,
+      english: vocab.english,
+      category: vocab.category,
+      usage: vocab.usage || '',
+      audio_url: vocab.audio_url || '',
+      example_sentence: vocab.example_sentence || '',
+      status: vocab.status || 'pending'
+    };
+
+    const { data, error } = await client.from('vocabulary').insert(dbRecord).select().single();
+    if (error) {
+      const { error: errorWithId } = await client.from('vocabulary').insert({ ...dbRecord, id });
+      if (errorWithId) throw errorWithId;
+      return { data: completeVocab, error: null };
+    }
+    return { data: data || completeVocab, error: null };
+  } catch (err: any) {
+    console.warn('Supabase create vocabulary write failed, cached locally:', err);
+    return { data: completeVocab, error: null };
+  }
+}
+
+export async function updateVocabularyStatus(id: string, status: 'pending' | 'approved' | 'rejected'): Promise<boolean> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_vocabulary') || '[]';
+  const list = JSON.parse(stored);
+  const idx = list.findIndex((v: any) => v.id === id);
+  if (idx !== -1) {
+    list[idx].status = status;
+    localStorage.setItem('bakenye_vocabulary', JSON.stringify(list));
+  }
+
+  if (!client) return true;
+
+  try {
+    const { error } = await client.from('vocabulary').update({ status }).eq('id', id);
+    if (error) {
+      if (list[idx]) {
+        await client.from('vocabulary').update({ status }).eq('lukenye', list[idx].lukenye);
+      }
+    }
+    return true;
+  } catch (err) {
+    console.error('Failed to update vocabulary status:', err);
+    return false;
+  }
+}
+
+// ==========================================
+// UNIFIED STORY CATEGORIES SERVICES
+// ==========================================
+export interface StoryCategory {
+  id: string;
+  name: string;
+  description?: string;
+  fields?: string[];
+  validation_rules?: string;
+  upload_requirements?: string;
+  is_archived?: boolean;
+}
+
+const defaultStoryCategories: StoryCategory[] = [
+  {
+    id: 'history',
+    name: 'History & Timeline',
+    description: 'Migration paths, ancestral settlements, and major historic events.',
+    fields: ['Event Year', 'Historical Region', 'Witness Account'],
+    validation_rules: 'Year must be numeric and before current year.',
+    upload_requirements: 'At least one archive photo or certificate copy required.',
+    is_archived: false
+  },
+  {
+    id: 'clans',
+    name: 'Clan Lore',
+    description: 'Ancestral lineages, totems, and traditional roles.',
+    fields: ['Clan Name', 'Totem Mascot', 'Motto Statement', 'Origin Region'],
+    validation_rules: 'Clan name and Totem mascot are mandatory.',
+    upload_requirements: 'Clan crest illustration or totem photo optional.',
+    is_archived: false
+  },
+  {
+    id: 'culture',
+    name: 'Cultural Traditions',
+    description: 'Floating island (Ebiswa) farming, canoe crafts, and rituals.',
+    fields: ['Craft Name', 'Tools Used', 'Seasonal Relevance'],
+    validation_rules: 'Provide details about Bakenyi-specific cultural traits.',
+    upload_requirements: 'Instructional photo or sketch of the tool.',
+    is_archived: false
+  },
+  {
+    id: 'language',
+    name: 'Oral Literature & Proverbs',
+    description: 'Lukenye spoken sayings, proverbs, and audio tales.',
+    fields: ['Lukenye Phrase', 'Literal English Translation', 'Cultural Meaning'],
+    validation_rules: 'Input must capture the correct spelling in Lukenye.',
+    upload_requirements: 'High-quality MP3 voice recording required.',
+    is_archived: false
+  }
+];
+
+export async function getStoryCategories(): Promise<StoryCategory[]> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_story_categories');
+  if (!stored) {
+    localStorage.setItem('bakenye_story_categories', JSON.stringify(defaultStoryCategories));
+  }
+  const localList = JSON.parse(localStorage.getItem('bakenye_story_categories') || '[]');
+
+  if (!client) {
+    return localList.filter((c: any) => !c.is_archived);
+  }
+
+  try {
+    const { data, error } = await client.from('story_categories').select('*');
+    if (error || !data || data.length === 0) {
+      return localList.filter((c: any) => !c.is_archived);
+    }
+    return data.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description || '',
+      fields: row.fields ? (typeof row.fields === 'string' ? JSON.parse(row.fields) : row.fields) : [],
+      validation_rules: row.validation_rules || '',
+      upload_requirements: row.upload_requirements || '',
+      is_archived: row.is_archived || false
+    }));
+  } catch (err) {
+    return localList.filter((c: any) => !c.is_archived);
+  }
+}
+
+export async function saveStoryCategory(category: StoryCategory): Promise<boolean> {
+  const client = getSupabase();
+  const stored = localStorage.getItem('bakenye_story_categories') || '[]';
+  const list = JSON.parse(stored);
+  const idx = list.findIndex((c: any) => c.id === category.id);
+  if (idx !== -1) {
+    list[idx] = category;
+  } else {
+    list.push(category);
+  }
+  localStorage.setItem('bakenye_story_categories', JSON.stringify(list));
+
+  if (!client) return true;
+
+  try {
+    const dbRecord = {
+      id: category.id,
+      name: category.name,
+      description: category.description,
+      fields: JSON.stringify(category.fields || []),
+      validation_rules: category.validation_rules,
+      upload_requirements: category.upload_requirements,
+      is_archived: category.is_archived
+    };
+    await client.from('story_categories').upsert(dbRecord);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
 

@@ -1,36 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Mail, Linkedin, User, ShieldCheck, Award, Users } from 'lucide-react';
-import { getSupabase } from '../lib/supabaseClient';
+import { Mail, Linkedin, User, ShieldCheck, Award, Users, Search } from 'lucide-react';
+import { getLeaders, Leader } from '../lib/supabase';
 
 export default function Leadership() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
-  const [leaders, setLeaders] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState(query);
+  const [leaders, setLeaders] = useState<Leader[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setSearchTerm(searchParams.get('q') || '');
+  }, [searchParams]);
 
   useEffect(() => {
     async function fetchLeaders() {
       setLoading(true);
-      const client = getSupabase();
-      if (!client) {
-        setLeaders([]);
-        setLoading(false);
-        return;
-      }
-
       try {
-        const { data, error } = await client
-          .from('leaders')
-          .select('*')
-          .order('name', { ascending: true });
-
-        if (!error && data) {
-          setLeaders(data);
-        } else {
-          setLeaders([]);
-        }
+        const data = await getLeaders(true); // fetch approved leaders
+        setLeaders(data);
       } catch (e) {
         console.error('Leadership: failed to fetch leaders:', e);
         setLeaders([]);
@@ -41,6 +31,22 @@ export default function Leadership() {
 
     fetchLeaders();
   }, []);
+
+  const handleSearchChange = (val: string) => {
+    setSearchTerm(val);
+    if (val) {
+      setSearchParams({ q: val });
+    } else {
+      setSearchParams({});
+    }
+  };
+
+  const filteredLeaders = leaders.filter(leader => 
+    (leader.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (leader.role || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (leader.expertise || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (leader.clan || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
@@ -58,6 +64,18 @@ export default function Leadership() {
           <p className="text-heritage-sand max-w-2xl mx-auto text-lg md:text-xl font-medium tracking-wide uppercase">
             The committee dedicated to steering the Bakenyi Heritage Platform.
           </p>
+
+          {/* Search Bar */}
+          <div className="relative max-w-xl mx-auto mt-10">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-heritage-brown/40 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Search elders by name, role, expertise..."
+              className="w-full pl-12 pr-4 py-4 rounded-full bg-white border-2 border-heritage-terracotta/20 focus:border-heritage-terracotta focus:outline-none text-heritage-brown transition-all font-semibold"
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+            />
+          </div>
         </div>
       </section>
 
@@ -82,9 +100,23 @@ export default function Leadership() {
                 No verified cultural council custodians have been registered to the platform.
               </p>
             </div>
+          ) : filteredLeaders.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-[32px] border-2 border-dashed border-heritage-brown/10 max-w-3xl mx-auto px-6">
+              <Search className="w-16 h-16 text-heritage-brown/20 mx-auto mb-6" />
+              <h3 className="text-xl font-serif font-bold text-heritage-brown mb-2">No matches found</h3>
+              <p className="text-sm text-heritage-brown/50 max-w-md mx-auto mb-4">
+                No verified elders matched your search query "{searchTerm}".
+              </p>
+              <button 
+                onClick={() => handleSearchChange('')}
+                className="text-heritage-terracotta font-bold text-xs uppercase tracking-wider hover:underline cursor-pointer"
+              >
+                Clear Search
+              </button>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {leaders.map((leader, i) => {
+              {filteredLeaders.map((leader, i) => {
                 const isHighlighted = query !== '' && (leader.name || '').toLowerCase().includes(query.toLowerCase());
                 return (
                   <motion.div
@@ -102,12 +134,13 @@ export default function Leadership() {
                         Search Match
                       </span>
                     )}
-                    <div className="w-32 h-32 rounded-full bg-heritage-cream mb-6 overflow-hidden flex items-center justify-center border-4 border-heritage-terracotta/20">
+                    <div className="w-32 h-32 rounded-full bg-heritage-cream mb-6 overflow-hidden flex items-center justify-center border-4 border-heritage-terracotta/20 shrink-0">
                       {leader.photo_url || leader.imageUrl ? (
                         <img 
                           src={leader.photo_url || leader.imageUrl} 
                           alt={leader.name} 
                           className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer"
                         />
                       ) : (
                         <User className="w-16 h-16 text-heritage-brown/20" />
@@ -115,7 +148,7 @@ export default function Leadership() {
                     </div>
                     <h3 className="text-xl font-serif font-bold text-heritage-brown text-center mb-1">{leader.name}</h3>
                     <p className="text-heritage-terracotta text-xs font-bold uppercase tracking-widest mb-4 text-center">{leader.role || 'Committee Member'}</p>
-                    <p className="text-heritage-brown/60 text-sm text-center mb-6 leading-relaxed flex-grow">
+                    <p className="text-heritage-brown/60 text-sm text-center mb-6 leading-relaxed flex-grow font-medium">
                       {leader.bio || 'Verifying authentic oral narratives and supervising digital language programs.'}
                     </p>
                     <div className="w-full pt-4 border-t border-heritage-brown/5 flex flex-col items-center">
@@ -123,10 +156,31 @@ export default function Leadership() {
                         <Award className="w-3 h-3 mr-1" />
                         {leader.expertise || 'Cultural Custodian'}
                       </div>
+                      
+                      {leader.clan && (
+                        <div className="text-[10px] text-heritage-brown/40 font-bold uppercase tracking-wider mb-4">
+                          Clan: {leader.clan}
+                        </div>
+                      )}
+
                       <div className="flex space-x-3">
-                        <button className="p-2 rounded-full bg-heritage-cream text-heritage-brown hover:bg-heritage-terracotta hover:text-white transition-colors cursor-pointer">
-                          <Mail className="w-4 h-4" />
-                        </button>
+                        {leader.contact_email ? (
+                          <a 
+                            href={`mailto:${leader.contact_email}`}
+                            className="p-2 rounded-full bg-heritage-cream text-heritage-brown hover:bg-heritage-terracotta hover:text-white transition-colors cursor-pointer"
+                            title={`Email ${leader.name}`}
+                          >
+                            <Mail className="w-4 h-4" />
+                          </a>
+                        ) : (
+                          <button 
+                            disabled 
+                            className="p-2 rounded-full bg-heritage-cream text-heritage-brown/20 cursor-not-allowed"
+                            title="No email registered"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </button>
+                        )}
                         <button className="p-2 rounded-full bg-heritage-cream text-heritage-brown hover:bg-heritage-terracotta hover:text-white transition-colors cursor-pointer">
                           <Linkedin className="w-4 h-4" />
                         </button>

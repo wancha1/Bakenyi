@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Shield, Info, Filter, Sparkles } from 'lucide-react';
-import { getSupabase } from '../lib/supabaseClient';
+import { Search, Shield, Info, Filter, Sparkles, User, Calendar, BookOpen, MapPin } from 'lucide-react';
+import { getClans, Clan } from '../lib/supabase';
 
 export default function Clans() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get('q') || "";
   const [searchTerm, setSearchTerm] = useState(queryParam);
-  const [clans, setClans] = useState<any[]>([]);
+  const [clans, setClans] = useState<Clan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedClan, setSelectedClan] = useState<Clan | null>(null);
 
   useEffect(() => {
     setSearchTerm(searchParams.get('q') || "");
@@ -18,24 +19,9 @@ export default function Clans() {
   useEffect(() => {
     async function fetchClans() {
       setLoading(true);
-      const client = getSupabase();
-      if (!client) {
-        setClans([]);
-        setLoading(false);
-        return;
-      }
-
       try {
-        const { data, error } = await client
-          .from('clans')
-          .select('*')
-          .order('name', { ascending: true });
-        
-        if (!error && data) {
-          setClans(data);
-        } else {
-          setClans([]);
-        }
+        const data = await getClans(true); // fetch approved clans
+        setClans(data);
       } catch (e) {
         console.error('Clans: failed to fetch:', e);
         setClans([]);
@@ -128,7 +114,8 @@ export default function Clans() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.2 }}
-                    className="heritage-card group"
+                    onClick={() => setSelectedClan(clan)}
+                    className="heritage-card group cursor-pointer hover:border-heritage-terracotta/40 transition-colors"
                   >
                     <div className="h-32 bg-heritage-brown/5 flex items-center justify-center relative overflow-hidden">
                       <Shield className="w-16 h-16 text-heritage-terracotta/10 group-hover:scale-110 transition-transform duration-500" />
@@ -142,9 +129,14 @@ export default function Clans() {
                         </div>
                       </div>
                       {clan.motto && <p className="text-sm text-heritage-brown/70 italic mb-4">"{clan.motto}"</p>}
-                      <p className="text-sm text-heritage-brown/60 leading-relaxed">
+                      <p className="text-sm text-heritage-brown/60 leading-relaxed line-clamp-3">
                         {clan.desc || clan.description || 'Traditional Bakenyi lineage group with deep historical bonds.'}
                       </p>
+                      
+                      <div className="mt-4 pt-4 border-t border-heritage-brown/5 flex items-center justify-between text-xs font-bold text-heritage-terracotta uppercase tracking-wider group-hover:translate-x-1 transition-transform">
+                        <span>Learn History</span>
+                        <span>→</span>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -191,6 +183,105 @@ export default function Clans() {
           </div>
         </div>
       </section>
+
+      {/* Ancestral History Modal */}
+      <AnimatePresence>
+        {selectedClan && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedClan(null)}
+              className="absolute inset-0 bg-heritage-brown/60 backdrop-blur-xs"
+            />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-heritage-cream w-full max-w-2xl rounded-[32px] overflow-hidden border-2 border-heritage-terracotta/20 shadow-2xl z-10 text-left"
+            >
+              <div className="bg-heritage-brown p-8 text-white relative">
+                <div className="absolute inset-0 cultural-pattern opacity-10" />
+                <button 
+                  onClick={() => setSelectedClan(null)}
+                  className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors text-lg cursor-pointer font-bold"
+                >
+                  ✕
+                </button>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-heritage-terracotta/20 flex items-center justify-center shrink-0 border border-heritage-terracotta/30">
+                    <Shield className="w-6 h-6 text-heritage-terracotta" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-heritage-sand">Bakenyi Lineage Group</span>
+                    <h3 className="text-3xl font-serif font-bold text-white">{selectedClan.name}</h3>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 max-h-[70vh] overflow-y-auto space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white/80 border border-heritage-brown/5 rounded-2xl p-4 flex gap-3 items-center">
+                    <Sparkles className="w-5 h-5 text-heritage-terracotta shrink-0" />
+                    <div>
+                      <h5 className="text-[10px] font-bold text-heritage-brown/40 uppercase tracking-wider">Totem / Emblem</h5>
+                      <p className="text-xs font-bold text-heritage-brown">{selectedClan.totem || 'None'}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/80 border border-heritage-brown/5 rounded-2xl p-4 flex gap-3 items-center">
+                    <User className="w-5 h-5 text-heritage-terracotta shrink-0" />
+                    <div>
+                      <h5 className="text-[10px] font-bold text-heritage-brown/40 uppercase tracking-wider">Assigned Custodian</h5>
+                      <p className="text-xs font-bold text-heritage-brown">{selectedClan.custodian || 'No custodian assigned'}</p>
+                    </div>
+                  </div>
+
+                  {selectedClan.origin && (
+                    <div className="bg-white/80 border border-heritage-brown/5 rounded-2xl p-4 flex gap-3 items-center md:col-span-2">
+                      <MapPin className="w-5 h-5 text-heritage-terracotta shrink-0" />
+                      <div>
+                        <h5 className="text-[10px] font-bold text-heritage-brown/40 uppercase tracking-wider">Geographic Settlement Origin</h5>
+                        <p className="text-xs font-bold text-heritage-brown">{selectedClan.origin}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {selectedClan.motto && (
+                  <div className="bg-white border-l-4 border-heritage-terracotta p-4 rounded-r-2xl italic text-heritage-brown/70 font-medium">
+                    "{selectedClan.motto}"
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-heritage-terracotta flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4" />
+                    <span>Origins & Descriptive Summary</span>
+                  </h4>
+                  <p className="text-sm text-heritage-brown/70 leading-relaxed font-medium">
+                    {selectedClan.desc || selectedClan.description || 'Traditional Bakenyi lineage group with deep historical bonds.'}
+                  </p>
+                </div>
+
+                {selectedClan.history && (
+                  <div className="space-y-2 pt-4 border-t border-heritage-brown/5">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-heritage-terracotta flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4" />
+                      <span>Detailed Ancestral History & Timeline</span>
+                    </h4>
+                    <p className="text-sm text-heritage-brown/70 leading-relaxed whitespace-pre-wrap font-medium">
+                      {selectedClan.history}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

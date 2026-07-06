@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History, Mail, Lock, User as UserIcon } from 'lucide-react';
+import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History, Mail, Lock, User as UserIcon, HelpCircle, ShieldAlert } from 'lucide-react';
 import { getSupabase } from '../lib/supabaseClient';
-import { getContributions, createContribution, uploadMedia, Contribution } from '../lib/supabase';
+import { getContributions, createContribution, uploadMedia, Contribution, getStoryCategories, StoryCategory } from '../lib/supabase';
 
 const steps = [
   {
@@ -51,6 +51,33 @@ export default function Contribute() {
     description: '',
     type: 'photo'
   });
+
+  const [categories, setCategories] = useState<StoryCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<StoryCategory | null>(null);
+
+  // Fetch story categories on mount
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const cats = await getStoryCategories();
+        setCategories(cats);
+        if (cats.length > 0) {
+          setFormData(prev => ({ ...prev, type: cats[0].id }));
+          setSelectedCategory(cats[0]);
+        }
+      } catch (err) {
+        console.error("Failed to load story categories:", err);
+      }
+    }
+    loadCategories();
+  }, []);
+
+  // Update selected category details when selection changes
+  const handleCategoryChange = (catId: string) => {
+    setFormData(prev => ({ ...prev, type: catId }));
+    const found = categories.find(c => c.id === catId);
+    setSelectedCategory(found || null);
+  };
 
   // Track Auth state
   useEffect(() => {
@@ -337,15 +364,51 @@ export default function Contribute() {
                     <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Category</label>
                     <select 
                       value={formData.type}
-                      onChange={(e) => setFormData({...formData, type: e.target.value})}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
                       className="w-full px-6 py-4 bg-heritage-cream/30 border-2 border-transparent focus:border-heritage-terracotta/20 rounded-2xl outline-none transition-all font-medium text-heritage-brown appearance-none"
                     >
-                      <option value="photo">Photograph</option>
-                      <option value="story">Oral Story (Text)</option>
-                      <option value="audio">Audio Clip</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                      {categories.length === 0 && (
+                        <>
+                          <option value="photo">Photograph</option>
+                          <option value="story">Oral Story (Text)</option>
+                          <option value="audio">Audio Clip</option>
+                        </>
+                      )}
                     </select>
                   </div>
                 </div>
+
+                {selectedCategory && (
+                  <div className="bg-heritage-cream/20 border border-heritage-terracotta/10 rounded-3xl p-5 space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-bold text-heritage-terracotta uppercase tracking-wider">
+                      <HelpCircle className="w-4 h-4 shrink-0" />
+                      <span>{selectedCategory.name} Guidelines</span>
+                    </div>
+                    <p className="text-xs text-heritage-brown/60 italic leading-relaxed">
+                      "{selectedCategory.description}"
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-heritage-brown/5 text-xs font-medium">
+                      {selectedCategory.validation_rules && (
+                        <div className="space-y-0.5">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-heritage-terracotta/60">Verification Criteria:</span>
+                          <p className="text-heritage-brown/70">{selectedCategory.validation_rules}</p>
+                        </div>
+                      )}
+                      {selectedCategory.upload_requirements && (
+                        <div className="space-y-0.5">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-heritage-terracotta/60">Attachment Checklist:</span>
+                          <p className="text-heritage-brown/70">{selectedCategory.upload_requirements}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Description / History</label>

@@ -1,4 +1,5 @@
 import { motion } from 'motion/react';
+import { Link } from 'react-router-dom';
 import { Target, Heart, Shield, Users } from 'lucide-react';
 
 export default function About() {
@@ -125,8 +126,8 @@ export default function About() {
             This platform is for everyone. Whether you are a researcher, a student, or a proud member of the Bakenyi community, we welcome your contribution.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <button className="btn-primary">Become a Member</button>
-            <button className="btn-secondary">Contribute Information</button>
+            <Link to="/login" className="btn-primary inline-block text-center">Become a Member</Link>
+            <Link to="/contribute" className="btn-secondary inline-block text-center">Contribute Information</Link>
           </div>
         </div>
       </section>
