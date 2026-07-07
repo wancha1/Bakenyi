@@ -512,9 +512,10 @@ export interface GalleryImage {
   created_at?: string;
   description: string;
   category: string;
+  status?: 'pending' | 'approved' | 'rejected';
 }
 
-export async function getGalleryImages(): Promise<GalleryImage[]> {
+export async function getGalleryImages(includePending = false): Promise<GalleryImage[]> {
   const client = getSupabase();
   if (!client) {
     return [];
@@ -525,18 +526,20 @@ export async function getGalleryImages(): Promise<GalleryImage[]> {
     if (error) throw error;
 
     if (data && data.length > 0) {
-      return data.map((row: any) => {
+      const mapped = data.map((row: any) => {
         let titleVal = row.title;
         let desc = '';
         let cat = 'General';
+        let statusVal: 'pending' | 'approved' | 'rejected' = 'approved';
         
-        // Check if title is serialized JSON holding title, description and category
+        // Check if title is serialized JSON holding title, description, category and status
         try {
           if (titleVal.startsWith('{')) {
             const parsed = JSON.parse(titleVal);
             titleVal = parsed.title;
             desc = parsed.description || '';
             cat = parsed.category || 'General';
+            statusVal = parsed.status || 'approved';
           }
         } catch (e) {}
 
@@ -546,9 +549,12 @@ export async function getGalleryImages(): Promise<GalleryImage[]> {
           imageUrl: row.image_url,
           created_at: row.created_at,
           description: desc,
-          category: cat
+          category: cat,
+          status: statusVal
         };
       });
+
+      return includePending ? mapped : mapped.filter(img => img.status === 'approved');
     }
 
     return [];
@@ -562,11 +568,12 @@ export async function addGalleryImage(
   title: string,
   imageUrl: string,
   description: string,
-  category: string
+  category: string,
+  status: 'pending' | 'approved' | 'rejected' = 'pending'
 ): Promise<{ data: GalleryImage | null; error: Error | null }> {
   const client = getSupabase();
   const id = generateUUID();
-  const titleStr = JSON.stringify({ title, description, category });
+  const titleStr = JSON.stringify({ title, description, category, status });
 
   const galleryObj: GalleryImage = {
     id,
@@ -574,7 +581,8 @@ export async function addGalleryImage(
     imageUrl,
     created_at: new Date().toISOString(),
     description,
-    category
+    category,
+    status
   };
 
   if (!client) {
@@ -612,13 +620,46 @@ export async function addGalleryImage(
         imageUrl,
         created_at: dbData?.created_at || galleryObj.created_at,
         description,
-        category
+        category,
+        status
       }, 
       error: null 
     };
   } catch (err: any) {
     console.error('addGalleryImage failed:', err);
     return { data: null, error: err };
+  }
+}
+
+export async function updateGalleryImageStatus(id: string, status: 'pending' | 'approved' | 'rejected'): Promise<{ success: boolean; error: Error | null }> {
+  const client = getSupabase();
+  if (!client) return { success: false, error: new Error('Supabase client is not configured.') };
+
+  try {
+    const { data: row, error: fetchErr } = await client.from('gallery').select('id, title, image_url').eq('id', id).maybeSingle();
+    if (fetchErr) throw fetchErr;
+    if (!row) throw new Error('Gallery image not found.');
+
+    let titleVal = row.title;
+    let desc = '';
+    let cat = 'General';
+    try {
+      if (titleVal.startsWith('{')) {
+        const parsed = JSON.parse(titleVal);
+        titleVal = parsed.title;
+        desc = parsed.description || '';
+        cat = parsed.category || 'General';
+      }
+    } catch (e) {}
+
+    const titleStr = JSON.stringify({ title: titleVal, description: desc, category: cat, status });
+    const { error: updateErr } = await client.from('gallery').update({ title: titleStr }).eq('id', id);
+    if (updateErr) throw updateErr;
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.error('updateGalleryImageStatus failed:', err);
+    return { success: false, error: err };
   }
 }
 

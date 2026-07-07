@@ -28,6 +28,9 @@ import {
   getContributions, 
   updateContributionStatus, 
   addGalleryImage, 
+  getGalleryImages,
+  updateGalleryImageStatus,
+  GalleryImage,
   Contribution,
   getClans,
   createClan,
@@ -50,6 +53,11 @@ export default function ContentView() {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [isLoadingContribs, setIsLoadingContribs] = useState(false);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+
+  // Gallery Submissions States
+  const [vettingTab, setVettingTab] = useState<'submissions' | 'gallery'>('submissions');
+  const [pendingGalleryImages, setPendingGalleryImages] = useState<GalleryImage[]>([]);
+  const [isLoadingGallery, setIsLoadingGallery] = useState(false);
 
   // Clans States
   const [clans, setClans] = useState<Clan[]>([]);
@@ -107,6 +115,7 @@ export default function ContentView() {
   useEffect(() => {
     if (activeSubTab === 'submissions') {
       loadContributions();
+      loadPendingGallery();
     } else if (activeSubTab === 'clans') {
       loadClans();
     } else if (activeSubTab === 'leadership') {
@@ -128,6 +137,19 @@ export default function ContentView() {
     }
   }
 
+  async function loadPendingGallery() {
+    setIsLoadingGallery(true);
+    try {
+      const allImages = await getGalleryImages(true); // include pending!
+      const pendingOnly = allImages.filter(img => img.status === 'pending');
+      setPendingGalleryImages(pendingOnly);
+    } catch (err) {
+      console.error('Failed to load pending gallery images:', err);
+    } finally {
+      setIsLoadingGallery(false);
+    }
+  }
+
   async function handleReview(contrib: Contribution, action: 'approved' | 'rejected') {
     setReviewingId(contrib.id);
     try {
@@ -139,7 +161,8 @@ export default function ContentView() {
           contrib.title,
           contrib.imageUrl,
           contrib.description,
-          contrib.type === 'photo' ? 'History' : 'Tradition'
+          contrib.type === 'photo' ? 'History' : 'Tradition',
+          'approved'
         );
         alert('Contribution successfully vetted and dynamically published into the digital gallery!');
       } else {
@@ -149,6 +172,21 @@ export default function ContentView() {
     } catch (err: any) {
       console.error('Vetting action failed:', err);
       alert('Vetting failed.');
+    } finally {
+      setReviewingId(null);
+    }
+  }
+
+  async function handleGalleryReview(imgId: string, action: 'approved' | 'rejected') {
+    setReviewingId(imgId);
+    try {
+      const { success, error } = await updateGalleryImageStatus(imgId, action);
+      if (error) throw error;
+      alert(`Gallery photo has been ${action === 'approved' ? 'approved & published!' : 'rejected.'}`);
+      loadPendingGallery();
+    } catch (err: any) {
+      console.error('Gallery review failed:', err);
+      alert('Action failed.');
     } finally {
       setReviewingId(null);
     }
@@ -520,49 +558,172 @@ export default function ContentView() {
 
       {/* Submissions queue */}
       {activeSubTab === 'submissions' && (
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white font-sans">Moderation & Vetting Queue</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-sans">
-              Audit submitted historical objects, photographs, and oral lineage records before publishing them to the public archive.
-            </p>
-          </div>
-
-          {isLoadingContribs ? (
-            <div className="flex flex-col justify-center items-center h-64 space-y-2">
-              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-              <span className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Loading vetting queue...</span>
-            </div>
-          ) : contributions.length === 0 ? (
-            <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 text-center py-20 rounded-3xl space-y-3">
-              <Inbox className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto" />
-              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Queue is Clear</h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm mx-auto">
-                No cultural artifacts are currently pending review. New public contributions will appear here dynamically.
+        <div className="space-y-6 text-left">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white font-sans">Moderation & Vetting Queue</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-sans">
+                Audit and vet community-submitted historical items, lineage stories, oral recordings, and public gallery photos.
               </p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {contributions.map((item) => {
-                const isPending = item.status === 'pending';
-                const statusColors = {
-                  approved: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25',
-                  rejected: 'bg-rose-500/10 text-rose-600 border-rose-500/25',
-                  pending: 'bg-amber-500/10 text-amber-600 border-amber-500/25'
-                };
 
-                return (
-                  <div key={item.id} className="bg-white dark:bg-slate-800 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-xs flex flex-col h-full hover:shadow-md transition-shadow">
+            {/* Sub-selector tabs */}
+            <div className="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-xl border border-slate-150 dark:border-slate-700 max-w-xs self-start">
+              <button
+                onClick={() => setVettingTab('submissions')}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  vettingTab === 'submissions'
+                    ? 'bg-white dark:bg-slate-650 text-indigo-600 dark:text-white shadow-xs'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'
+                }`}
+              >
+                Oral Histories ({contributions.filter(c => c.status === 'pending').length})
+              </button>
+              <button
+                onClick={() => setVettingTab('gallery')}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  vettingTab === 'gallery'
+                    ? 'bg-white dark:bg-slate-650 text-indigo-600 dark:text-white shadow-xs'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'
+                }`}
+              >
+                Gallery Uploads ({pendingGalleryImages.length})
+              </button>
+            </div>
+          </div>
+
+          {vettingTab === 'submissions' ? (
+            isLoadingContribs ? (
+              <div className="flex flex-col justify-center items-center h-64 space-y-2">
+                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                <span className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Loading vetting queue...</span>
+              </div>
+            ) : contributions.length === 0 ? (
+              <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 text-center py-20 rounded-3xl space-y-3">
+                <Inbox className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto" />
+                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Queue is Clear</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm mx-auto">
+                  No oral ancestry records or artifacts are currently pending review.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+                {contributions.map((item) => {
+                  const isPending = item.status === 'pending';
+                  const statusColors = {
+                    approved: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25',
+                    rejected: 'bg-rose-500/10 text-rose-600 border-rose-500/25',
+                    pending: 'bg-amber-500/10 text-amber-600 border-amber-500/25'
+                  };
+
+                  const isAudio = item.type === 'audio' || (item.imageUrl && (item.imageUrl.startsWith('data:audio/') || item.imageUrl.endsWith('.webm') || item.imageUrl.endsWith('.mp3') || item.imageUrl.endsWith('.wav')));
+
+                  return (
+                    <div key={item.id} className="bg-white dark:bg-slate-800 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-xs flex flex-col h-full hover:shadow-md transition-shadow">
+                      <div className="aspect-video relative bg-slate-150 dark:bg-slate-900 overflow-hidden flex items-center justify-center p-4">
+                        {isAudio ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 gap-3 border border-slate-100 dark:border-slate-700/50 rounded-2xl p-4">
+                            <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 animate-pulse">
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                              </svg>
+                            </div>
+                            <audio src={item.imageUrl} controls className="w-full max-w-[240px] h-8" />
+                          </div>
+                        ) : (
+                          <img 
+                            src={item.imageUrl} 
+                            alt={item.title} 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                        <div className="absolute top-4 left-4">
+                          <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider ${statusColors[item.status]}`}>
+                            {item.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-6 flex-grow flex flex-col justify-between space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            <span>{item.type}</span>
+                            <span>{item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Just now'}</span>
+                          </div>
+                          <h3 className="text-base font-bold font-serif text-slate-900 dark:text-white leading-snug">{item.title}</h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium italic">
+                            "{item.description}"
+                          </p>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-700/40 space-y-3 mt-auto">
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+                            <User className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Contributor: {item.userEmail}</span>
+                          </div>
+
+                          {isPending && (
+                            <div className="flex gap-2.5">
+                              {reviewingId === item.id ? (
+                                <div className="w-full py-2 flex justify-center items-center">
+                                  <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => handleReview(item, 'approved')}
+                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:text-emerald-400 border border-emerald-500/15 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors"
+                                  >
+                                    <CheckCircle className="w-3.5 h-3.5" />
+                                    <span>Approve</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleReview(item, 'rejected')}
+                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 border border-rose-500/15 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    <span>Reject</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            isLoadingGallery ? (
+              <div className="flex flex-col justify-center items-center h-64 space-y-2">
+                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                <span className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Loading gallery queue...</span>
+              </div>
+            ) : pendingGalleryImages.length === 0 ? (
+              <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 text-center py-20 rounded-3xl space-y-3">
+                <Inbox className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto" />
+                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">No Gallery Photos Pending</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm mx-auto">
+                  All direct gallery uploads are approved and publicly published.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+                {pendingGalleryImages.map((img) => (
+                  <div key={img.id} className="bg-white dark:bg-slate-800 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-700/50 shadow-xs flex flex-col h-full hover:shadow-md transition-shadow text-left">
                     <div className="aspect-video relative bg-slate-150 dark:bg-slate-900 overflow-hidden">
                       <img 
-                        src={item.imageUrl} 
-                        alt={item.title} 
+                        src={img.imageUrl} 
+                        alt={img.title} 
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                       />
                       <div className="absolute top-4 left-4">
-                        <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider ${statusColors[item.status]}`}>
-                          {item.status}
+                        <span className="px-2.5 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 border-amber-500/25">
+                          PENDING VETTING
                         </span>
                       </div>
                     </div>
@@ -570,53 +731,46 @@ export default function ContentView() {
                     <div className="p-6 flex-grow flex flex-col justify-between space-y-4">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                          <span>{item.type}</span>
-                          <span>{item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Just now'}</span>
+                          <span>Category: {img.category}</span>
+                          <span>Gallery Photo</span>
                         </div>
-                        <h3 className="text-base font-bold font-serif text-slate-900 dark:text-white leading-snug">{item.title}</h3>
+                        <h3 className="text-base font-bold font-serif text-slate-900 dark:text-white leading-snug">{img.title}</h3>
                         <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium italic">
-                          "{item.description}"
+                          "{img.description || 'No description provided.'}"
                         </p>
                       </div>
 
                       <div className="pt-4 border-t border-slate-100 dark:border-slate-700/40 space-y-3 mt-auto">
-                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
-                          <User className="w-3.5 h-3.5 shrink-0" />
-                          <span className="truncate">Contributor: {item.userEmail}</span>
+                        <div className="flex gap-2.5">
+                          {reviewingId === img.id ? (
+                            <div className="w-full py-2 flex justify-center items-center">
+                              <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleGalleryReview(img.id, 'approved')}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:text-emerald-400 border border-emerald-500/15 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                <span>Approve Photo</span>
+                              </button>
+                              <button
+                                onClick={() => handleGalleryReview(img.id, 'rejected')}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 border border-rose-500/15 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                <span>Reject</span>
+                              </button>
+                            </>
+                          )}
                         </div>
-
-                        {isPending && (
-                          <div className="flex gap-2.5">
-                            {reviewingId === item.id ? (
-                              <div className="w-full py-2 flex justify-center items-center">
-                                <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
-                              </div>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => handleReview(item, 'approved')}
-                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:text-emerald-400 border border-emerald-500/15 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors"
-                                >
-                                  <CheckCircle className="w-3.5 h-3.5" />
-                                  <span>Approve</span>
-                                </button>
-                                <button
-                                  onClick={() => handleReview(item, 'rejected')}
-                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 border border-rose-500/15 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors"
-                                >
-                                  <XCircle className="w-3.5 h-3.5" />
-                                  <span>Reject</span>
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )
           )}
         </div>
       )}
