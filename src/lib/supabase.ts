@@ -409,7 +409,8 @@ export async function createContribution(
   type: string,
   imageUrl: string,
   userEmail: string,
-  userId: string
+  userId: string,
+  status: 'pending' | 'approved' | 'rejected' = 'pending'
 ): Promise<{ data: Contribution | null; error: Error | null }> {
   const client = getSupabase();
   const id = generateUUID();
@@ -418,7 +419,7 @@ export async function createContribution(
   const contributionObj: Contribution = {
     id,
     title,
-    status: 'pending',
+    status,
     created_at: new Date().toISOString(),
     description,
     imageUrl,
@@ -442,7 +443,8 @@ export async function createContribution(
       .insert({
         title,
         content: contentStr,
-        status: 'pending',
+        status,
+        reporter_id: userId,
         created_at: new Date().toISOString()
       })
       .select('id, title, content, status, created_at')
@@ -454,7 +456,8 @@ export async function createContribution(
         id,
         title,
         content: contentStr,
-        status: 'pending',
+        status,
+        reporter_id: userId,
         created_at: new Date().toISOString()
       });
       if (errorWithId) throw errorWithId;

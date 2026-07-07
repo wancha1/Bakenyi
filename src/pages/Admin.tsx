@@ -552,7 +552,7 @@ export default function Admin() {
         {/* TAB: CONTENT PUBLISHER */}
         {activeTab === 'articles' && (
           <div className="animate-fade-in">
-            <ArticlesManager />
+            <ArticlesManager userRole={userRole} />
           </div>
         )}
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History, Mail, Lock, User as UserIcon, HelpCircle, ShieldAlert } from 'lucide-react';
-import { getSupabase } from '../lib/supabaseClient';
+import { getSupabase, checkIsAdmin } from '../lib/supabaseClient';
 import { getContributions, createContribution, uploadMedia, Contribution, getStoryCategories, StoryCategory } from '../lib/supabase';
 
 const steps = [
@@ -34,6 +34,7 @@ const steps = [
 export default function Contribute() {
   const supabase = getSupabase();
   const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -183,11 +184,23 @@ export default function Contribute() {
     if (!supabase) return;
 
     supabase.auth.getSession().then(({ data: { session } }: any) => {
-      setUser(session?.user || null);
+      const u = session?.user || null;
+      setUser(u);
+      if (u) {
+        checkIsAdmin(u).then(setIsAdmin);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      setUser(session?.user || null);
+      const u = session?.user || null;
+      setUser(u);
+      if (u) {
+        checkIsAdmin(u).then(setIsAdmin);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -316,7 +329,8 @@ export default function Contribute() {
         contributionTab === 'audio' ? 'audio' : formData.type,
         mediaUrl,
         user.email || 'anonymous@bakenyi.org',
-        user.id
+        user.id,
+        isAdmin ? 'approved' : 'pending'
       );
 
       if (error) throw error;
@@ -754,11 +768,11 @@ export default function Contribute() {
                     ) : submitted ? (
                       <>
                         <Check className="w-5 h-5" />
-                        <span>Submitted!</span>
+                        <span>{isAdmin ? 'Published!' : 'Submitted!'}</span>
                       </>
                     ) : (
                       <>
-                        <span>Submit to Elder Council</span>
+                        <span>{isAdmin ? 'Publish Instantly' : 'Submit to Elder Council'}</span>
                         <ArrowRight className="w-5 h-5" />
                       </>
                     )}

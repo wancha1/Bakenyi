@@ -263,7 +263,7 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
       case 'roles':
         return <RolesView />;
       case 'content':
-        return <ContentView />;
+        return <ContentView userRole={userRole} />;
       case 'media':
         return <MediaView />;
       case 'reports':

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Search, Maximize2, Tag, Facebook, Twitter, Download, Loader2, Plus, Upload, Check } from 'lucide-react';
-import { getSupabase } from '../lib/supabaseClient';
+import { getSupabase, checkIsAdmin } from '../lib/supabaseClient';
 import { getGalleryImages, addGalleryImage, uploadMedia, GalleryImage } from '../lib/supabase';
 
 const categories = ["All", "Landscape", "Tradition", "Craft", "History"];
@@ -15,6 +15,7 @@ export default function Gallery() {
   
   // Custom upload modal state for authenticated contributors
   const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadDesc, setUploadDesc] = useState('');
@@ -26,10 +27,22 @@ export default function Gallery() {
     // Auth Check
     if (supabase) {
       supabase.auth.getSession().then(({ data: { session } }: any) => {
-        setUser(session?.user || null);
+        const u = session?.user || null;
+        setUser(u);
+        if (u) {
+          checkIsAdmin(u).then(setIsAdmin);
+        } else {
+          setIsAdmin(false);
+        }
       });
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-        setUser(session?.user || null);
+        const u = session?.user || null;
+        setUser(u);
+        if (u) {
+          checkIsAdmin(u).then(setIsAdmin);
+        } else {
+          setIsAdmin(false);
+        }
       });
       return () => subscription.unsubscribe();
     }
@@ -77,7 +90,8 @@ export default function Gallery() {
         uploadTitle,
         uploadFile,
         uploadDesc,
-        uploadCategory
+        uploadCategory,
+        isAdmin ? 'approved' : 'pending'
       );
       if (error) throw error;
       

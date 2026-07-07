@@ -122,11 +122,15 @@ export default function Language() {
         usage: newPhrase.usage,
         audio_url: newPhrase.audio_url || 'https://www.soundjay.com/button/button-3.mp3',
         example_sentence: newPhrase.example_sentence,
-        status: 'pending'
+        status: isAdmin ? 'approved' : 'pending'
       });
 
       if (error) throw error;
-      alert("Phrase successfully submitted for verification! Thank you for preserving Lukenye.");
+      if (isAdmin) {
+        alert("Phrase successfully added to the public glossary!");
+      } else {
+        alert("Phrase successfully submitted for verification! Thank you for preserving Lukenye.");
+      }
       setShowRecordModal(false);
       setNewPhrase({
         lukenye: '',

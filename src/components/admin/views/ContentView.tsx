@@ -48,7 +48,19 @@ import {
 } from '../../../lib/supabase';
 import ArticlesManager from '../ArticlesManager';
 
-export default function ContentView() {
+interface ContentViewProps {
+  userRole?: 'super_admin' | 'admin' | 'reporter' | 'public' | 'staff' | 'customer';
+}
+
+export default function ContentView({ userRole = 'admin' }: ContentViewProps) {
+  const resolvedRole = 
+    userRole === 'staff' ? 'reporter' : 
+    userRole === 'customer' ? 'public' : 
+    userRole;
+
+  const isElder = resolvedRole === 'super_admin';
+  const isAdmin = resolvedRole === 'admin';
+
   const [activeSubTab, setActiveSubTab] = useState<'articles' | 'submissions' | 'clans' | 'leadership' | 'categories'>('articles');
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [isLoadingContribs, setIsLoadingContribs] = useState(false);
@@ -219,9 +231,13 @@ export default function ContentView() {
           throw new Error('Failed to update clan');
         }
       } else {
-        const { data, error } = await createClan(clanForm);
+        const payload = {
+          ...clanForm,
+          status: isElder ? 'approved' : 'pending'
+        };
+        const { data, error } = await createClan(payload);
         if (error) throw error;
-        alert('New Clan registered successfully!');
+        alert(isElder ? 'New Clan registered and published successfully!' : 'New Clan registered successfully! Pending Elder Council approval.');
       }
       setShowClanForm(false);
       setEditingClan(null);
@@ -266,6 +282,10 @@ export default function ContentView() {
   };
 
   const handleUpdateClanStatus = async (clanId: string, status: 'approved' | 'rejected' | 'archived') => {
+    if (!isElder && (status === 'approved' || status === 'rejected')) {
+      alert('Only Elder Council members can approve or reject community clans.');
+      return;
+    }
     try {
       const success = await updateClan(clanId, { status });
       if (success) {
@@ -320,9 +340,13 @@ export default function ContentView() {
           throw new Error('Failed to update leader');
         }
       } else {
-        const { data, error } = await createLeader(leaderForm);
+        const payload = {
+          ...leaderForm,
+          status: (isAdmin || isElder) ? 'approved' : 'pending'
+        };
+        const { data, error } = await createLeader(payload);
         if (error) throw error;
-        alert('New Leader/Elder registered successfully!');
+        alert((isAdmin || isElder) ? 'New Leader/Elder registered and published successfully!' : 'New Leader/Elder registered successfully! Pending approval.');
       }
       setShowLeaderForm(false);
       setEditingLeader(null);
@@ -552,7 +576,7 @@ export default function ContentView() {
       {/* Publications view */}
       {activeSubTab === 'articles' && (
         <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs p-1">
-          <ArticlesManager />
+          <ArticlesManager userRole={userRole} />
         </div>
       )}
 
@@ -950,22 +974,28 @@ export default function ContentView() {
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end items-center gap-2">
                             {clan.status === 'pending' && (
-                              <>
-                                <button 
-                                  onClick={() => handleUpdateClanStatus(clan.id, 'approved')}
-                                  className="p-1.5 bg-emerald-50 hover:bg-emerald-500 hover:text-white rounded-lg text-emerald-600 transition-colors cursor-pointer"
-                                  title="Approve Clan"
-                                >
-                                  <Check className="w-4 h-4" />
-                                </button>
-                                <button 
-                                  onClick={() => handleUpdateClanStatus(clan.id, 'rejected')}
-                                  className="p-1.5 bg-rose-50 hover:bg-rose-500 hover:text-white rounded-lg text-rose-600 transition-colors cursor-pointer"
-                                  title="Reject Clan"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </>
+                              isElder ? (
+                                <>
+                                  <button 
+                                    onClick={() => handleUpdateClanStatus(clan.id, 'approved')}
+                                    className="p-1.5 bg-emerald-50 hover:bg-emerald-500 hover:text-white rounded-lg text-emerald-600 transition-colors cursor-pointer"
+                                    title="Approve Clan"
+                                  >
+                                    <Check className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleUpdateClanStatus(clan.id, 'rejected')}
+                                    className="p-1.5 bg-rose-50 hover:bg-rose-500 hover:text-white rounded-lg text-rose-600 transition-colors cursor-pointer"
+                                    title="Reject Clan"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10 dark:bg-amber-500/5 px-2 py-1 rounded-md border border-amber-500/20">
+                                  Elder Approval Required
+                                </span>
+                              )
                             )}
                             {clan.status === 'approved' && (
                               <button 
