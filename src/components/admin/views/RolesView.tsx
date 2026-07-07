@@ -25,7 +25,7 @@ export default function RolesView() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // Authentication & Authorization state
-  const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'staff' | 'customer' | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<'super_admin' | 'admin' | 'staff' | 'customer' | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
@@ -51,7 +51,7 @@ export default function RolesView() {
             .eq('id', user.id)
             .maybeSingle();
           if (!error && data) {
-            setCurrentUserRole(data.role);
+            setCurrentUserRole(data.role as any);
             return;
           }
         }
@@ -105,8 +105,8 @@ export default function RolesView() {
   }
 
   async function handleRoleChange(id: string, newRole: UserProfile['role']) {
-    if (currentUserRole !== 'admin') {
-      alert('Access Denied: You do not have Super Admin authority required to change system roles.');
+    if (currentUserRole !== 'admin' && currentUserRole !== 'super_admin') {
+      alert('Access Denied: You do not have Elder authority required to change system roles.');
       return;
     }
 
@@ -114,11 +114,11 @@ export default function RolesView() {
     if (!userToChange) return;
 
     if (userToChange.email === 'aaronwancha@gmail.com' && newRole !== 'admin') {
-      alert('Action Blocked: To prevent lockout, you cannot revoke Super Admin role from the primary account (aaronwancha@gmail.com).');
+      alert('Action Blocked: To prevent lockout, you cannot revoke Elder role from the primary account (aaronwancha@gmail.com).');
       logAdminActivity(
-        'Super Admin',
+        'Elder',
         'Role Demotion Blocked',
-        `Attempted to demote primary Super Admin ${userToChange.email} to ${newRole.toUpperCase()} but was blocked to prevent platform lockout.`,
+        `Attempted to demote primary Elder ${userToChange.email} to ${newRole.toUpperCase()} but was blocked to prevent platform lockout.`,
         'Roles',
         'Warning',
         id
@@ -133,7 +133,7 @@ export default function RolesView() {
         setUsers(prev => prev.map(u => u.id === id ? updated : u));
         
         logAdminActivity(
-          'Super Admin',
+          'Elder',
           'Role Delegated',
           `Elevated user account ${updated.email} to administrative role: [${newRole.toUpperCase()}].`,
           'Roles',
@@ -202,15 +202,15 @@ export default function RolesView() {
         )}
       </div>
 
-      {/* Security Authorization Banner for Non-Authorized Users */}
-      {!isAuthLoading && currentUserRole !== 'admin' && (
+       {/* Security Authorization Banner for Non-Authorized Users */}
+      {!isAuthLoading && currentUserRole !== 'admin' && currentUserRole !== 'super_admin' && (
         <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 animate-fade-in shadow-xs">
           <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <h4 className="text-sm font-bold text-amber-800 dark:text-amber-400">Read-Only Mode Enabled</h4>
             <p className="text-xs text-amber-700/80 dark:text-amber-300/80 font-semibold leading-relaxed">
               Your account ({currentUserEmail}) is authenticated under the role level <span className="font-bold uppercase text-amber-600 dark:text-amber-400">[{currentUserRole || 'customer'}]</span>. 
-              Modifying system access tiers or re-assigning administrative user roles is strictly restricted to authorized <strong>Super Administrators</strong> to ensure platform security.
+              Modifying system access tiers or re-assigning administrative user roles is strictly restricted to authorized <strong>Elders</strong> to ensure platform security.
             </p>
           </div>
         </div>
@@ -340,7 +340,7 @@ export default function RolesView() {
                 <th className="py-3 px-4">System Capability / Operational Scope</th>
                 <th className="py-3 px-4 text-center">Public Contributor</th>
                 <th className="py-3 px-4 text-center">Staff Member</th>
-                <th className="py-3 px-4 text-center">Super Administrator</th>
+                <th className="py-3 px-4 text-center">Elder</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/50 dark:divide-slate-700/30 text-xs font-medium text-slate-750 dark:text-slate-300">

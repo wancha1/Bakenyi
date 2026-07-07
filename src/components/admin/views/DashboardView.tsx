@@ -100,7 +100,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
       const updated = await updateUserStatus(userId, 'active');
       if (updated) {
         logAdminActivity(
-          'Super Admin',
+          'Elder',
           'User Approved & Activated',
           `Approved registration for ${email} with assigned role: [${role.toUpperCase()}].`,
           'Roles',
@@ -121,7 +121,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
       const updated = await updateUserStatus(userId, 'suspended');
       if (updated) {
         logAdminActivity(
-          'Super Admin',
+          'Elder',
           'User Registration Denied',
           `Denied registration for ${email} and placed account on suspended list.`,
           'Security',
@@ -146,7 +146,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
       if (error) throw error;
 
       logAdminActivity(
-        'Super Admin',
+        'Elder',
         'Article Approved & Published',
         `Approved and dynamically published reporter article "${title}" to the public portal.`,
         'Content',
@@ -167,7 +167,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
       if (error) throw error;
 
       logAdminActivity(
-        'Super Admin',
+        'Elder',
         'Article Vetting Rejected',
         `Rejected reporter article "${title}" and reverted it to a secure draft.`,
         'Content',
@@ -187,7 +187,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
       const approved = await updateMediaStatus(name, 'approved');
       if (approved) {
         logAdminActivity(
-          'Super Admin',
+          'Elder',
           'Media Upload Vetted',
           `Approved private media asset "${name}" making it publicly active in the gallery.`,
           'Media',
@@ -207,7 +207,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
     try {
       await updateMediaStatus(name, 'rejected');
       logAdminActivity(
-        'Super Admin',
+        'Elder',
         'Media Upload Rejected',
         `Rejected private media upload "${name}" and removed file from secure storage.`,
         'Media',
@@ -431,7 +431,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
             <span className="text-[10px] font-black uppercase tracking-[0.2em]">Platform Administration Space</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight">
-            {resolvedRole === 'super_admin' ? 'Super Admin command' : 'Platform Moderator Panel'}
+            {resolvedRole === 'super_admin' ? 'Elder Command Space' : 'Platform Moderator Panel'}
           </h1>
           <p className="text-xs text-slate-400 max-w-xl font-medium leading-relaxed">
             Oversee Bakenyi community content reviews, public publication approvals, media library assets vetting, and user management workflows.

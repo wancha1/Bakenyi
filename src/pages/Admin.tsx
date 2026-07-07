@@ -78,11 +78,11 @@ export default function Admin() {
           } else {
             // Check email-based bypass for fallback admin credentials
             const emailLower = user.email?.toLowerCase() || '';
-            if (
+            if (emailLower === 'superadmin@bakenye.com' || emailLower === 'wanchaaaron@gmail.com' || emailLower === 'aaronwancha@gmail.com') {
+              setUserRole('super_admin');
+            } else if (
               emailLower === 'admin@bakenye.com' || 
-              emailLower === 'admin@bakenyi.org' || 
-              emailLower === 'wanchaaaron@gmail.com' ||
-              emailLower === 'aaronwancha@gmail.com'
+              emailLower === 'admin@bakenyi.org'
             ) {
               setUserRole('admin');
             }

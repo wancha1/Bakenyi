@@ -50,7 +50,7 @@ function StorefrontLayout({ user, userRole }: { user: any; userRole: string | nu
         <div className="bg-slate-900 text-white text-[11px] font-bold py-2.5 px-4 flex items-center justify-between shadow-md select-none sticky top-0 z-50">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Logged in as <strong className="text-amber-400">Super Admin</strong> (Public Preview Mode)</span>
+            <span>Logged in as <strong className="text-amber-400">Elder</strong> (Public Preview Mode)</span>
           </div>
           <button 
             onClick={() => {
@@ -193,7 +193,7 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
       if (!user) return;
       try {
         const email = user.email?.toLowerCase() || '';
-        if (email === 'superadmin@bakenye.com') {
+        if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
           setUserRole('super_admin');
           setRoleLoading(false);
           return;
@@ -215,8 +215,6 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
         if (
           email === 'admin@bakenye.com' || 
           email === 'admin@bakenyi.org' || 
-          email === 'wanchaaaron@gmail.com' ||
-          email === 'aaronwancha@gmail.com' ||
           rawRole === 'admin'
         ) {
           setUserRole('admin');
@@ -333,7 +331,7 @@ export default function App() {
       }
       try {
         const email = user.email?.toLowerCase() || '';
-        if (email === 'superadmin@bakenye.com') {
+        if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
           setAppUserRole('super_admin');
           return;
         }
@@ -354,8 +352,6 @@ export default function App() {
         if (
           email === 'admin@bakenye.com' || 
           email === 'admin@bakenyi.org' || 
-          email === 'wanchaaaron@gmail.com' ||
-          email === 'aaronwancha@gmail.com' ||
           rawRole === 'admin'
         ) {
           setAppUserRole('admin');

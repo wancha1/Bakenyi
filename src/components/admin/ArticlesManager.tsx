@@ -83,7 +83,7 @@ export default function ArticlesManager() {
       if (err) throw err;
       
       logAdminActivity(
-        'Super Admin',
+        'Elder',
         'Article Approved & Published',
         `Approved and dynamically published reporter article "${art.title}" to the public repository.`,
         'Content',
@@ -106,7 +106,7 @@ export default function ArticlesManager() {
       if (err) throw err;
       
       logAdminActivity(
-        'Super Admin',
+        'Elder',
         'Article Vetting Rejected',
         `Rejected reporter article "${art.title}" and reverted it to a secure draft.`,
         'Content',
@@ -273,7 +273,7 @@ export default function ArticlesManager() {
     const payload = {
       ...editingArticle,
       status: finalStatus,
-      author: simulatedRole === 'staff' ? 'Reporter Nakabuye' : (editingArticle.author || 'Super Admin')
+      author: simulatedRole === 'staff' ? 'Reporter Nakabuye' : (editingArticle.author || 'Elder')
     };
 
     setLoading(true);
@@ -285,10 +285,10 @@ export default function ArticlesManager() {
         
         // Log Activity
         logAdminActivity(
-          simulatedRole === 'staff' ? 'Reporter Nakabuye' : 'Super Admin',
+          simulatedRole === 'staff' ? 'Reporter Nakabuye' : 'Elder',
           simulatedRole === 'staff' ? 'Article Edited & Submitted' : 'Article Modified',
           simulatedRole === 'staff' 
-            ? `Resubmitted article "${payload.title}" (status: pending) for Super Admin vetting.`
+            ? `Resubmitted article "${payload.title}" (status: pending) for Elder vetting.`
             : `Updated article "${payload.title}" with status: ${payload.status}.`,
           'Content',
           'Success',
@@ -308,7 +308,7 @@ export default function ArticlesManager() {
         const newId = created?.id || 'new-article';
         // Log Activity
         logAdminActivity(
-          simulatedRole === 'staff' ? 'Reporter Nakabuye' : 'Super Admin',
+          simulatedRole === 'staff' ? 'Reporter Nakabuye' : 'Elder',
           simulatedRole === 'staff' ? 'Article Created & Submitted' : 'Article Drafted',
           simulatedRole === 'staff'
             ? `Drafted and submitted new article "${payload.title}" (status: pending) for approval.`
@@ -320,7 +320,7 @@ export default function ArticlesManager() {
         
         showNotification(
           simulatedRole === 'staff'
-            ? 'New article submitted for Super Admin review.'
+            ? 'New article submitted for Elder review.'
             : 'New article created successfully.'
         );
       }
@@ -878,7 +878,7 @@ export default function ArticlesManager() {
               </span>
               <h3 className="text-sm font-bold tracking-tight">Reporter / Publisher Interactive Sandbox</h3>
               <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-                Toggle active roles below to simulate content submissions by reporters, and approvals by Super Admins.
+                Toggle active roles below to simulate content submissions by reporters, and approvals by Elders.
               </p>
             </div>
             
@@ -892,7 +892,7 @@ export default function ArticlesManager() {
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
-                Super Admin Role
+                Elder Role
               </button>
               <button
                 type="button"
@@ -908,7 +908,7 @@ export default function ArticlesManager() {
             </div>
           </div>
 
-          {/* SUPER ADMIN WORK QUEUE - REVIEW QUEUE BENTO BOX */}
+          {/* ELDER WORK QUEUE - REVIEW QUEUE BENTO BOX */}
           {simulatedRole === 'admin' && articles.filter(a => a.status === 'pending').length > 0 && (
             <div className="bg-amber-500/5 border border-amber-500/15 rounded-[28px] p-6 md:p-8 space-y-4 text-left">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">

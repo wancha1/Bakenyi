@@ -38,20 +38,19 @@ export async function signIn(email: string, password: string): Promise<{ user: a
     // Also ensure they have a profile row in the profiles table for role-based features
     if (data.user) {
       const emailLower = email.toLowerCase();
+      const isSuperAdmin = emailLower === 'superadmin@bakenye.com' || emailLower === 'wanchaaaron@gmail.com' || emailLower === 'aaronwancha@gmail.com';
       const isAdmin = 
         emailLower === 'admin@bakenye.com' || 
-        emailLower === 'admin@bakenyi.org' || 
-        emailLower === 'wanchaaaron@gmail.com' || 
-        emailLower === 'aaronwancha@gmail.com';
+        emailLower === 'admin@bakenyi.org';
       
-      const role = isAdmin ? 'admin' : 'customer';
+      const role = isSuperAdmin ? 'super_admin' : (isAdmin ? 'admin' : 'customer');
       
       // Upsert profile record
       await client.from('profiles').upsert({
         id: data.user.id,
         email: data.user.email,
         role: role,
-        is_admin: isAdmin,
+        is_admin: isSuperAdmin || isAdmin,
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' });
     }

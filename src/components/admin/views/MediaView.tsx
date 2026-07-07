@@ -115,7 +115,7 @@ export default function MediaView() {
         uploaded.name
       );
       
-      alert(`Asset "${file.name}" uploaded. It is locked as private until a Super Admin approves it.`);
+      alert(`Asset "${file.name}" uploaded. It is locked as private until an Elder approves it.`);
     } catch (err) {
       console.error('Upload failed:', err);
       alert('Failed to upload image.');
@@ -132,7 +132,7 @@ export default function MediaView() {
         setFiles(prev => prev.map(f => f.name === file.name ? { ...f, status: 'approved' } : f));
         
         logAdminActivity(
-          'Super Admin',
+          'Elder',
           'Media Asset Approved',
           `Vetted and released file "${file.name}" to the public media library.`,
           'Media',
@@ -156,7 +156,7 @@ export default function MediaView() {
         setFiles(prev => prev.filter(f => f.name !== file.name));
         
         logAdminActivity(
-          'Super Admin',
+          'Elder',
           'Media Asset Rejected',
           `Rejected and deleted private raw media upload: "${file.name}".`,
           'Media',
@@ -180,7 +180,7 @@ export default function MediaView() {
         setFiles(prev => prev.filter(f => f.name !== name));
         
         logAdminActivity(
-          'Super Admin',
+          'Elder',
           'Media Asset Deleted',
           `Permanently deleted public media library file "${name}".`,
           'Media',

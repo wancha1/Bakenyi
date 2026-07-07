@@ -119,9 +119,9 @@ export default function UsersView() {
 
       const email = emailVal.toLowerCase();
       let role: 'super_admin' | 'admin' | 'reporter' | 'public' = 'public';
-      if (email === 'superadmin@bakenye.com') {
+      if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
         role = 'super_admin';
-      } else if (email === 'admin@bakenye.com' || email === 'admin@bakenyi.org' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com' || rawRole === 'admin') {
+      } else if (email === 'admin@bakenye.com' || email === 'admin@bakenyi.org' || rawRole === 'admin') {
         role = 'admin';
       } else if (email.includes('reporter') || email.includes('staff') || rawRole === 'staff' || rawRole === 'reporter') {
         role = 'reporter';
@@ -260,10 +260,10 @@ export default function UsersView() {
     }
   }
 
-  // Delete Action: Super Admin Only
+  // Delete Action: Elder Only
   async function handleDeleteUser(user: UserProfile) {
-    if (currentUserRole !== 'admin') {
-      alert('Access Denied: Only Super Administrators can delete user profiles.');
+    if (currentUserRole !== 'admin' && currentUserRole !== 'super_admin') {
+      alert('Access Denied: Only Elders can delete user profiles.');
       return;
     }
 
@@ -278,7 +278,7 @@ export default function UsersView() {
         if (success) {
           setUsers(prev => prev.filter(u => u.id !== user.id));
           logAdminActivity(
-            'Super Admin',
+            'Elder',
             'Profile Deleted',
             `Permanently deleted database profile record for ${user.email} (${user.id}).`,
             'Security',
@@ -385,14 +385,14 @@ export default function UsersView() {
       </div>
 
       {/* Security Warning for Non-Admins */}
-      {!isAuthLoading && currentUserRole !== 'admin' && (
+      {!isAuthLoading && currentUserRole !== 'admin' && currentUserRole !== 'super_admin' && (
         <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 shadow-xs">
           <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <h4 className="text-sm font-bold text-amber-800 dark:text-amber-400">Restricted Operations Mode</h4>
             <p className="text-xs text-amber-700/80 dark:text-amber-300/80 font-semibold leading-relaxed">
               You are signed in as <strong>{currentUserRole?.toUpperCase() || 'MEMBER'}</strong>.
-              Only certified <strong>Super Administrators</strong> can perform database profile modifications, role promotions, account suspensions, or permanent user deletions.
+              Only certified <strong>Elders</strong> can perform database profile modifications, role promotions, account suspensions, or permanent user deletions.
             </p>
           </div>
         </div>
@@ -793,7 +793,7 @@ export default function UsersView() {
                   >
                     <option value="customer">👤 Standard Culturer (customer)</option>
                     <option value="staff">💼 Staff Reporter (staff)</option>
-                    <option value="admin">🛡️ Super Administrator (admin)</option>
+                    <option value="admin">🛡️ Elder Administrator (admin)</option>
                   </select>
                 </div>
 

@@ -32,7 +32,7 @@ export default function Header({ onMobileMenuToggle, activeTab, userEmail, userR
     userRole;
 
   const roleBadge = 
-    resolvedRole === 'super_admin' ? 'Super Admin' :
+    resolvedRole === 'super_admin' ? 'Elder' :
     resolvedRole === 'admin' ? 'Platform Admin' :
     resolvedRole === 'reporter' ? 'Heritage Reporter' :
     'Public User';
