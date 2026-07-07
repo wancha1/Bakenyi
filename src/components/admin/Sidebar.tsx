@@ -47,12 +47,14 @@ export default function Sidebar({
     userRole === 'customer' ? 'public' : 
     userRole;
 
+  const isElder = resolvedRole === 'super_admin';
+
   const allNavItems = [
-    { id: 'dashboard', label: resolvedRole === 'reporter' ? 'My Workspace' : 'Dashboard', icon: LayoutDashboard },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'roles', label: 'Roles & Permissions', icon: Shield },
-    { id: 'content', label: resolvedRole === 'reporter' ? 'My Submissions' : 'Content', icon: FileText },
-    { id: 'media', label: resolvedRole === 'reporter' ? 'My Media' : 'Media Library', icon: Image },
+    { id: 'dashboard', label: resolvedRole === 'reporter' ? 'My Workspace' : (isElder ? 'Council Chamber' : 'Dashboard'), icon: LayoutDashboard },
+    { id: 'users', label: isElder ? 'Heritage Guardians' : 'Users', icon: Users },
+    { id: 'roles', label: isElder ? 'Council Hierarchy' : 'Roles & Permissions', icon: Shield },
+    { id: 'content', label: resolvedRole === 'reporter' ? 'My Submissions' : (isElder ? 'Chronicled Wisdom' : 'Content'), icon: FileText },
+    { id: 'media', label: resolvedRole === 'reporter' ? 'My Media' : (isElder ? 'Sacred Media Library' : 'Media Library'), icon: Image },
     { id: 'reports', label: 'Reports', icon: BarChart2 },
     { id: 'activity_logs', label: 'Activity Logs', icon: Activity },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -75,17 +77,19 @@ export default function Sidebar({
   }
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-800 border-r border-slate-100 dark:border-slate-700/50 shadow-xs transition-colors duration-300">
+    <div className={`flex flex-col h-full bg-white dark:bg-slate-800 border-r ${isElder ? 'border-amber-200/50 dark:border-amber-950/40 shadow-[4px_0_24px_rgba(245,158,11,0.02)]' : 'border-slate-100 dark:border-slate-700/50 shadow-xs'} transition-all duration-300`}>
       {/* Brand Header */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-slate-50 dark:border-slate-700/40 select-none">
+      <div className={`h-16 flex items-center justify-between px-5 border-b ${isElder ? 'border-amber-100/40 dark:border-amber-950/20 bg-amber-50/10 dark:bg-amber-950/5' : 'border-slate-50 dark:border-slate-700/40'} select-none`}>
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-600/10">
-            <Shield className="w-5 h-5" />
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-md ${isElder ? 'bg-amber-500 text-slate-950 shadow-amber-500/20' : 'bg-indigo-600 text-white shadow-indigo-600/10'}`}>
+            <Shield className="w-5 h-5 animate-pulse" />
           </div>
           {(!isCollapsed || isMobileOpen) && (
             <div className="flex flex-col text-left">
               <span className="font-bold text-sm text-slate-800 dark:text-white leading-none">Bakenye</span>
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Admin Suite</span>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isElder ? 'text-amber-500' : 'text-slate-400 dark:text-slate-500'}`}>
+                {isElder ? 'Elder Sanctuary' : 'Admin Suite'}
+              </span>
             </div>
           )}
         </div>
@@ -94,7 +98,7 @@ export default function Sidebar({
         {!isMobileOpen && (
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="hidden md:flex p-1.5 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            className={`hidden md:flex p-1.5 rounded-lg border hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer ${isElder ? 'border-amber-200/20 dark:border-amber-950/25' : 'border-slate-100 dark:border-slate-700'}`}
           >
             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
@@ -127,7 +131,7 @@ export default function Sidebar({
           {(!isCollapsed || isMobileOpen) && <span>Public Home</span>}
         </button>
 
-        <div className="h-px bg-slate-100 dark:bg-slate-700/50 my-2" />
+        <div className={`h-px my-2 ${isElder ? 'bg-amber-100/50 dark:bg-amber-950/20' : 'bg-slate-100 dark:bg-slate-700/50'}`} />
 
         {navItems.map((item) => {
           const isActive = activeTab === item.id;
@@ -144,12 +148,16 @@ export default function Sidebar({
                 isCollapsed && !isMobileOpen ? 'justify-center px-0' : 'px-4'
               } ${
                 isActive
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/10'
-                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/20'
+                  ? isElder
+                    ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/10 font-extrabold'
+                    : 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/10'
+                  : isElder
+                    ? 'text-amber-700/70 hover:text-amber-900 dark:text-amber-400/70 dark:hover:text-amber-300 hover:bg-amber-500/5'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/20'
               }`}
               title={isCollapsed ? item.label : undefined}
             >
-              <Icon className="w-5 h-5 shrink-0" />
+              <Icon className={`w-5 h-5 shrink-0 ${isActive && isElder ? 'stroke-[2.5px]' : ''}`} />
               {(!isCollapsed || isMobileOpen) && <span>{item.label}</span>}
             </button>
           );
@@ -157,16 +165,18 @@ export default function Sidebar({
       </nav>
 
       {/* Footer Profile Box & Logout */}
-      <div className="p-3 border-t border-slate-50 dark:border-slate-700/40 bg-slate-50/50 dark:bg-slate-900/10">
+      <div className={`p-3 border-t bg-slate-50/50 dark:bg-slate-900/10 ${isElder ? 'border-amber-100/40 dark:border-amber-950/20 bg-amber-500/[0.02]' : 'border-slate-50 dark:border-slate-700/40'}`}>
         {/* User profile */}
         {(!isCollapsed || isMobileOpen) && userEmail && (
-          <div className="px-3 py-2 bg-slate-100/50 dark:bg-slate-700/30 border dark:border-slate-750/30 rounded-xl mb-2 flex items-center gap-2.5 overflow-hidden">
-            <div className="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-500 font-bold text-[10px] flex items-center justify-center shrink-0 uppercase">
+          <div className={`px-3 py-2 border rounded-xl mb-2 flex items-center gap-2.5 overflow-hidden ${isElder ? 'bg-amber-50/40 dark:bg-amber-950/15 border-amber-200/30 dark:border-amber-950/25' : 'bg-slate-100/50 dark:bg-slate-700/30 border-slate-100 dark:border-slate-750/30'}`}>
+            <div className={`w-7 h-7 rounded-lg font-bold text-[10px] flex items-center justify-center shrink-0 uppercase ${isElder ? 'bg-amber-500 text-slate-950' : 'bg-indigo-500/15 text-indigo-500'}`}>
               {userEmail.substring(0, 2)}
             </div>
             <div className="overflow-hidden text-left">
-              <div className="text-[11px] font-bold text-slate-700 dark:text-slate-350 truncate">{userEmail.split('@')[0]}</div>
-              <div className="text-[9px] text-slate-400 dark:text-slate-500 leading-none truncate">Manager Account</div>
+              <div className={`text-[11px] font-bold truncate ${isElder ? 'text-amber-900 dark:text-amber-200' : 'text-slate-700 dark:text-slate-350'}`}>{userEmail.split('@')[0]}</div>
+              <div className="text-[9px] text-slate-400 dark:text-slate-500 leading-none truncate">
+                {isElder ? 'Respected Heritage Elder' : 'Manager Account'}
+              </div>
             </div>
           </div>
         )}

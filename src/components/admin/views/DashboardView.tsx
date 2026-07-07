@@ -423,21 +423,48 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
       )}
 
       {/* Header Banner - Clean Heritage Style */}
-      <div className="bg-slate-950 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden shadow-lg shadow-slate-950/20">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/15 via-transparent to-transparent pointer-events-none" />
-        <div className="space-y-1.5 relative z-10">
-          <div className="flex items-center gap-2 text-indigo-400">
-            <UserCheck className="w-4 h-4 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Platform Administration Space</span>
+      {resolvedRole === 'super_admin' ? (
+        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden border border-amber-500/20 shadow-lg shadow-amber-500/5">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-500/15 via-transparent to-transparent pointer-events-none" />
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-amber-500">
+                <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Respected Elder Council Sanctuary</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight">
+                Webale Kushemererwa, Respected Custodian
+              </h1>
+              <p className="text-xs text-slate-350 max-w-xl font-medium leading-relaxed">
+                As an honored **Elder** of the Bakenyi heritage portal, you possess full sovereignty over the sacred chronicle publication queues, user credential promotions, media vetting, and historical preservation safety.
+              </p>
+            </div>
+            <div className="hidden lg:block shrink-0 bg-amber-500/5 border border-amber-500/15 p-4 rounded-2xl max-w-xs text-right">
+              <span className="block text-[9px] text-amber-500 font-bold uppercase tracking-widest mb-1">Ancestral Wisdom</span>
+              <p className="text-[10px] text-slate-300 italic leading-relaxed">
+                "Abagurusi nibo bikwatira enanga ya Bakenye."
+              </p>
+              <span className="block text-[8px] text-slate-500 font-medium mt-1">— Heritage Proverb on Guardianship</span>
+            </div>
           </div>
-          <h1 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight">
-            {resolvedRole === 'super_admin' ? 'Elder Command Space' : 'Platform Moderator Panel'}
-          </h1>
-          <p className="text-xs text-slate-400 max-w-xl font-medium leading-relaxed">
-            Oversee Bakenyi community content reviews, public publication approvals, media library assets vetting, and user management workflows.
-          </p>
         </div>
-      </div>
+      ) : (
+        <div className="bg-slate-950 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden shadow-lg shadow-slate-950/20">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/15 via-transparent to-transparent pointer-events-none" />
+          <div className="space-y-1.5 relative z-10">
+            <div className="flex items-center gap-2 text-indigo-400">
+              <UserCheck className="w-4 h-4 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Platform Administration Space</span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight">
+              Platform Moderator Panel
+            </h1>
+            <p className="text-xs text-slate-400 max-w-xl font-medium leading-relaxed">
+              Oversee Bakenyi community content reviews, public publication approvals, media library assets vetting, and user management workflows.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Admin Central Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
