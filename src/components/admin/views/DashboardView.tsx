@@ -12,7 +12,10 @@ import {
   Clock,
   ArrowRight,
   ShieldAlert,
-  UserCheck
+  UserCheck,
+  Volume2,
+  Languages,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   fetchUsers, 
@@ -26,7 +29,17 @@ import {
 } from '../../../lib/supabaseClient';
 import { 
   getArticles, 
-  updateArticle 
+  updateArticle,
+  getVocabulary,
+  updateVocabularyStatus,
+  getContributions,
+  updateContributionStatus,
+  getGalleryImages,
+  updateGalleryImageStatus,
+  addGalleryImage,
+  Vocabulary,
+  Contribution,
+  GalleryImage
 } from '../../../lib/supabase';
 import { Article } from '../../../types/article';
 import { getAuditLogs, logAdminActivity, AuditLog } from '../../../lib/operations';
@@ -41,9 +54,15 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
+  const [vocabularies, setVocabularies] = useState<Vocabulary[]>([]);
+  const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  
+  // Tab for Elder vetting dashboard
+  const [activeVettingTab, setActiveVettingTab] = useState<'users' | 'articles' | 'oral_histories' | 'vocabulary' | 'gallery'>('articles');
 
   // Connection status
   const { isConfigured } = getSupabaseConfig();
@@ -57,15 +76,21 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [usersData, mediaData, articlesData] = await Promise.all([
+      const [usersData, mediaData, articlesData, vocabData, contribData, galleryData] = await Promise.all([
         fetchUsers(),
         fetchMediaFiles(),
-        getArticles(false)
+        getArticles(false),
+        getVocabulary(false),
+        getContributions(),
+        getGalleryImages(true)
       ]);
 
       setUsers(usersData);
       setMedia(mediaData);
       setArticles(articlesData);
+      setVocabularies(vocabData);
+      setContributions(contribData);
+      setGalleryImages(galleryData);
       setAuditLogs(getAuditLogs());
     } catch (err) {
       console.error('Failed to load platform operations dashboard:', err);
@@ -221,11 +246,163 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
     }
   };
 
+  // 7. Vocabulary Approval Action
+  const handleApproveVocabulary = async (id: string, lukenye: string) => {
+    try {
+      const success = await updateVocabularyStatus(id, 'approved');
+      if (success) {
+        logAdminActivity(
+          'Elder',
+          'Vocabulary Approved',
+          `Approved Lukenye vocabulary suggestion "${lukenye}" to the public glossary.`,
+          'Content',
+          'Success',
+          id
+        );
+        flashMessage(`Approved Lukenye word/phrase: "${lukenye}"`);
+        loadData();
+      }
+    } catch (err) {
+      console.error('Dashboard failed to approve vocabulary:', err);
+    }
+  };
+
+  // 8. Vocabulary Rejection Action
+  const handleRejectVocabulary = async (id: string, lukenye: string) => {
+    try {
+      const success = await updateVocabularyStatus(id, 'rejected');
+      if (success) {
+        logAdminActivity(
+          'Elder',
+          'Vocabulary Rejected',
+          `Rejected Lukenye vocabulary suggestion "${lukenye}".`,
+          'Content',
+          'Warning',
+          id
+        );
+        flashMessage(`Rejected Lukenye word/phrase: "${lukenye}"`);
+        loadData();
+      }
+    } catch (err) {
+      console.error('Dashboard failed to reject vocabulary:', err);
+    }
+  };
+
+  // 9. Contribution Approval Action
+  const handleApproveContribution = async (contrib: Contribution) => {
+    try {
+      const { success, error } = await updateContributionStatus(contrib.id, 'approved');
+      if (error) throw error;
+
+      if (success) {
+        // Automatically add approved contribution to the gallery!
+        await addGalleryImage(
+          contrib.title,
+          contrib.imageUrl,
+          contrib.description,
+          contrib.type === 'photo' ? 'History' : 'Tradition',
+          'approved'
+        );
+
+        logAdminActivity(
+          'Elder',
+          'Contribution Approved',
+          `Approved community contribution "${contrib.title}" and published to Digital Gallery.`,
+          'Content',
+          'Success',
+          contrib.id
+        );
+        flashMessage(`Approved and published oral history: "${contrib.title}"`);
+        loadData();
+      }
+    } catch (err) {
+      console.error('Dashboard failed to approve contribution:', err);
+    }
+  };
+
+  // 10. Contribution Rejection Action
+  const handleRejectContribution = async (id: string, title: string) => {
+    try {
+      const { success, error } = await updateContributionStatus(id, 'rejected');
+      if (error) throw error;
+
+      if (success) {
+        logAdminActivity(
+          'Elder',
+          'Contribution Rejected',
+          `Rejected community contribution "${title}".`,
+          'Content',
+          'Warning',
+          id
+        );
+        flashMessage(`Rejected community contribution: "${title}"`);
+        loadData();
+      }
+    } catch (err) {
+      console.error('Dashboard failed to reject contribution:', err);
+    }
+  };
+
+  // 11. Gallery Image Approval Action
+  const handleApproveGallery = async (id: string, title: string) => {
+    try {
+      const { success, error } = await updateGalleryImageStatus(id, 'approved');
+      if (error) throw error;
+
+      if (success) {
+        logAdminActivity(
+          'Elder',
+          'Gallery Image Approved',
+          `Approved gallery submission "${title}" for public display.`,
+          'Media',
+          'Success',
+          id
+        );
+        flashMessage(`Approved gallery item: "${title}"`);
+        loadData();
+      }
+    } catch (err) {
+      console.error('Dashboard failed to approve gallery item:', err);
+    }
+  };
+
+  // 12. Gallery Image Rejection Action
+  const handleRejectGallery = async (id: string, title: string) => {
+    try {
+      const { success, error } = await updateGalleryImageStatus(id, 'rejected');
+      if (error) throw error;
+
+      if (success) {
+        logAdminActivity(
+          'Elder',
+          'Gallery Image Rejected',
+          `Rejected gallery submission "${title}".`,
+          'Media',
+          'Warning',
+          id
+        );
+        flashMessage(`Rejected gallery item: "${title}"`);
+        loadData();
+      }
+    } catch (err) {
+      console.error('Dashboard failed to reject gallery item:', err);
+    }
+  };
+
   // Compute stats
   const pendingUsers = users.filter(u => u.status === 'pending');
   const pendingArticles = articles.filter(a => a.status === 'pending');
   const pendingMedia = media.filter(m => m.status === 'pending');
-  const totalQueueCount = pendingUsers.length + pendingArticles.length + pendingMedia.length;
+  const pendingVocabularies = vocabularies.filter(v => v.status === 'pending');
+  const pendingContributions = contributions.filter(c => c.status === 'pending');
+  const pendingGalleryImages = galleryImages.filter(g => g.status === 'pending');
+  const totalQueueCount = 
+    pendingUsers.length + 
+    pendingArticles.length + 
+    pendingMedia.length + 
+    pendingVocabularies.length + 
+    pendingContributions.length + 
+    pendingGalleryImages.length;
 
   // Filter content authored by the current logged-in reporter
   const reporterEmail = user?.email || '';
@@ -521,44 +698,421 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
         </div>
       </div>
 
-      {/* Work Queues Bento Layout */}
-      <div className={`grid grid-cols-1 ${resolvedRole === 'super_admin' ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-8`}>
+      {/* Vetting Dashboard Console Title */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+        <div>
+          <h2 className="text-xl font-serif font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-amber-500" />
+            <span>Honorable Vetting Council Desk</span>
+          </h2>
+          <p className="text-xs text-slate-400">
+            Select an ancestral channel below to verify, moderate, or publish cultural content submissions.
+          </p>
+        </div>
         
-        {/* Queue 1: Sign-Ups Vetting (Super Admin ONLY) */}
-        {resolvedRole === 'super_admin' && (
-          <div className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700/50 p-6 flex flex-col justify-between space-y-4">
-            <div className="space-y-3.5 flex-1">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-2">
-                  <Users className="w-5 h-5 text-indigo-500" />
-                  <h4 className="font-serif font-bold text-slate-800 dark:text-white text-base">Sign-Ups Vetting</h4>
-                </div>
-                <span className={`px-2.5 py-0.5 text-[9px] font-black rounded-full uppercase tracking-wider ${pendingUsers.length > 0 ? 'bg-amber-100 text-amber-800 animate-pulse' : 'bg-slate-100 text-slate-400'}`}>
-                  {pendingUsers.length} Pending
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 dark:text-slate-500">
-                Awaiting profile activation and role credentials verification.
-              </p>
+        {/* Quick status indicator */}
+        <span className="px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+          <span>{totalQueueCount} Total Pending Elements</span>
+        </span>
+      </div>
 
-              <div className="space-y-3 pt-2">
-                {pendingUsers.slice(0, 3).map(u => (
-                  <div key={u.id} className="p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/40 text-xs">
-                    <div className="text-left space-y-1 mb-2.5">
-                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Applicant Email</span>
-                      <span className="font-bold text-slate-800 dark:text-white truncate block">{u.email}</span>
+      {/* Vetting Tabs Console */}
+      <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 p-4 md:p-6 shadow-xs">
+        {/* Tabs Bar */}
+        <div className="flex flex-wrap gap-2 border-b border-slate-100 dark:border-slate-700 pb-4 mb-6">
+          <button
+            onClick={() => setActiveVettingTab('articles')}
+            className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+              activeVettingTab === 'articles'
+                ? 'bg-amber-500 text-white shadow-md'
+                : 'bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Written Chronicles</span>
+            {pendingArticles.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[8px] font-bold text-white">
+                {pendingArticles.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveVettingTab('oral_histories')}
+            className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+              activeVettingTab === 'oral_histories'
+                ? 'bg-amber-500 text-white shadow-md'
+                : 'bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
+            }`}
+          >
+            <Volume2 className="w-3.5 h-3.5" />
+            <span>Oral Histories</span>
+            {pendingContributions.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[8px] font-bold text-white">
+                {pendingContributions.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveVettingTab('vocabulary')}
+            className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+              activeVettingTab === 'vocabulary'
+                ? 'bg-amber-500 text-white shadow-md'
+                : 'bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
+            }`}
+          >
+            <Languages className="w-3.5 h-3.5" />
+            <span>Vocabulary Proposals</span>
+            {pendingVocabularies.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[8px] font-bold text-white">
+                {pendingVocabularies.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveVettingTab('gallery')}
+            className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+              activeVettingTab === 'gallery'
+                ? 'bg-amber-500 text-white shadow-md'
+                : 'bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
+            }`}
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            <span>Gallery Archives</span>
+            {pendingGalleryImages.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[8px] font-bold text-white">
+                {pendingGalleryImages.length}
+              </span>
+            )}
+          </button>
+
+          {resolvedRole === 'super_admin' && (
+            <button
+              onClick={() => setActiveVettingTab('users')}
+              className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+                activeVettingTab === 'users'
+                  ? 'bg-amber-500 text-white shadow-md'
+                  : 'bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Registry Sign-Ups</span>
+              {pendingUsers.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[8px] font-bold text-white">
+                  {pendingUsers.length}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* Tab Content Areas */}
+        <div className="space-y-4">
+          
+          {/* 1. Written Chronicles Vetting Queue */}
+          {activeVettingTab === 'articles' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex justify-between items-center pb-2">
+                <h3 className="font-serif font-black text-slate-800 dark:text-white text-base">Written Chronicle Submissions</h3>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Awaiting Publication Review</span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingArticles.map(art => (
+                  <div key={art.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850 text-xs flex flex-col justify-between space-y-4 hover:shadow-xs transition-shadow">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-[9px] font-black text-amber-600 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded-md">
+                          {art.category || 'General'}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-mono">
+                          {art.createdAt ? new Date(art.createdAt).toLocaleDateString() : 'Recent'}
+                        </span>
+                      </div>
+                      <h4 className="font-serif font-bold text-slate-800 dark:text-white text-sm line-clamp-1">{art.title}</h4>
+                      <p className="text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">{art.excerpt || art.content}</p>
+                      <div className="text-[10px] text-slate-400 pt-1 font-semibold">
+                        Submitted by: <span className="text-slate-600 dark:text-slate-200">{art.author || 'Reporter'}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => handleApproveArticle(art.id, art.title)}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Approve & Publish
+                      </button>
+                      <button
+                        onClick={() => handleRejectArticle(art.id, art.title)}
+                        className="px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-500 dark:text-rose-400 text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {pendingArticles.length === 0 && (
+                <div className="text-center py-16 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-3xl space-y-3 bg-slate-50/40 dark:bg-slate-900/10">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">All Chronicles Vetted</p>
+                  <p className="text-xs text-slate-400 max-w-xs mx-auto">No written articles currently require editorial publication reviews.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 2. Oral Histories Vetting Queue */}
+          {activeVettingTab === 'oral_histories' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex justify-between items-center pb-2">
+                <h3 className="font-serif font-black text-slate-800 dark:text-white text-base">Community Oral Histories & Ancestry Lore</h3>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Approved elements automatically publish to public platform</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingContributions.map(contrib => (
+                  <div key={contrib.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850 text-xs flex flex-col justify-between space-y-4 hover:shadow-xs transition-shadow">
+                    <div className="space-y-2.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-black text-indigo-600 uppercase tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded-md">
+                          {contrib.type.toUpperCase()} Story
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          {contrib.created_at ? new Date(contrib.created_at).toLocaleDateString() : 'Recent'}
+                        </span>
+                      </div>
+                      <h4 className="font-serif font-bold text-slate-800 dark:text-white text-sm">{contrib.title}</h4>
+                      <p className="text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">{contrib.description}</p>
+                      
+                      {/* Interactive Media Player */}
+                      {contrib.type === 'audio' && contrib.imageUrl && (
+                        <div className="pt-2">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Play Ancestry Voice Recording</span>
+                          <audio src={contrib.imageUrl} controls className="w-full h-8 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                        </div>
+                      )}
+
+                      {contrib.type === 'photo' && contrib.imageUrl && (
+                        <div className="pt-2">
+                          <img 
+                            src={contrib.imageUrl} 
+                            alt={contrib.title} 
+                            className="w-full h-32 object-cover rounded-xl border border-slate-100 dark:border-slate-700" 
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      )}
+
+                      <div className="text-[10px] text-slate-400 font-semibold">
+                        Suggested by: <span className="text-slate-600 dark:text-slate-200">{contrib.userEmail || 'Community Member'}</span>
+                      </div>
                     </div>
 
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => handleApproveContribution(contrib)}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Approve & Publish to Gallery
+                      </button>
+                      <button
+                        onClick={() => handleRejectContribution(contrib.id, contrib.title)}
+                        className="px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-500 dark:text-rose-400 text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {pendingContributions.length === 0 && (
+                <div className="text-center py-16 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-3xl space-y-3 bg-slate-50/40 dark:bg-slate-900/10">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">All Contributions Vetted</p>
+                  <p className="text-xs text-slate-400 max-w-xs mx-auto">No oral histories or ancestral recordings are currently pending review.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3. Vocabulary Proposals Queue */}
+          {activeVettingTab === 'vocabulary' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex justify-between items-center pb-2">
+                <h3 className="font-serif font-black text-slate-800 dark:text-white text-base">Lukenye Vocabulary & Language Suggestions</h3>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Awaiting Linguistic Elder Endorsement</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingVocabularies.map(vocab => (
+                  <div key={vocab.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850 text-xs flex flex-col justify-between space-y-4 hover:shadow-xs transition-shadow">
+                    <div className="space-y-2.5 text-left">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-black text-amber-600 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded-md">
+                          {vocab.category}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          {vocab.created_at ? new Date(vocab.created_at).toLocaleDateString() : 'Recent'}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Lukenye Word/Phrase</span>
+                        <h4 className="text-lg font-mono font-black text-slate-900 dark:text-white leading-tight">
+                          {vocab.lukenye}
+                        </h4>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">English Meaning</span>
+                        <p className="text-slate-800 dark:text-slate-200 font-medium text-sm leading-relaxed">
+                          {vocab.english}
+                        </p>
+                      </div>
+
+                      {vocab.usage && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Context/Usage Guidelines</span>
+                          <p className="text-slate-500 dark:text-slate-400 leading-relaxed italic">
+                            "{vocab.usage}"
+                          </p>
+                        </div>
+                      )}
+
+                      {vocab.example_sentence && (
+                        <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Lukenye Example Sentence</span>
+                          <p className="text-slate-600 dark:text-slate-300 font-mono italic">
+                            "{vocab.example_sentence}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => handleApproveVocabulary(vocab.id, vocab.lukenye)}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Approve & Publish to Glossary
+                      </button>
+                      <button
+                        onClick={() => handleRejectVocabulary(vocab.id, vocab.lukenye)}
+                        className="px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-500 dark:text-rose-400 text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {pendingVocabularies.length === 0 && (
+                <div className="text-center py-16 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-3xl space-y-3 bg-slate-50/40 dark:bg-slate-900/10">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">Linguistic Vault Complete</p>
+                  <p className="text-xs text-slate-400 max-w-xs mx-auto">All community language suggestions have been fully reviewed by elders.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 4. Gallery Images Queue */}
+          {activeVettingTab === 'gallery' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex justify-between items-center pb-2">
+                <h3 className="font-serif font-black text-slate-800 dark:text-white text-base">Digital Archives & Gallery Submissions</h3>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Awaiting Media Asset Publication Review</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingGalleryImages.map(img => (
+                  <div key={img.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850 text-xs flex flex-col justify-between space-y-4 hover:shadow-xs transition-shadow">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-black text-sky-600 uppercase tracking-wider bg-sky-500/10 px-2 py-0.5 rounded-md">
+                          {img.category || 'General'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          {img.created_at ? new Date(img.created_at).toLocaleDateString() : 'Recent'}
+                        </span>
+                      </div>
+
+                      <img 
+                        src={img.imageUrl} 
+                        alt={img.title} 
+                        className="w-full h-40 object-cover rounded-xl border border-slate-100 dark:border-slate-700" 
+                        referrerPolicy="no-referrer"
+                      />
+
+                      <h4 className="font-serif font-bold text-slate-800 dark:text-white text-sm">{img.title}</h4>
+                      {img.description && (
+                        <p className="text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">{img.description}</p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        onClick={() => handleApproveGallery(img.id, img.title)}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Approve & Publish to Gallery
+                      </button>
+                      <button
+                        onClick={() => handleRejectGallery(img.id, img.title)}
+                        className="px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-500 dark:text-rose-400 text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {pendingGalleryImages.length === 0 && (
+                <div className="text-center py-16 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-3xl space-y-3 bg-slate-50/40 dark:bg-slate-900/10">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">Media Repositories Clean</p>
+                  <p className="text-xs text-slate-400 max-w-xs mx-auto">No pending public photographs or archive scans currently require verification.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 5. Sign-Up Requests Queue (Super Admin ONLY) */}
+          {activeVettingTab === 'users' && resolvedRole === 'super_admin' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex justify-between items-center pb-2">
+                <h3 className="font-serif font-black text-slate-800 dark:text-white text-base">Registry Portal Applications</h3>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Awaiting Profile Credentials and Authentication</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pendingUsers.map(u => (
+                  <div key={u.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850 text-xs flex flex-col justify-between space-y-4 hover:shadow-xs transition-shadow">
+                    <div className="space-y-2">
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Candidate Email</span>
+                      <span className="font-serif font-black text-sm text-slate-800 dark:text-white truncate block">{u.email}</span>
+                      <p className="text-slate-400 text-[11px]">Needs manual verification before credentials promotion to Reporter/staff.</p>
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
                       <button
                         onClick={() => handleApproveUser(u.id, u.email, 'staff')}
-                        className="flex-1 bg-indigo-650 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-wider py-1.5 rounded-lg transition-colors cursor-pointer"
+                        className="flex-1 bg-indigo-650 hover:bg-indigo-700 text-white text-[10px] font-black uppercase py-2 rounded-xl cursor-pointer transition-all"
                       >
                         Approve Reporter
                       </button>
                       <button
                         onClick={() => handleRejectUser(u.id, u.email)}
-                        className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors cursor-pointer"
+                        className="px-3 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl transition-colors cursor-pointer"
                         title="Reject application"
                       >
                         <X className="w-4 h-4" />
@@ -566,152 +1120,19 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
                     </div>
                   </div>
                 ))}
-
-                {pendingUsers.length === 0 && (
-                  <div className="text-center py-10 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-2xl space-y-2">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                    <p className="text-xs text-slate-400 font-bold">Registry Vetted</p>
-                    <p className="text-[10px] text-slate-400/70">No pending accounts await review.</p>
-                  </div>
-                )}
               </div>
-            </div>
 
-            <button
-              onClick={() => onNavigate('users')}
-              className="w-full bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider text-center cursor-pointer transition-colors"
-            >
-              Manage Users
-            </button>
-          </div>
-        )}
-
-        {/* Queue 2: Chronicle Publications Vetting (Admin / Super Admin) */}
-        <div className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700/50 p-6 flex flex-col justify-between space-y-4">
-          <div className="space-y-3.5 flex-1">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <BookOpen className="w-5 h-5 text-amber-500" />
-                <h4 className="font-serif font-bold text-slate-800 dark:text-white text-base">Chronicling Vetting</h4>
-              </div>
-              <span className={`px-2.5 py-0.5 text-[9px] font-black rounded-full uppercase tracking-wider ${pendingArticles.length > 0 ? 'bg-amber-100 text-amber-800 animate-pulse' : 'bg-slate-100 text-slate-400'}`}>
-                {pendingArticles.length} Pending
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 dark:text-slate-500">
-              Submitted writings and cultural lore awaiting editorial approval to become public.
-            </p>
-
-            <div className="space-y-3 pt-2">
-              {pendingArticles.slice(0, 3).map(art => (
-                <div key={art.id} className="p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/40 text-xs">
-                  <div className="text-left space-y-1 mb-2.5">
-                    <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block"> Chronicles Title</span>
-                    <h5 className="font-bold text-slate-800 dark:text-white line-clamp-1">{art.title}</h5>
-                    <span className="text-[9px] text-slate-400 block font-mono">Author: {art.author || 'Reporter'}</span>
-                  </div>
-
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => handleApproveArticle(art.id, art.title)}
-                      className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-black uppercase tracking-wider py-1.5 rounded-lg transition-colors cursor-pointer"
-                    >
-                      Approve & Publish
-                    </button>
-                    <button
-                      onClick={() => handleRejectArticle(art.id, art.title)}
-                      className="p-1.5 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-[9px] font-bold transition-colors cursor-pointer"
-                      title="Reject to Draft"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {pendingArticles.length === 0 && (
-                <div className="text-center py-10 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-2xl space-y-2">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                  <p className="text-xs text-slate-400 font-bold">Chronicles Clean</p>
-                  <p className="text-[10px] text-slate-400/70">No articles currently require publication review.</p>
+              {pendingUsers.length === 0 && (
+                <div className="text-center py-16 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-3xl space-y-3 bg-slate-50/40 dark:bg-slate-900/10">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">Registry Credentials Clear</p>
+                  <p className="text-xs text-slate-400 max-w-xs mx-auto">No pending accounts require manual registration approvals.</p>
                 </div>
               )}
             </div>
-          </div>
+          )}
 
-          <button
-            onClick={() => onNavigate('content')}
-            className="w-full bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider text-center cursor-pointer transition-colors"
-          >
-            Moderate Chronicles
-          </button>
         </div>
-
-        {/* Queue 3: Gallery Media Vetting (Admin / Super Admin) */}
-        <div className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700/50 p-6 flex flex-col justify-between space-y-4">
-          <div className="space-y-3.5 flex-1">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <ImageIcon className="w-5 h-5 text-sky-500" />
-                <h4 className="font-serif font-bold text-slate-800 dark:text-white text-base">Media Vetting</h4>
-              </div>
-              <span className={`px-2.5 py-0.5 text-[9px] font-black rounded-full uppercase tracking-wider ${pendingMedia.length > 0 ? 'bg-amber-100 text-amber-800 animate-pulse' : 'bg-slate-100 text-slate-400'}`}>
-                {pendingMedia.length} Pending
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 dark:text-slate-500">
-              Contributed digital media assets requiring catalog vetting before public publication.
-            </p>
-
-            <div className="space-y-3 pt-2">
-              {pendingMedia.slice(0, 3).map(file => (
-                <div key={file.name} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/40 flex items-center gap-3">
-                  <img 
-                    src={file.url} 
-                    alt={file.name} 
-                    className="w-11 h-11 object-cover rounded-xl border border-slate-100 dark:border-slate-700" 
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <h5 className="text-[11px] font-bold text-slate-800 dark:text-white truncate" title={file.name}>
-                      {file.name.split('/').pop()}
-                    </h5>
-                    <div className="flex gap-1 pt-0.5">
-                      <button
-                        onClick={() => handleApproveMedia(file.name)}
-                        className="flex-1 bg-sky-500 hover:bg-sky-600 text-white text-[9px] font-black uppercase py-1 rounded-md transition-colors cursor-pointer"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleRejectMedia(file.name)}
-                        className="px-2 bg-rose-50 hover:bg-rose-100 text-rose-500 text-[9px] font-bold py-1 rounded-md transition-colors cursor-pointer"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {pendingMedia.length === 0 && (
-                <div className="text-center py-10 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-2xl space-y-2">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                  <p className="text-xs text-slate-400 font-bold">Media Repository Clean</p>
-                  <p className="text-[10px] text-slate-400/70">No pending uploads require verification.</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <button
-            onClick={() => onNavigate('media')}
-            className="w-full bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-200 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider text-center cursor-pointer transition-colors"
-          >
-            Moderate Gallery Media
-          </button>
-        </div>
-
       </div>
 
     </div>

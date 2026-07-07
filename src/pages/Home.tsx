@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, Users, Compass, Globe } from 'lucide-react';
+import { getArticles, getContributions } from '../lib/supabase';
 
 const container = {
   hidden: { opacity: 0 },
@@ -18,6 +20,29 @@ const item = {
 };
 
 export default function Home() {
+  const [recentArticles, setRecentArticles] = useState<any[]>([]);
+  const [recentStories, setRecentStories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadHomeContent() {
+      try {
+        const articles = await getArticles(true); // true means public/published only
+        setRecentArticles(articles.slice(0, 4));
+        
+        const contribs = await getContributions();
+        // Filter approved contributions for public showcase
+        const approvedStories = contribs.filter((c: any) => c.status === 'approved');
+        setRecentStories(approvedStories.slice(0, 3));
+      } catch (err) {
+        console.error('Error fetching home content:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadHomeContent();
+  }, []);
+
   return (
     <div className="relative overflow-hidden">
       {/* Hero Section */}
@@ -232,6 +257,131 @@ export default function Home() {
               </Link>
             </motion.div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Dynamic Content Showcase Section */}
+      <section className="py-24 bg-heritage-cream/50 relative border-t border-heritage-brown/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16">
+            <div className="text-left">
+              <span className="text-heritage-terracotta font-black text-[10px] uppercase tracking-[0.2em] block mb-3">Living Heritage Portal</span>
+              <h2 className="text-3xl md:text-5xl font-serif font-black text-heritage-brown">
+                Latest Chronicles & Voices
+              </h2>
+              <p className="text-xs text-heritage-brown/60 max-w-xl mt-2 leading-relaxed font-medium">
+                Vetted and endorsed by the honorable Elder Council, discover the newest recordings and educational memoirs of our floating world.
+              </p>
+            </div>
+            <Link 
+              to="/articles" 
+              className="mt-6 md:mt-0 text-heritage-terracotta font-black text-xs uppercase tracking-widest flex items-center hover:underline whitespace-nowrap shrink-0 group font-sans"
+            >
+              <span>Read All Chronicles</span> 
+              <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Col (2 Columns Wide): Articles */}
+            <div className="lg:col-span-2 space-y-8 text-left">
+              <h3 className="font-serif font-bold text-xl text-heritage-brown border-b border-heritage-brown/10 pb-3 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-heritage-terracotta" />
+                <span>Published Educational Memoirs</span>
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {recentArticles.map(art => (
+                  <motion.article 
+                    key={art.id}
+                    className="bg-white rounded-3xl p-6 shadow-xs border border-heritage-brown/5 flex flex-col justify-between hover:shadow-md transition-shadow h-full"
+                    whileHover={{ y: -4 }}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-heritage-brown/40">
+                        <span className="bg-heritage-sand/20 px-2 py-0.5 rounded-md text-heritage-terracotta">{art.category || 'Lore'}</span>
+                        <span>{art.createdAt ? new Date(art.createdAt).toLocaleDateString() : 'Published'}</span>
+                      </div>
+                      <h4 className="font-serif font-bold text-base text-heritage-brown leading-snug line-clamp-2">
+                        {art.title}
+                      </h4>
+                      <p className="text-xs text-heritage-brown/65 leading-relaxed line-clamp-3">
+                        {art.excerpt || art.content}
+                      </p>
+                    </div>
+                    
+                    <div className="pt-4 border-t border-heritage-brown/5 mt-4 flex items-center justify-between">
+                      <span className="text-[10px] text-heritage-brown/50 font-medium">By {art.author || 'Custodian'}</span>
+                      <Link to={`/articles`} className="text-[10px] font-black uppercase text-heritage-terracotta hover:underline">
+                        Read Story &rarr;
+                      </Link>
+                    </div>
+                  </motion.article>
+                ))}
+
+                {recentArticles.length === 0 && (
+                  <div className="col-span-2 text-center py-16 bg-white/40 rounded-3xl border border-dashed border-heritage-brown/10 space-y-2">
+                    <BookOpen className="w-8 h-8 text-heritage-brown/20 mx-auto" />
+                    <p className="text-xs text-heritage-brown/50 font-bold">Chronicles Archiving...</p>
+                    <p className="text-[10px] text-heritage-brown/40">Our digital historians are actively transcribing lore.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Col (1 Column Wide): Audio Oral Voices */}
+            <div className="space-y-8 text-left">
+              <h3 className="font-serif font-bold text-xl text-heritage-brown border-b border-heritage-brown/10 pb-3 flex items-center gap-2">
+                <Compass className="w-5 h-5 text-heritage-olive" />
+                <span>Ancestral Audio Voices</span>
+              </h3>
+
+              <div className="space-y-4">
+                {recentStories.map(story => (
+                  <motion.div 
+                    key={story.id}
+                    className="bg-white rounded-2xl p-5 border border-heritage-brown/5 shadow-xs hover:shadow-sm transition-shadow text-left"
+                    whileHover={{ x: 4 }}
+                  >
+                    <span className="text-[8px] font-black uppercase tracking-widest text-heritage-olive bg-heritage-olive/10 px-2.5 py-0.5 rounded-full mb-2 inline-block">
+                      {story.type.toUpperCase()} RECORDING
+                    </span>
+                    <h4 className="font-serif font-black text-sm text-heritage-brown line-clamp-1">{story.title}</h4>
+                    <p className="text-[11px] text-heritage-brown/60 line-clamp-2 mt-1 leading-relaxed">
+                      {story.description}
+                    </p>
+                    
+                    {story.type === 'audio' && story.imageUrl && (
+                      <div className="mt-3">
+                        <audio src={story.imageUrl} controls className="w-full h-8 bg-heritage-cream/40 rounded-lg text-xs" />
+                      </div>
+                    )}
+
+                    {story.type === 'photo' && story.imageUrl && (
+                      <img 
+                        src={story.imageUrl} 
+                        alt={story.title} 
+                        className="w-full h-24 object-cover rounded-xl mt-3 border border-heritage-brown/5" 
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
+
+                    <div className="text-[9px] text-heritage-brown/40 font-mono mt-3 pt-2.5 border-t border-heritage-brown/5 text-right">
+                      Vetted Preserver Session
+                    </div>
+                  </motion.div>
+                ))}
+
+                {recentStories.length === 0 && (
+                  <div className="text-center py-16 bg-white/40 rounded-3xl border border-dashed border-heritage-brown/10 space-y-2">
+                    <Compass className="w-8 h-8 text-heritage-brown/20 mx-auto" />
+                    <p className="text-xs text-heritage-brown/50 font-bold">Voices Awaiting Elders</p>
+                    <p className="text-[10px] text-heritage-brown/40">New oral voice stories are currently being vetted.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
