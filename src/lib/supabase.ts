@@ -37,22 +37,24 @@ export async function signIn(email: string, password: string): Promise<{ user: a
     
     // Also ensure they have a profile row in the profiles table for role-based features
     if (data.user) {
-      const emailLower = email.toLowerCase();
-      const isSuperAdmin = emailLower === 'superadmin@bakenye.com' || emailLower === 'wanchaaaron@gmail.com' || emailLower === 'aaronwancha@gmail.com';
-      const isAdmin = 
-        emailLower === 'admin@bakenye.com' || 
-        emailLower === 'admin@bakenyi.org';
+      // Check if profile exists first
+      const { data: profile } = await client
+        .from('profiles')
+        .select('role, is_admin')
+        .eq('id', data.user.id)
+        .maybeSingle();
       
-      const role = isSuperAdmin ? 'super_admin' : (isAdmin ? 'admin' : 'customer');
-      
-      // Upsert profile record
-      await client.from('profiles').upsert({
-        id: data.user.id,
-        email: data.user.email,
-        role: role,
-        is_admin: isSuperAdmin || isAdmin,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'id' });
+      if (!profile) {
+        // Create initial profile only if it does not exist, with default customer privileges
+        await client.from('profiles').insert({
+          id: data.user.id,
+          email: data.user.email,
+          role: 'customer',
+          is_admin: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      }
     }
 
     return { user: data.user, error: null };

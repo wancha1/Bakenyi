@@ -107,7 +107,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             options: {
               data: {
                 full_name: fullName,
-                role: 'admin', // Default register as admin for this admin portal context
+                role: 'customer', // Default register as customer to prevent unauthorized privilege escalation
               },
             },
           });

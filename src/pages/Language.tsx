@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Volume2, Book, MessageSquare, Headphones, Pause, Play, Music, AlertCircle, Plus, Check, X, ShieldAlert, FileAudio, Loader2 } from 'lucide-react';
-import { getSupabase } from '../lib/supabaseClient';
+import { getSupabase, checkIsAdmin } from '../lib/supabaseClient';
 import { getVocabulary, createVocabulary, updateVocabularyStatus, Vocabulary } from '../lib/supabase';
 
 export default function Language() {
@@ -36,16 +36,18 @@ export default function Language() {
   useEffect(() => {
     if (!supabase) return;
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setCurrentUser(session?.user || null);
-      if (session?.user) {
-        checkUserAdmin(session.user.id);
+      const u = session?.user || null;
+      setCurrentUser(u);
+      if (u) {
+        checkIsAdmin(u).then(setIsAdmin);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentUser(session?.user || null);
-      if (session?.user) {
-        checkUserAdmin(session.user.id);
+      const u = session?.user || null;
+      setCurrentUser(u);
+      if (u) {
+        checkIsAdmin(u).then(setIsAdmin);
       } else {
         setIsAdmin(false);
       }
@@ -53,18 +55,6 @@ export default function Language() {
 
     return () => subscription.unsubscribe();
   }, [supabase]);
-
-  const checkUserAdmin = async (userId: string) => {
-    if (!supabase) return;
-    try {
-      const { data } = await supabase.from('profiles').select('role, is_admin').eq('id', userId).single();
-      if (data && (data.role === 'super_admin' || data.role === 'admin' || data.is_admin)) {
-        setIsAdmin(true);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   const fetchVocabularyList = async () => {
     setLoading(true);

@@ -277,19 +277,30 @@ const fName = (s: string) => s.split('/').pop() || s;
 export const checkIsAdmin = async (user: any): Promise<boolean> => {
   if (!user) return false;
   
-  // 1. Bypass sandbox/known admin accounts immediately
-  const email = user.email?.toLowerCase() || '';
-  if (
-    email === 'superadmin@bakenye.com' ||
-    email === 'admin@bakenye.com' || 
-    email === 'admin@bakenyi.org' || 
-    email === 'wanchaaaron@gmail.com' ||
-    email === 'aaronwancha@gmail.com' ||
-    email === 'reporter@bakenye.com' ||
-    email.includes('reporter') ||
-    email.includes('staff')
-  ) {
-    return true;
+  const { isConfigured } = getSupabaseConfig();
+  
+  // 1. If we are in local Sandbox mode (Supabase is NOT configured), allow quick credentials
+  if (!isConfigured) {
+    const email = user.email?.toLowerCase() || '';
+    if (
+      email === 'superadmin@bakenye.com' ||
+      email === 'admin@bakenye.com' || 
+      email === 'admin@bakenyi.org' || 
+      email === 'wanchaaaron@gmail.com' ||
+      email === 'aaronwancha@gmail.com' ||
+      email === 'reporter@bakenye.com' ||
+      email.includes('reporter') ||
+      email.includes('staff')
+    ) {
+      return true;
+    }
+    const role = (user.role || '').toLowerCase();
+    return (
+      role === 'super_admin' ||
+      role === 'admin' ||
+      role === 'reporter' ||
+      role === 'staff'
+    );
   }
 
   // 2. Query real Supabase profiles database table
@@ -316,13 +327,13 @@ export const checkIsAdmin = async (user: any): Promise<boolean> => {
     }
   }
 
-  // 3. Metadata or profile key fallback
-  const role = (user.role || user.user_metadata?.role || user.app_metadata?.role || '').toLowerCase();
+  // 3. Fallback only to secure app_metadata (never trust user_metadata for authorization)
+  const appRole = (user.app_metadata?.role || '').toLowerCase();
   return (
-    role === 'super_admin' ||
-    role === 'admin' ||
-    role === 'reporter' ||
-    role === 'staff'
+    appRole === 'super_admin' ||
+    appRole === 'admin' ||
+    appRole === 'reporter' ||
+    appRole === 'staff'
   );
 };
 

@@ -23,7 +23,7 @@ import {
   Settings,
   Heart
 } from 'lucide-react';
-import { getSupabase, fetchUsers, updateUserStatus } from '../lib/supabaseClient';
+import { getSupabase, fetchUsers, updateUserStatus, getSupabaseConfig } from '../lib/supabaseClient';
 import { 
   signIn, 
   signOut, 
@@ -66,18 +66,12 @@ export default function Admin() {
       try {
         const user = await getCurrentUser();
         setCurrentUser(user);
-        if (user && supabase) {
-          // Fetch exact user role from profiles
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .maybeSingle();
-          if (!error && data) {
-            setUserRole(data.role || 'customer');
-          } else {
-            // Check email-based bypass for fallback admin credentials
-            const emailLower = user.email?.toLowerCase() || '';
+        if (user) {
+          const { isConfigured } = getSupabaseConfig();
+          const emailLower = user.email?.toLowerCase() || '';
+
+          // 1. Local Sandbox Mode fallback
+          if (!isConfigured) {
             if (emailLower === 'superadmin@bakenye.com' || emailLower === 'wanchaaaron@gmail.com' || emailLower === 'aaronwancha@gmail.com') {
               setUserRole('super_admin');
             } else if (
@@ -85,6 +79,24 @@ export default function Admin() {
               emailLower === 'admin@bakenyi.org'
             ) {
               setUserRole('admin');
+            } else {
+              setUserRole('customer');
+            }
+            return;
+          }
+
+          // 2. Real Supabase mode: STRICTLY query database profiles table, never use hardcoded emails or user_metadata for authorization
+          if (supabase) {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', user.id)
+              .maybeSingle();
+            
+            if (!error && data) {
+              setUserRole(data.role || 'customer');
+            } else {
+              setUserRole(user.app_metadata?.role || 'customer');
             }
           }
         }

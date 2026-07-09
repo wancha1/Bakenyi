@@ -92,9 +92,10 @@ export default function UsersView() {
     setIsAuthLoading(true);
     try {
       const client = getSupabase();
+      const { isConfigured } = getSupabaseConfig();
       let emailVal = '';
       let rawRole = 'customer';
-      if (client) {
+      if (isConfigured && client) {
         const { data: { user } } = await client.auth.getUser();
         if (user) {
           emailVal = user.email || '';
@@ -105,6 +106,8 @@ export default function UsersView() {
             .maybeSingle();
           if (!error && data?.role) {
             rawRole = data.role;
+          } else {
+            rawRole = user.app_metadata?.role || 'customer';
           }
         }
       } else {
@@ -119,12 +122,25 @@ export default function UsersView() {
 
       const email = emailVal.toLowerCase();
       let role: 'super_admin' | 'admin' | 'reporter' | 'public' = 'public';
-      if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
-        role = 'super_admin';
-      } else if (email === 'admin@bakenye.com' || email === 'admin@bakenyi.org' || rawRole === 'admin') {
-        role = 'admin';
-      } else if (email.includes('reporter') || email.includes('staff') || rawRole === 'staff' || rawRole === 'reporter') {
-        role = 'reporter';
+      
+      if (!isConfigured) {
+        // Local Sandbox fallback
+        if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
+          role = 'super_admin';
+        } else if (email === 'admin@bakenye.com' || email === 'admin@bakenyi.org') {
+          role = 'admin';
+        } else if (email.includes('reporter') || email.includes('staff')) {
+          role = 'reporter';
+        }
+      } else {
+        // Real Supabase mode (strict profile check)
+        if (rawRole === 'super_admin') {
+          role = 'super_admin';
+        } else if (rawRole === 'admin') {
+          role = 'admin';
+        } else if (rawRole === 'staff' || rawRole === 'reporter') {
+          role = 'reporter';
+        }
       }
 
       setCurrentUserEmail(emailVal);

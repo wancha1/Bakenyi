@@ -192,13 +192,28 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
     async function fetchRole() {
       if (!user) return;
       try {
+        const { isConfigured } = getSupabaseConfig();
         const email = user.email?.toLowerCase() || '';
-        if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
-          setUserRole('super_admin');
-          setRoleLoading(false);
+
+        // 1. Local Sandbox Mode fallback
+        if (!isConfigured) {
+          if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
+            setUserRole('super_admin');
+            return;
+          }
+          if (email === 'admin@bakenye.com' || email === 'admin@bakenyi.org') {
+            setUserRole('admin');
+            return;
+          }
+          if (email.includes('staff') || email.includes('reporter')) {
+            setUserRole('reporter');
+            return;
+          }
+          setUserRole('public');
           return;
         }
 
+        // 2. Real Supabase mode: STRICTLY query database profiles table, never use hardcoded emails or user_metadata for authorization
         const client = getSupabase();
         let rawRole = 'customer';
         if (client) {
@@ -210,21 +225,22 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
           if (!error && data?.role) {
             rawRole = data.role;
           }
+        } else {
+          rawRole = user.app_metadata?.role || 'customer';
         }
         
-        if (
-          email === 'admin@bakenye.com' || 
-          email === 'admin@bakenyi.org' || 
-          rawRole === 'admin'
-        ) {
+        if (rawRole === 'super_admin') {
+          setUserRole('super_admin');
+        } else if (rawRole === 'admin') {
           setUserRole('admin');
-        } else if (email.includes('staff') || email.includes('reporter') || rawRole === 'staff' || rawRole === 'reporter') {
+        } else if (rawRole === 'staff' || rawRole === 'reporter') {
           setUserRole('reporter');
         } else {
           setUserRole('public');
         }
       } catch (e) {
         console.error('Failed to resolve role in DashboardApp:', e);
+        setUserRole('public');
       } finally {
         setRoleLoading(false);
       }
@@ -330,12 +346,28 @@ export default function App() {
         return;
       }
       try {
+        const { isConfigured } = getSupabaseConfig();
         const email = user.email?.toLowerCase() || '';
-        if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
-          setAppUserRole('super_admin');
+
+        // 1. Local Sandbox Mode fallback
+        if (!isConfigured) {
+          if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
+            setAppUserRole('super_admin');
+            return;
+          }
+          if (email === 'admin@bakenye.com' || email === 'admin@bakenyi.org') {
+            setAppUserRole('admin');
+            return;
+          }
+          if (email.includes('staff') || email.includes('reporter')) {
+            setAppUserRole('reporter');
+            return;
+          }
+          setAppUserRole('public');
           return;
         }
 
+        // 2. Real Supabase mode: STRICTLY query database profiles table, never use hardcoded emails or user_metadata for authorization
         const client = getSupabase();
         let rawRole = 'customer';
         if (client) {
@@ -347,15 +379,15 @@ export default function App() {
           if (!error && data?.role) {
             rawRole = data.role;
           }
+        } else {
+          rawRole = user.app_metadata?.role || 'customer';
         }
         
-        if (
-          email === 'admin@bakenye.com' || 
-          email === 'admin@bakenyi.org' || 
-          rawRole === 'admin'
-        ) {
+        if (rawRole === 'super_admin') {
+          setAppUserRole('super_admin');
+        } else if (rawRole === 'admin') {
           setAppUserRole('admin');
-        } else if (email.includes('staff') || email.includes('reporter') || rawRole === 'staff' || rawRole === 'reporter') {
+        } else if (rawRole === 'staff' || rawRole === 'reporter') {
           setAppUserRole('reporter');
         } else {
           setAppUserRole('public');
