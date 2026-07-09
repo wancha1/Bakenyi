@@ -17,6 +17,7 @@ import {
   Languages,
   ShieldCheck
 } from 'lucide-react';
+import PendingApprovalInbox from './PendingApprovalInbox';
 import { 
   fetchUsers, 
   fetchMediaFiles, 
@@ -63,6 +64,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
   
   // Tab for Elder vetting dashboard
   const [activeVettingTab, setActiveVettingTab] = useState<'users' | 'articles' | 'oral_histories' | 'vocabulary' | 'gallery'>('articles');
+  const [moderationMode, setModerationMode] = useState<'unified' | 'classic'>('unified');
 
   // Connection status
   const { isConfigured } = getSupabaseConfig();
@@ -710,15 +712,40 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
           </p>
         </div>
         
-        {/* Quick status indicator */}
-        <span className="px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-          <span>{totalQueueCount} Total Pending Elements</span>
-        </span>
+        {/* Switcher & Status indicators */}
+        <div className="flex items-center gap-3">
+          <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-750 text-xs">
+            <button
+              onClick={() => setModerationMode('unified')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                moderationMode === 'unified' 
+                  ? 'bg-amber-500 text-white shadow-xs' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Unified Inbox
+            </button>
+            <button
+              onClick={() => setModerationMode('classic')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                moderationMode === 'classic' 
+                  ? 'bg-amber-500 text-white shadow-xs' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Classic Vetting
+            </button>
+          </div>
+
+          <span className="px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+            <span>{totalQueueCount} Total Pending Elements</span>
+          </span>
+        </div>
       </div>
 
-      {/* Vetting Tabs Console */}
-      <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 p-4 md:p-6 shadow-xs">
+      {moderationMode === 'unified' ? <PendingApprovalInbox /> : (
+        <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 p-4 md:p-6 shadow-xs">
         {/* Tabs Bar */}
         <div className="flex flex-wrap gap-2 border-b border-slate-100 dark:border-slate-700 pb-4 mb-6">
           <button
@@ -1134,6 +1161,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
 
         </div>
       </div>
+    )}
 
     </div>
   );

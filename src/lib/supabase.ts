@@ -313,7 +313,14 @@ export async function uploadMedia(file: File, type: 'images' | 'pdfs'): Promise<
   try {
     const bucketName = type === 'images' ? 'media' : 'pdf-attachments';
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 10)}.${fileExt}`;
+    const uniqueId = Math.random().toString(36).substring(2, 10);
+    
+    // Fetch authenticated user id to isolate path
+    const { data: { session } } = await client.auth.getSession();
+    const userId = session?.user?.id;
+    
+    const baseName = `${Date.now()}_${uniqueId}.${fileExt}`;
+    const fileName = userId ? `${userId}/${baseName}` : baseName;
     
     // First ensure the bucket exists/we can upload to it
     const { data, error } = await client.storage.from(bucketName).upload(fileName, file);
@@ -323,6 +330,37 @@ export async function uploadMedia(file: File, type: 'images' | 'pdfs'): Promise<
     }
 
     const { data: { publicUrl } } = client.storage.from(bucketName).getPublicUrl(fileName);
+    return { url: publicUrl, error: null };
+  } catch (err: any) {
+    return emulateFileUpload(file);
+  }
+}
+
+export async function uploadAudioFile(blob: Blob, fileName: string): Promise<{ url: string; error: Error | null }> {
+  const client = getSupabase();
+  // Standard WebM or alternative file container creation
+  const file = new File([blob], fileName, { type: blob.type || 'audio/webm' });
+  if (!client) {
+    return emulateFileUpload(file);
+  }
+
+  try {
+    const bucketName = 'media';
+    
+    // Fetch authenticated user id to isolate path
+    const { data: { session } } = await client.auth.getSession();
+    const userId = session?.user?.id;
+    
+    const baseName = `${Date.now()}_${fileName}`;
+    const filePath = userId ? `${userId}/oral-histories/${baseName}` : `oral-histories/${baseName}`;
+    
+    const { data, error } = await client.storage.from(bucketName).upload(filePath, file);
+    if (error) {
+      console.warn(`Storage upload of audio failed, falling back to Base64:`, error);
+      return emulateFileUpload(file);
+    }
+
+    const { data: { publicUrl } } = client.storage.from(bucketName).getPublicUrl(filePath);
     return { url: publicUrl, error: null };
   } catch (err: any) {
     return emulateFileUpload(file);
@@ -495,10 +533,21 @@ export async function updateContributionStatus(id: string, status: 'pending' | '
   }
 
   try {
-    const { error } = await client.from('contributions').update({ status }).eq('id', id);
+    const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
+    let query = client.from('contributions').update({ status });
+    if (isUUID(id)) {
+      query = query.eq('id', id);
+    } else {
+      query = query.eq('title', id);
+    }
+    const { error } = await query;
     if (error) {
-      // Fallback by matching raw title if uuid mismatch occurred
-      await client.from('contributions').update({ status }).eq('title', id);
+      // If we queried by UUID and failed, try falling back by matching title
+      if (isUUID(id)) {
+        await client.from('contributions').update({ status }).eq('title', id);
+      } else {
+        throw error;
+      }
     }
     return { success: true, error: null };
   } catch (err: any) {

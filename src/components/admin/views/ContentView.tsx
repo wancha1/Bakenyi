@@ -47,6 +47,7 @@ import {
   StoryCategory
 } from '../../../lib/supabase';
 import ArticlesManager from '../ArticlesManager';
+import HeritageModulesManager from './HeritageModulesManager';
 
 interface ContentViewProps {
   userRole?: 'super_admin' | 'admin' | 'reporter' | 'public' | 'staff' | 'customer';
@@ -61,7 +62,7 @@ export default function ContentView({ userRole = 'admin' }: ContentViewProps) {
   const isElder = resolvedRole === 'super_admin';
   const isAdmin = resolvedRole === 'admin';
 
-  const [activeSubTab, setActiveSubTab] = useState<'articles' | 'submissions' | 'clans' | 'leadership' | 'categories'>('articles');
+  const [activeSubTab, setActiveSubTab] = useState<'articles' | 'submissions' | 'clans' | 'leadership' | 'categories' | 'heritage_modules'>('articles');
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [isLoadingContribs, setIsLoadingContribs] = useState(false);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
@@ -570,6 +571,18 @@ export default function ContentView({ userRole = 'admin' }: ContentViewProps) {
         >
           <FileText className="w-3.5 h-3.5" />
           <span>Story Categories</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('heritage_modules')}
+          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+            activeSubTab === 'heritage_modules'
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/30'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Heritage Feeds</span>
         </button>
       </div>
 
@@ -1448,6 +1461,12 @@ export default function ContentView({ userRole = 'admin' }: ContentViewProps) {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {activeSubTab === 'heritage_modules' && (
+        <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 p-6 shadow-xs">
+          <HeritageModulesManager userRole={resolvedRole} />
         </div>
       )}
     </div>

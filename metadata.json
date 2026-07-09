@@ -1,7 +1,9 @@
 {
   "name": "Bakenyi Cultural Heritage Platform",
   "description": "A digital archive dedicated to preserving the history of the Bakenyi people, alongside the high-performance Bakenye E-Commerce Admin Dashboard.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": [
+    "microphone"
+  ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]

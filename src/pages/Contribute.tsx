@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History, Mail, Lock, User as UserIcon, HelpCircle, ShieldAlert } from 'lucide-react';
 import { getSupabase, checkIsAdmin } from '../lib/supabaseClient';
 import { getContributions, createContribution, uploadMedia, Contribution, getStoryCategories, StoryCategory } from '../lib/supabase';
+import OralHistoryRecorder from '../components/OralHistoryRecorder';
 
 const steps = [
   {
@@ -509,276 +510,165 @@ export default function Contribute() {
                 </button>
               </div>
 
-              <h2 className="text-3xl font-serif font-bold text-heritage-brown mb-8 flex items-center text-left">
-                {contributionTab === 'audio' ? (
-                  <>
-                    <Mic className="w-8 h-8 mr-4 text-heritage-terracotta animate-pulse" />
-                    <span>Record Ancestry & Oral History</span>
-                  </>
-                ) : (
-                  <>
+              {contributionTab === 'audio' ? (
+                <OralHistoryRecorder onRecordingSubmitted={() => {
+                  setSubmitted(true);
+                  setTimeout(() => setSubmitted(false), 5000);
+                }} />
+              ) : (
+                <>
+                  <h2 className="text-3xl font-serif font-bold text-heritage-brown mb-8 flex items-center text-left">
                     <Camera className="w-8 h-8 mr-4 text-heritage-terracotta" />
                     <span>Submit Photographic/Written Artifact</span>
-                  </>
-                )}
-              </h2>
+                  </h2>
 
-              <form onSubmit={handleSubmit} className="space-y-8 text-left">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Title of Story / Artifact</label>
-                    <input 
-                      required
-                      type="text" 
-                      placeholder={contributionTab === 'audio' ? "e.g. My Family's Migration from Paliisa" : "e.g. Traditional Basketry"}
-                      value={formData.title}
-                      onChange={(e) => setFormData({...formData, title: e.target.value})}
-                      className="w-full px-6 py-4 bg-heritage-cream/30 border-2 border-transparent focus:border-heritage-terracotta/20 rounded-2xl outline-none transition-all font-medium text-heritage-brown"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Category</label>
-                    {contributionTab === 'audio' ? (
-                      <div className="w-full px-6 py-4 bg-heritage-cream/10 border-2 border-transparent text-heritage-brown/50 rounded-2xl font-bold">
-                        Oral History Audio Archive
+                  <form onSubmit={handleSubmit} className="space-y-8 text-left">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-2">
+                        <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Title of Story / Artifact</label>
+                        <input 
+                          required
+                          type="text" 
+                          placeholder="e.g. Traditional Basketry"
+                          value={formData.title}
+                          onChange={(e) => setFormData({...formData, title: e.target.value})}
+                          className="w-full px-6 py-4 bg-heritage-cream/30 border-2 border-transparent focus:border-heritage-terracotta/20 rounded-2xl outline-none transition-all font-medium text-heritage-brown"
+                        />
                       </div>
-                    ) : (
-                      <select 
-                        value={formData.type}
-                        onChange={(e) => handleCategoryChange(e.target.value)}
-                        className="w-full px-6 py-4 bg-heritage-cream/30 border-2 border-transparent focus:border-heritage-terracotta/20 rounded-2xl outline-none transition-all font-medium text-heritage-brown appearance-none"
-                      >
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.name}
-                          </option>
-                        ))}
-                        {categories.length === 0 && (
-                          <>
-                            <option value="photo">Photograph</option>
-                            <option value="story">Oral Story (Text)</option>
-                            <option value="audio">Audio Clip</option>
-                          </>
-                        )}
-                      </select>
-                    )}
-                  </div>
-                </div>
-
-                {selectedCategory && contributionTab !== 'audio' && (
-                  <div className="bg-heritage-cream/20 border border-heritage-terracotta/10 rounded-3xl p-5 space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-bold text-heritage-terracotta uppercase tracking-wider">
-                      <HelpCircle className="w-4 h-4 shrink-0" />
-                      <span>{selectedCategory.name} Guidelines</span>
-                    </div>
-                    <p className="text-xs text-heritage-brown/60 italic leading-relaxed">
-                      "{selectedCategory.description}"
-                    </p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-heritage-brown/5 text-xs font-medium">
-                      {selectedCategory.validation_rules && (
-                        <div className="space-y-0.5">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-heritage-terracotta/60">Verification Criteria:</span>
-                          <p className="text-heritage-brown/70">{selectedCategory.validation_rules}</p>
-                        </div>
-                      )}
-                      {selectedCategory.upload_requirements && (
-                        <div className="space-y-0.5">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-heritage-terracotta/60">Attachment Checklist:</span>
-                          <p className="text-heritage-brown/70">{selectedCategory.upload_requirements}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">
-                    {contributionTab === 'audio' ? "Ancestry Background / Notes (Written context)" : "Description / History"}
-                  </label>
-                  <textarea 
-                    required
-                    rows={4}
-                    placeholder={contributionTab === 'audio' ? "Provide details about the individuals, clans, timelines or locations described in this recorded oral history clip..." : "Share the significance or history of this item..."}
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="w-full px-6 py-4 bg-heritage-cream/30 border-2 border-transparent focus:border-heritage-terracotta/20 rounded-2xl outline-none transition-all font-medium text-heritage-brown resize-none"
-                  />
-                </div>
-
-                {contributionTab === 'audio' ? (
-                  <div className="bg-heritage-cream/20 border border-heritage-brown/10 rounded-[32px] p-8 text-center space-y-6">
-                    <div className="flex flex-col items-center justify-center space-y-4">
-                      <div className="relative">
-                        {recordingStatus === 'recording' && (
-                          <span className="absolute -inset-2 rounded-full bg-red-500/20 animate-ping" />
-                        )}
-                        {recordingStatus === 'paused' && (
-                          <span className="absolute -inset-2 rounded-full bg-amber-500/20" />
-                        )}
-                        <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
-                          recordingStatus === 'recording' ? 'bg-red-500 text-white scale-110' :
-                          recordingStatus === 'paused' ? 'bg-amber-500 text-white' :
-                          recordingStatus === 'stopped' ? 'bg-heritage-olive text-white' :
-                          'bg-white text-heritage-brown border border-heritage-brown/10'
-                        }`}>
-                          <Mic className={`w-8 h-8 ${recordingStatus === 'recording' ? 'animate-pulse' : ''}`} />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <p className="text-3xl font-mono font-bold text-heritage-brown tracking-tight">
-                          {formatTime(recordingTime)}
-                        </p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-heritage-brown/40">
-                          {recordingStatus === 'idle' && 'Ready to Record'}
-                          {recordingStatus === 'recording' && 'Recording Ancestry Story...'}
-                          {recordingStatus === 'paused' && 'Recording Paused'}
-                          {recordingStatus === 'stopped' && 'Recording Completed / Ready to Preview'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-center gap-3">
-                      {recordingStatus === 'idle' && (
-                        <button
-                          type="button"
-                          onClick={startRecording}
-                          className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all active:scale-95"
+                      <div className="space-y-2">
+                        <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Category</label>
+                        <select 
+                          value={formData.type}
+                          onChange={(e) => handleCategoryChange(e.target.value)}
+                          className="w-full px-6 py-4 bg-heritage-cream/30 border-2 border-transparent focus:border-heritage-terracotta/20 rounded-2xl outline-none transition-all font-medium text-heritage-brown appearance-none"
                         >
-                          <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
-                          <span>Start Story Recording</span>
-                        </button>
-                      )}
-
-                      {recordingStatus === 'recording' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={pauseRecording}
-                            className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
-                          >
-                            Pause
-                          </button>
-                          <button
-                            type="button"
-                            onClick={stopRecording}
-                            className="px-6 py-3 bg-heritage-brown hover:bg-black text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all active:scale-95"
-                          >
-                            <span className="w-2.5 h-2.5 bg-white" />
-                            <span>Stop & Save</span>
-                          </button>
-                        </>
-                      )}
-
-                      {recordingStatus === 'paused' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={resumeRecording}
-                            className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
-                          >
-                            Resume
-                          </button>
-                          <button
-                            type="button"
-                            onClick={stopRecording}
-                            className="px-6 py-3 bg-heritage-brown hover:bg-black text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md cursor-pointer flex items-center gap-2 transition-all active:scale-95"
-                          >
-                            <span className="w-2.5 h-2.5 bg-white" />
-                            <span>Stop & Save</span>
-                          </button>
-                        </>
-                      )}
-
-                      {recordingStatus === 'stopped' && (
-                        <button
-                          type="button"
-                          onClick={discardRecording}
-                          className="px-6 py-3 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer transition-all"
-                        >
-                          Discard & Re-record
-                        </button>
-                      )}
+                          {categories.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                          {categories.length === 0 && (
+                            <>
+                              <option value="photo">Photograph</option>
+                              <option value="story">Oral Story (Text)</option>
+                              <option value="audio">Audio Clip</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
                     </div>
 
-                    {recordingStatus === 'stopped' && previewUrl && (
-                      <div className="bg-white border border-heritage-brown/10 p-5 rounded-2xl max-w-md mx-auto space-y-3 shadow-xs">
-                        <p className="text-xs font-bold text-heritage-brown/60">Listen to your recorded story before submitting:</p>
-                        <audio src={previewUrl} controls className="w-full" />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className={`p-8 border-2 border-dashed rounded-3xl bg-heritage-cream/10 text-center group transition-all ${
-                      previewUrl ? 'border-heritage-olive/30' : 'border-heritage-brown/10 hover:border-heritage-terracotta/30'
-                    }`}>
-                      <input 
-                        type="file" 
-                        className="hidden" 
-                        id="file-upload" 
-                        accept="image/*" 
-                        onChange={handleFileChange}
-                      />
-                      <label htmlFor="file-upload" className="cursor-pointer block">
-                        {uploadingFile ? (
-                          <div className="py-8">
-                            <Loader2 className="w-8 h-8 text-heritage-terracotta animate-spin mx-auto mb-2" />
-                            <p className="text-xs font-bold text-heritage-brown/50 uppercase tracking-widest">Uploading to Cloud...</p>
-                          </div>
-                        ) : previewUrl ? (
-                          <div className="relative group">
-                            <img src={previewUrl} className="max-h-64 mx-auto rounded-xl shadow-lg border-4 border-white" alt="Preview" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-xl transition-opacity">
-                              <Upload className="text-white w-8 h-8" />
+                    {selectedCategory && (
+                      <div className="bg-heritage-cream/20 border border-heritage-terracotta/10 rounded-3xl p-5 space-y-3">
+                        <div className="flex items-center gap-2 text-xs font-bold text-heritage-terracotta uppercase tracking-wider">
+                          <HelpCircle className="w-4 h-4 shrink-0" />
+                          <span>{selectedCategory.name} Guidelines</span>
+                        </div>
+                        <p className="text-xs text-heritage-brown/60 italic leading-relaxed">
+                          "{selectedCategory.description}"
+                        </p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-heritage-brown/5 text-xs font-medium">
+                          {selectedCategory.validation_rules && (
+                            <div className="space-y-0.5">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-heritage-terracotta/60">Verification Criteria:</span>
+                              <p className="text-heritage-brown/70">{selectedCategory.validation_rules}</p>
                             </div>
-                            <p className="mt-4 text-xs font-bold text-heritage-olive uppercase tracking-widest">Image ready for submission</p>
-                          </div>
+                          )}
+                          {selectedCategory.upload_requirements && (
+                            <div className="space-y-0.5">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-heritage-terracotta/60">Attachment Checklist:</span>
+                              <p className="text-heritage-brown/70">{selectedCategory.upload_requirements}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">
+                        Description / History
+                      </label>
+                      <textarea 
+                        required
+                        rows={4}
+                        placeholder="Share the significance or history of this item..."
+                        value={formData.description}
+                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                        className="w-full px-6 py-4 bg-heritage-cream/30 border-2 border-transparent focus:border-heritage-terracotta/20 rounded-2xl outline-none transition-all font-medium text-heritage-brown resize-none"
+                      />
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className={`p-8 border-2 border-dashed rounded-3xl bg-heritage-cream/10 text-center group transition-all ${
+                        previewUrl ? 'border-heritage-olive/30' : 'border-heritage-brown/10 hover:border-heritage-terracotta/30'
+                      }`}>
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          id="file-upload" 
+                          accept="image/*" 
+                          onChange={handleFileChange}
+                        />
+                        <label htmlFor="file-upload" className="cursor-pointer block">
+                          {uploadingFile ? (
+                            <div className="py-8">
+                              <Loader2 className="w-8 h-8 text-heritage-terracotta animate-spin mx-auto mb-2" />
+                              <p className="text-xs font-bold text-heritage-brown/50 uppercase tracking-widest">Uploading to Cloud...</p>
+                            </div>
+                          ) : previewUrl ? (
+                            <div className="relative group">
+                              <img src={previewUrl} className="max-h-64 mx-auto rounded-xl shadow-lg border-4 border-white" alt="Preview" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-xl transition-opacity">
+                                <Upload className="text-white w-8 h-8" />
+                              </div>
+                              <p className="mt-4 text-xs font-bold text-heritage-olive uppercase tracking-widest">Image ready for submission</p>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:scale-110 transition-transform">
+                                <Upload className="w-8 h-8 text-heritage-terracotta" />
+                              </div>
+                              <p className="text-heritage-brown font-bold mb-1">Select Local Photo</p>
+                              <p className="text-xs text-heritage-brown/40 font-medium">JPEG, PNG up to 10MB</p>
+                            </>
+                          )}
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-6">
+                      <p className="text-[10px] text-heritage-brown/40 max-w-sm leading-relaxed font-medium">
+                        By submitting, you agree to allow the Bakenyi Heritage Committee & Elder Council to review, verify and publish this ancestry data.
+                      </p>
+                      <button 
+                        disabled={loading || submitted || uploadingFile}
+                        type="submit"
+                        className={`btn-primary flex items-center space-x-3 px-12 py-4 transition-all cursor-pointer ${
+                          submitted ? 'bg-heritage-olive ring-4 ring-heritage-olive/20' : ''
+                        }`}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : submitted ? (
+                          <>
+                            <Check className="w-5 h-5" />
+                            <span>{isAdmin ? 'Published!' : 'Submitted!'}</span>
+                          </>
                         ) : (
                           <>
-                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:scale-110 transition-transform">
-                              <Upload className="w-8 h-8 text-heritage-terracotta" />
-                            </div>
-                            <p className="text-heritage-brown font-bold mb-1">Select Local Photo</p>
-                            <p className="text-xs text-heritage-brown/40 font-medium">JPEG, PNG up to 10MB</p>
+                            <span>{isAdmin ? 'Publish Instantly' : 'Submit to Elder Council'}</span>
+                            <ArrowRight className="w-5 h-5" />
                           </>
                         )}
-                      </label>
+                      </button>
                     </div>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between pt-6">
-                  <p className="text-[10px] text-heritage-brown/40 max-w-sm leading-relaxed font-medium">
-                    By submitting, you agree to allow the Bakenyi Heritage Committee & Elder Council to review, verify and publish this ancestry data.
-                  </p>
-                  <button 
-                    disabled={loading || submitted || uploadingFile || (contributionTab === 'audio' && !recordedAudioBlob)}
-                    type="submit"
-                    className={`btn-primary flex items-center space-x-3 px-12 py-4 transition-all cursor-pointer ${
-                      submitted ? 'bg-heritage-olive ring-4 ring-heritage-olive/20' : ''
-                    }`}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Uploading...</span>
-                      </>
-                    ) : submitted ? (
-                      <>
-                        <Check className="w-5 h-5" />
-                        <span>{isAdmin ? 'Published!' : 'Submitted!'}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>{isAdmin ? 'Publish Instantly' : 'Submit to Elder Council'}</span>
-                        <ArrowRight className="w-5 h-5" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
+                  </form>
+                </>
+              )}
             </div>
           )}
         </div>
