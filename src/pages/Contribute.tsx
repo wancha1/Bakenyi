@@ -224,6 +224,12 @@ export default function Contribute() {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
+    
+    if (isSignUp && authPassword.length < 8) {
+      setAuthError('Password must be at least 8 characters.');
+      return;
+    }
+
     setLoading(true);
     setAuthError(null);
 

@@ -575,40 +575,75 @@ export default function Home() {
         </div>
       </section>
 
-      {/* QUICK STATS STRIP BELOW HERO */}
-      <section className="bg-stone-950 border-t border-b border-stone-800 relative z-20 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-6 text-center">
-            {[
-              { label: 'Stories Preserved', value: counterStats.stories, icon: BookOpen },
-              { label: 'Ancient Clans', value: counterStats.clans, icon: Shield },
-              { label: 'Elders Vouched', value: counterStats.leaders, icon: Users },
-              { label: 'Historical Photos', value: counterStats.photos, icon: ImageIcon },
-              { label: 'Authentic Videos', value: counterStats.videos, icon: Video },
-              { label: 'Vocabulary Logs', value: counterStats.vocabulary, icon: Volume2 },
-              { label: 'Active Custodians', value: counterStats.contributors, icon: Globe },
-            ].map((stat, idx) => (
-              <motion.div 
-                key={idx}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.08 }}
-                className="p-3 bg-stone-900/50 border border-stone-800/60 rounded-2xl text-white hover:border-amber-500/40 transition-colors"
-              >
-                <div className="flex items-center justify-center gap-2 mb-1.5">
-                  <stat.icon className="w-4 h-4 text-amber-500 shrink-0" />
-                  <span className="text-xl sm:text-2xl font-serif font-black text-amber-400">
-                    {stat.value}
-                  </span>
-                </div>
-                <p className="text-[10px] text-stone-400 font-medium uppercase tracking-wider">
-                  {stat.label}
-                </p>
-              </motion.div>
-            ))}
+      {/* 2. HERITAGE STATUS STORIES SECTION */}
+      {statuses.length > 0 && (
+        <section className="bg-white dark:bg-stone-900 py-10 border-b border-stone-100 dark:border-stone-800 relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6 text-left">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400 block mb-1">
+                  Living Chronicles
+                </span>
+                <h3 className="font-serif font-black text-xl text-stone-900 dark:text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-500" /> Live Cultural Status Stories
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono text-stone-400">
+                Click bubble to enter the full-screen storyteller stream
+              </span>
+            </div>
+
+            <div className="flex items-center gap-6 overflow-x-auto pb-4 pt-1 scrollbar-none">
+              {statuses.map((status) => {
+                const hasMedia = status.media_items && status.media_items.length > 0;
+                const previewImage = hasMedia 
+                  ? status.media_items[0].url 
+                  : 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=150';
+
+                return (
+                  <button 
+                    key={status.id}
+                    onClick={() => handleOpenStatus(status)}
+                    className="flex flex-col items-center shrink-0 space-y-2 focus:outline-none group relative cursor-pointer"
+                  >
+                    {/* Ring Container representing the story ring */}
+                    <div className="relative p-1 rounded-full bg-gradient-to-tr from-amber-500 via-orange-500 to-yellow-400 group-hover:scale-105 transition-transform duration-300 shadow-lg">
+                      <div className="p-0.5 bg-white dark:bg-stone-900 rounded-full">
+                        <img 
+                          src={previewImage} 
+                          alt="curator avatar" 
+                          className="w-16 h-16 rounded-full object-cover filter brightness-95"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      
+                      {/* Media Icon Badge */}
+                      <span className="absolute bottom-0.5 right-0.5 w-6 h-6 bg-stone-950 text-white rounded-full flex items-center justify-center border-2 border-white dark:border-stone-900 shadow-md">
+                        {status.media_items?.[0]?.type === 'audio' ? (
+                          <Volume2 className="w-2.5 h-2.5 text-amber-400" />
+                        ) : status.media_items?.[0]?.type === 'video' ? (
+                          <Video className="w-2.5 h-2.5 text-amber-400" />
+                        ) : (
+                          <ImageIcon className="w-2.5 h-2.5 text-amber-400" />
+                        )}
+                      </span>
+                    </div>
+                    
+                    <div className="text-center">
+                      <span className="block text-[11px] font-bold text-stone-800 dark:text-stone-200 max-w-[85px] truncate">
+                        {status.text || 'Cultural Story'}
+                      </span>
+                      <span className="block text-[8px] text-stone-400 font-mono mt-0.5">
+                        {status.view_count || 0} views • {status.reactions ? (Object.values(status.reactions) as number[]).reduce((a: number, b: number) => a + b, 0) : 0} reacts
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* TODAY IN BAKENYI HERITAGE SECTION */}
       <section className="py-20 bg-[#faf8f5] dark:bg-stone-950 border-b border-stone-200/50 dark:border-stone-800/80 relative text-left">
@@ -780,75 +815,40 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 2. HERITAGE STATUS STORIES SECTION */}
-      {statuses.length > 0 && (
-        <section className="bg-white dark:bg-stone-900 py-10 border-b border-stone-100 dark:border-stone-800 relative">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6 text-left">
-              <div>
-                <span className="text-[9px] font-black uppercase tracking-[0.25em] text-amber-600 dark:text-amber-400 block mb-1">
-                  Living Chronicles
-                </span>
-                <h3 className="font-serif font-black text-xl text-stone-900 dark:text-white flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-500" /> Live Cultural Status Stories
-                </h3>
-              </div>
-              <span className="text-[10px] font-mono text-stone-400">
-                Click bubble to enter the full-screen storyteller stream
-              </span>
-            </div>
-
-            <div className="flex items-center gap-6 overflow-x-auto pb-4 pt-1 scrollbar-none">
-              {statuses.map((status) => {
-                const hasMedia = status.media_items && status.media_items.length > 0;
-                const previewImage = hasMedia 
-                  ? status.media_items[0].url 
-                  : 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=150';
-
-                return (
-                  <button 
-                    key={status.id}
-                    onClick={() => handleOpenStatus(status)}
-                    className="flex flex-col items-center shrink-0 space-y-2 focus:outline-none group relative cursor-pointer"
-                  >
-                    {/* Ring Container representing the story ring */}
-                    <div className="relative p-1 rounded-full bg-gradient-to-tr from-amber-500 via-orange-500 to-yellow-400 group-hover:scale-105 transition-transform duration-300 shadow-lg">
-                      <div className="p-0.5 bg-white dark:bg-stone-900 rounded-full">
-                        <img 
-                          src={previewImage} 
-                          alt="curator avatar" 
-                          className="w-16 h-16 rounded-full object-cover filter brightness-95"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                      
-                      {/* Media Icon Badge */}
-                      <span className="absolute bottom-0.5 right-0.5 w-6 h-6 bg-stone-950 text-white rounded-full flex items-center justify-center border-2 border-white dark:border-stone-900 shadow-md">
-                        {status.media_items?.[0]?.type === 'audio' ? (
-                          <Volume2 className="w-2.5 h-2.5 text-amber-400" />
-                        ) : status.media_items?.[0]?.type === 'video' ? (
-                          <Video className="w-2.5 h-2.5 text-amber-400" />
-                        ) : (
-                          <ImageIcon className="w-2.5 h-2.5 text-amber-400" />
-                        )}
-                      </span>
-                    </div>
-                    
-                    <div className="text-center">
-                      <span className="block text-[11px] font-bold text-stone-800 dark:text-stone-200 max-w-[85px] truncate">
-                        {status.text || 'Cultural Story'}
-                      </span>
-                      <span className="block text-[8px] text-stone-400 font-mono mt-0.5">
-                        {status.view_count || 0} views • {status.reactions ? (Object.values(status.reactions) as number[]).reduce((a: number, b: number) => a + b, 0) : 0} reacts
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+      {/* QUICK STATS STRIP */}
+      <section className="bg-stone-950 border-t border-b border-stone-800 relative z-20 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-6 text-center">
+            {[
+              { label: 'Stories Preserved', value: counterStats.stories, icon: BookOpen },
+              { label: 'Ancient Clans', value: counterStats.clans, icon: Shield },
+              { label: 'Elders Vouched', value: counterStats.leaders, icon: Users },
+              { label: 'Historical Photos', value: counterStats.photos, icon: ImageIcon },
+              { label: 'Authentic Videos', value: counterStats.videos, icon: Video },
+              { label: 'Vocabulary Logs', value: counterStats.vocabulary, icon: Volume2 },
+              { label: 'Active Custodians', value: counterStats.contributors, icon: Globe },
+            ].map((stat, idx) => (
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.08 }}
+                className="p-3 bg-stone-900/50 border border-stone-800/60 rounded-2xl text-white hover:border-amber-500/40 transition-colors"
+              >
+                <div className="flex items-center justify-center gap-2 mb-1.5">
+                  <stat.icon className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-xl sm:text-2xl font-serif font-black text-amber-400">
+                    {stat.value}
+                  </span>
+                </div>
+                <p className="text-[10px] text-stone-400 font-medium uppercase tracking-wider">
+                  {stat.label}
+                </p>
+              </motion.div>
+            ))}
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       {/* 3. PINNED ANNOUNCEMENT */}
       {pinnedAnnouncement && (
