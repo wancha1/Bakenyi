@@ -815,41 +815,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* QUICK STATS STRIP */}
-      <section className="bg-stone-950 border-t border-b border-stone-800 relative z-20 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-6 text-center">
-            {[
-              { label: 'Stories Preserved', value: counterStats.stories, icon: BookOpen },
-              { label: 'Ancient Clans', value: counterStats.clans, icon: Shield },
-              { label: 'Elders Vouched', value: counterStats.leaders, icon: Users },
-              { label: 'Historical Photos', value: counterStats.photos, icon: ImageIcon },
-              { label: 'Authentic Videos', value: counterStats.videos, icon: Video },
-              { label: 'Vocabulary Logs', value: counterStats.vocabulary, icon: Volume2 },
-              { label: 'Active Custodians', value: counterStats.contributors, icon: Globe },
-            ].map((stat, idx) => (
-              <motion.div 
-                key={idx}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.08 }}
-                className="p-3 bg-stone-900/50 border border-stone-800/60 rounded-2xl text-white hover:border-amber-500/40 transition-colors"
-              >
-                <div className="flex items-center justify-center gap-2 mb-1.5">
-                  <stat.icon className="w-4 h-4 text-amber-500 shrink-0" />
-                  <span className="text-xl sm:text-2xl font-serif font-black text-amber-400">
-                    {stat.value}
-                  </span>
-                </div>
-                <p className="text-[10px] text-stone-400 font-medium uppercase tracking-wider">
-                  {stat.label}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* 3. PINNED ANNOUNCEMENT */}
       {pinnedAnnouncement && (
         <section className="bg-amber-500/5 dark:bg-amber-500/2.5 py-8 border-b border-stone-200 dark:border-stone-800/80 relative">
