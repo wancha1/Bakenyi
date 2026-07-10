@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Mail, Linkedin, User, ShieldCheck, Award, Users, Search } from 'lucide-react';
 import { getLeaders, Leader } from '../lib/supabase';
+import SEO from '../components/SEO';
 
 export default function Leadership() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,6 +51,11 @@ export default function Leadership() {
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
+      <SEO 
+        title="Community Custodians & Elder Council"
+        description="Meet the honourable Elders, spiritual guardians, and story keepers of the Bakenye community preserving our cultural laws and knowledge."
+        keywords="Elders, leadership, chief historians, community guardians, Bakenye council"
+      />
       {/* Page Header */}
       <section className="bg-heritage-brown py-20 px-4 relative overflow-hidden">
         <div className="absolute inset-0 cultural-pattern opacity-10" />

@@ -16,6 +16,7 @@ import {
 import { Status, News, Announcement, Event } from '../types/heritage';
 import { dailySpotlights, getIcon as getDailyIcon, SpotlightItem } from '../data/dailyHeritage';
 import { journeySteps, getJourneyIcon } from '../data/heritageJourney';
+import SEO from '../components/SEO';
 
 const containerAnimation = {
   hidden: { opacity: 0 },
@@ -405,6 +406,11 @@ export default function Home() {
 
   return (
     <div className="relative overflow-hidden bg-[#faf8f5] dark:bg-stone-950 text-stone-900 dark:text-stone-100 min-h-screen font-sans">
+      <SEO 
+        title="Bakenye Cultural Heritage Hub"
+        description="Preserving the rich riverine traditions, clans, totems, language (Lukenye), and oral history archives of the Bakenye people of Lake Kyoga, Uganda."
+        keywords="Home, Bakenye culture, Lake Kyoga, Lukenye dialect, oral history preservation, African clans, indigenous river dwellers"
+      />
       
       {/* 1. HERO SECTION */}
       <section className="relative min-h-[92vh] flex items-center justify-center overflow-hidden bg-stone-950">

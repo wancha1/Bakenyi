@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { Target, Heart, Shield, Users, BookOpen, Globe, Volume2, Video, Image as ImageIcon } from 'lucide-react';
 import { getArticles, getContributions, getClans, getLeaders, getVocabulary, getGalleryImages } from '../lib/supabase';
+import SEO from '../components/SEO';
 
 export default function About() {
   const [counterStats, setCounterStats] = useState({
@@ -81,6 +82,11 @@ export default function About() {
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
+      <SEO 
+        title="About the Heritage Project"
+        description="Learn about the Bakenye Cultural Heritage preservation initiative, our mission to document oral tradition, and our core community values."
+        keywords="About Bakenye, cultural preservation project, digital archives, Bantu history, community outreach"
+      />
       {/* Page Header */}
       <section className="bg-heritage-brown py-20 px-4 relative overflow-hidden">
         <div className="absolute inset-0 cultural-pattern opacity-10" />

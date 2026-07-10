@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Search, Maximize2, Tag, Facebook, Twitter, Download, Loader2, Plus, Upload, Check } from 'lucide-react';
 import { getSupabase, checkIsAdmin } from '../lib/supabaseClient';
 import { getGalleryImages, addGalleryImage, uploadMedia, GalleryImage } from '../lib/supabase';
+import SEO from '../components/SEO';
 
 const categories = ["All", "Landscape", "Tradition", "Craft", "History"];
 
@@ -20,6 +21,18 @@ export default function Gallery() {
   const [uploadCategory, setUploadCategory] = useState('Landscape');
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ url: string; title: string; desc: string }>>([]);
   const [submittingImage, setSubmittingImage] = useState(false);
+
+  // Toast states
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4500);
+  };
 
   useEffect(() => {
     // Auth Check
@@ -127,11 +140,12 @@ export default function Gallery() {
       const errors = results.filter(r => r.error);
       
       if (errors.length > 0) {
-        alert(`Some uploads failed. Successfully submitted ${promises.length - errors.length} of ${promises.length} files.`);
+        showToast(`Some uploads failed. Successfully submitted ${promises.length - errors.length} of ${promises.length} files.`, "error");
       } else {
-        alert(isAdmin 
+        showToast(isAdmin 
           ? `Successfully published ${uploadedFiles.length} asset(s) to the public gallery in bulk!` 
-          : `Successfully submitted ${uploadedFiles.length} asset(s) to the moderation queue in bulk!`
+          : `Successfully submitted ${uploadedFiles.length} asset(s) to the moderation queue in bulk!`,
+          "success"
         );
       }
       
@@ -139,7 +153,7 @@ export default function Gallery() {
       setUploadedFiles([]);
       await loadGallery();
     } catch (err: any) {
-      alert(err.message || "Failed to submit images.");
+      showToast(err.message || "Failed to submit images.", "error");
     } finally {
       setSubmittingImage(false);
     }
@@ -162,6 +176,11 @@ export default function Gallery() {
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
+      <SEO 
+        title="Digital Artifacts Gallery"
+        description="Browse our dynamic digital archive of high-resolution images, landscapes, historical crafts, and monuments representing Bakenye traditional life."
+        keywords="Gallery, cultural monuments, historical photographs, lake vistas, traditional fishing craft"
+      />
       {/* Header */}
       <section className="bg-heritage-olive py-16 px-4">
         <div className="max-w-7xl mx-auto text-center">
@@ -449,6 +468,29 @@ export default function Gallery() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Toast Notifications */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 20, x: "-50%" }}
+            className={`fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold border ${
+              toastType === 'success' 
+                ? 'bg-stone-900 text-white border-stone-800 dark:bg-white dark:text-stone-950 dark:border-stone-100' 
+                : 'bg-red-600 text-white border-red-500'
+            }`}
+          >
+            {toastType === 'success' ? (
+              <Check className="w-4.5 h-4.5 text-emerald-500 shrink-0" />
+            ) : (
+              <X className="w-4.5 h-4.5 text-white shrink-0" />
+            )}
+            <span>{toastMessage}</span>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

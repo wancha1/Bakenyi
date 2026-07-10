@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Article } from '../types/article';
 import { getArticles, getArticleById } from '../lib/supabase';
+import SEO from '../components/SEO';
 
 export default function Articles() {
   const { id } = useParams<{ id: string }>();
@@ -214,6 +215,13 @@ export default function Articles() {
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream relative">
+      <SEO 
+        title={activeArticle ? activeArticle.title : "Cultural Articles & Announcements"}
+        description={activeArticle ? (activeArticle.summary || activeArticle.content?.slice(0, 160)) : "Explore official Elder declarations, historical chronicles, ancestral lore, and news memoirs concerning Bakenye regional communities."}
+        keywords={activeArticle ? `Bakenye history, ${activeArticle.category}, ${activeArticle.title}` : "Articles, announcements, historical memoirs, cultural lore"}
+        ogImage={activeArticle?.image_url || undefined}
+        ogType={activeArticle ? "article" : "website"}
+      />
       <div className="absolute inset-0 cultural-pattern opacity-5 pointer-events-none" />
       
       {/* Detail View Wrapper */}

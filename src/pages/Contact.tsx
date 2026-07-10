@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Phone, MapPin, Send, MessageSquare, Loader2, CheckCircle2 } from 'lucide-react';
 import { createContactMessage } from '../lib/supabase';
+import SEO from '../components/SEO';
 
 export default function Contact() {
   const [formState, setFormState] = useState({
@@ -44,6 +45,11 @@ export default function Contact() {
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
+      <SEO 
+        title="Contact & Support"
+        description="Connect with the Bakenye Cultural Heritage organization, submit feedback, or ask questions about our preservation initiatives."
+        keywords="Contact, support, inquiries, email, Bakenye association"
+      />
       {/* Page Header */}
       <section className="bg-heritage-brown py-20 px-4">
         <div className="max-w-7xl mx-auto text-center">

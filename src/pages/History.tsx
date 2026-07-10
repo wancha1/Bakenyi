@@ -24,6 +24,7 @@ import {
   Languages
 } from 'lucide-react';
 import { getSupabase } from '../lib/supabaseClient';
+import SEO from '../components/SEO';
 
 interface AudioTrack {
   id: string;
@@ -305,6 +306,11 @@ export default function History() {
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
+      <SEO 
+        title="Oral History & Timeline Chronicles"
+        description="Listen to direct recordings from community Elders and explore the chronological timeline of the migrations and settlements of Bakenye lake-dwelling societies."
+        keywords="Oral history, timeline, Bakenye migrations, Lake Kyoga archives, audio stories, elder testimony"
+      />
       {/* Hero Header */}
       <section className="bg-heritage-olive py-20 px-4 relative overflow-hidden">
         <div className="absolute inset-0 cultural-pattern opacity-10" />

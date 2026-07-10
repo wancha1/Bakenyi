@@ -4,6 +4,7 @@ import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2
 import { getSupabase, checkIsAdmin } from '../lib/supabaseClient';
 import { getContributions, createContribution, uploadMedia, Contribution, getStoryCategories, StoryCategory } from '../lib/supabase';
 import OralHistoryRecorder from '../components/OralHistoryRecorder';
+import SEO from '../components/SEO';
 
 const steps = [
   {
@@ -360,6 +361,11 @@ export default function Contribute() {
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
+      <SEO 
+        title="Join the Preservation Efforts"
+        description="Contribute oral history recordings, ancestral photographs, or vocabulary translations to help safeguard the Bakenye cultural heritage."
+        keywords="Contribute, upload archives, oral history recording, submit artifacts"
+      />
       {/* Page Header */}
       <section className="bg-heritage-brown py-20 px-4 relative overflow-hidden">
         <div className="absolute inset-0 cultural-pattern opacity-10" />

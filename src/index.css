@@ -57,7 +57,7 @@
 
 .heritage-card {
   background-color: var(--bg-white-override);
-  @apply border border-heritage-brown/10 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  @apply border border-heritage-brown/10 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-heritage-terracotta/20;
 }
 
 .nav-link {
@@ -65,9 +65,65 @@
 }
 
 .btn-primary {
-  @apply bg-heritage-terracotta text-white px-6 py-2.5 rounded-full font-medium transition-all hover:bg-heritage-brown active:scale-95 text-sm uppercase tracking-widest;
+  @apply bg-heritage-terracotta text-white px-6 py-3 rounded-2xl font-bold transition-all hover:bg-heritage-brown hover:shadow-lg hover:shadow-heritage-terracotta/10 active:scale-95 text-xs uppercase tracking-widest;
 }
 
 .btn-secondary {
-  @apply border-2 border-heritage-brown text-heritage-brown px-6 py-2.5 rounded-full font-medium transition-all hover:bg-heritage-brown hover:text-white active:scale-95 text-sm uppercase tracking-widest;
+  @apply border-2 border-heritage-brown text-heritage-brown px-6 py-3 rounded-2xl font-bold transition-all hover:bg-heritage-brown hover:text-white active:scale-95 text-xs uppercase tracking-widest;
 }
+
+/* Premium custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(86, 61, 45, 0.15);
+  border-radius: 9999px;
+  transition: background 0.3s ease;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(246, 230, 218, 0.15);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(86, 61, 45, 0.3);
+}
+
+/* Custom interactive selections */
+::selection {
+  background-color: rgba(188, 108, 37, 0.2);
+  color: inherit;
+}
+
+/* Smooth ambient text shadow */
+.text-shadow-premium {
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* Glassmorphism details */
+.glass-panel {
+  background: rgba(253, 251, 247, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(86, 61, 45, 0.08);
+}
+
+.dark .glass-panel {
+  background: rgba(18, 18, 18, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(246, 230, 218, 0.08);
+}
+
+/* Fluid responsive padding helper */
+.section-padding {
+  @apply py-16 sm:py-24 md:py-28;
+}
+

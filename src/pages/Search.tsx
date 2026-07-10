@@ -17,6 +17,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { getSupabase } from '../lib/supabaseClient';
+import SEO from '../components/SEO';
 
 export interface SearchItem {
   id: string;
@@ -378,6 +379,11 @@ export default function SearchPage() {
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream text-heritage-ink transition-colors duration-300">
+      <SEO 
+        title={searchTerm ? `Search Results for "${searchTerm}"` : "Site-Wide Search"}
+        description={searchTerm ? `Browse interactive search results matching "${searchTerm}" inside the Bakenye Cultural archives.` : "Explore the comprehensive Bakenye Cultural Heritage search engine to query clans, oral logs, timeline events, and historical papers."}
+        keywords="Search, search directory, explore Bakenye, cultural query portal"
+      />
       {/* Decorative top strip */}
       <div className="h-2 bg-gradient-to-r from-heritage-olive via-heritage-sand to-heritage-terracotta" />
 

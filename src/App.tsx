@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { ThemeProvider } from './context/ThemeContext';
 import { getSupabaseConfig, getSupabase, checkIsAdmin } from './lib/supabaseClient';
 
@@ -454,48 +455,50 @@ export default function App() {
   };
 
   return (
-    <ThemeProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Storefront Routes */}
-          <Route element={<StorefrontLayout user={user} userRole={appUserRole} />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/clans" element={<Clans />} />
-            <Route path="/leadership" element={<Leadership />} />
-            <Route path="/gallery" element={<Gallery />} />
-            <Route path="/language" element={<Language />} />
-            <Route path="/articles" element={<Articles />} />
-            <Route path="/contribute" element={<Contribute />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/search" element={<Search />} />
-          </Route>
+    <HelmetProvider>
+      <ThemeProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Storefront Routes */}
+            <Route element={<StorefrontLayout user={user} userRole={appUserRole} />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/history" element={<History />} />
+              <Route path="/clans" element={<Clans />} />
+              <Route path="/leadership" element={<Leadership />} />
+              <Route path="/gallery" element={<Gallery />} />
+              <Route path="/language" element={<Language />} />
+              <Route path="/articles" element={<Articles />} />
+              <Route path="/contribute" element={<Contribute />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/search" element={<Search />} />
+            </Route>
 
-          {/* Public Login Route (redirects if already logged in) */}
-          <Route 
-            path="/login" 
-            element={
-              <PublicLoginRoute user={user} isAuthLoading={isAuthLoading}>
-                <Login onLoginSuccess={handleLoginSuccess} />
-              </PublicLoginRoute>
-            } 
-          />
+            {/* Public Login Route (redirects if already logged in) */}
+            <Route 
+              path="/login" 
+              element={
+                <PublicLoginRoute user={user} isAuthLoading={isAuthLoading}>
+                  <Login onLoginSuccess={handleLoginSuccess} />
+                </PublicLoginRoute>
+              } 
+            />
 
-          {/* Protected Admin Routes */}
-          <Route 
-            path="/admin" 
-            element={
-              <ProtectedAdminRoute user={user} isAuthLoading={isAuthLoading}>
-                <DashboardApp user={user} onLogout={handleLogout} />
-              </ProtectedAdminRoute>
-            } 
-          />
+            {/* Protected Admin Routes */}
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedAdminRoute user={user} isAuthLoading={isAuthLoading}>
+                  <DashboardApp user={user} onLogout={handleLogout} />
+                </ProtectedAdminRoute>
+              } 
+            />
 
-          {/* Catch-all Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </ThemeProvider>
+            {/* Catch-all Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </ThemeProvider>
+    </HelmetProvider>
   );
 }

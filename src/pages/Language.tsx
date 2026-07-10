@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Volume2, Book, MessageSquare, Headphones, Pause, Play, Music, AlertCircle, Plus, Check, X, ShieldAlert, FileAudio, Loader2 } from 'lucide-react';
 import { getSupabase, checkIsAdmin } from '../lib/supabaseClient';
 import { getVocabulary, createVocabulary, updateVocabularyStatus, Vocabulary } from '../lib/supabase';
+import SEO from '../components/SEO';
 
 export default function Language() {
   const [playingId, setPlayingId] = useState<any | null>(null);
@@ -10,6 +11,18 @@ export default function Language() {
   const [phrases, setPhrases] = useState<Vocabulary[]>([]);
   const [counts, setCounts] = useState<Vocabulary[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Toast states
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4500);
+  };
 
   // Authentication & Roles
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -117,9 +130,9 @@ export default function Language() {
 
       if (error) throw error;
       if (isAdmin) {
-        alert("Phrase successfully added to the public glossary!");
+        showToast("Phrase successfully added to the public glossary!", "success");
       } else {
-        alert("Phrase successfully submitted for verification! Thank you for preserving Lukenye.");
+        showToast("Phrase successfully submitted for verification! Thank you for preserving Lukenye.", "success");
       }
       setShowRecordModal(false);
       setNewPhrase({
@@ -132,7 +145,7 @@ export default function Language() {
       });
       fetchVocabularyList();
     } catch (err: any) {
-      alert(err.message || "Failed to submit phrase.");
+      showToast(err.message || "Failed to submit phrase.", "error");
     } finally {
       setSubmittingPhrase(false);
     }
@@ -165,6 +178,11 @@ export default function Language() {
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
+      <SEO 
+        title="Learn Lukenye Language"
+        description="Learn the native tongue of the Bakenye people with our interactive vocabulary lists, common phrases, audio pronunciation guides, and linguistic dialects."
+        keywords="Lukenye dictionary, learn Lukenye, Bantu language, audio vocabulary, voice guides, Bakenye linguistics"
+      />
       {/* Hidden Audio Element */}
       <audio 
         ref={audioRef} 
@@ -497,7 +515,7 @@ export default function Language() {
                     <button 
                       type="button" 
                       className="p-3 rounded-full bg-heritage-terracotta text-white flex items-center justify-center shadow-md shadow-heritage-terracotta/20 hover:scale-105 transition-transform"
-                      onClick={() => alert("Simulating high-fidelity micro-recording...")}
+                      onClick={() => showToast("Simulating high-fidelity micro-recording...", "success")}
                     >
                       <Volume2 className="w-5 h-5" />
                     </button>
@@ -606,6 +624,29 @@ export default function Language() {
                 </span>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Toast Notifications */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 20, x: "-50%" }}
+            className={`fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold border ${
+              toastType === 'success' 
+                ? 'bg-stone-900 text-white border-stone-800 dark:bg-white dark:text-stone-950 dark:border-stone-100' 
+                : 'bg-red-600 text-white border-red-500'
+            }`}
+          >
+            {toastType === 'success' ? (
+              <Check className="w-4.5 h-4.5 text-emerald-500 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4.5 h-4.5 text-white shrink-0" />
+            )}
+            <span>{toastMessage}</span>
           </motion.div>
         )}
       </AnimatePresence>

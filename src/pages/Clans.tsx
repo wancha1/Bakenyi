@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Shield, Info, Filter, Sparkles, User, Calendar, BookOpen, MapPin } from 'lucide-react';
 import { getClans, Clan } from '../lib/supabase';
+import SEO from '../components/SEO';
 
 export default function Clans() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,6 +50,11 @@ export default function Clans() {
 
   return (
     <div className="pt-24 min-h-screen bg-heritage-cream">
+      <SEO 
+        title="Clans & Totems Directory"
+        description="Discover the sacred clans, respective totems, regional lineages, and traditional navigators of the Bakenye community."
+        keywords="Clans, totems, crest crane, navigation lineages, Bakenye ancestral trees"
+      />
       {/* Search Header */}
       <section className="bg-heritage-brown py-16 px-4">
         <div className="max-w-7xl mx-auto">
