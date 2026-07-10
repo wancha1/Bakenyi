@@ -9,6 +9,7 @@ import { getSupabaseConfig, getSupabase, checkIsAdmin } from './lib/supabaseClie
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import AppInstallPrompt from './components/AppInstallPrompt';
+import ScrollToTop from './components/ScrollToTop';
 
 // Admin Components
 import Login from './components/admin/Login';
@@ -460,6 +461,7 @@ export default function App() {
     <HelmetProvider>
       <ThemeProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
             {/* Public Storefront Routes */}
             <Route element={<StorefrontLayout user={user} userRole={appUserRole} />}>

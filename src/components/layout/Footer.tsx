@@ -87,12 +87,12 @@ export default function Footer() {
           <div className="absolute inset-0 cultural-pattern opacity-5 pointer-events-none" />
           <div className="relative z-10 flex items-center space-x-4">
             <div className="p-3 bg-heritage-terracotta text-white rounded-xl shrink-0">
-              <Smartphone className="w-6 h-6" />
+              <Smartphone className="w-6 h-6 animate-pulse" />
             </div>
             <div className="text-left">
-              <h5 className="font-serif font-bold text-base text-white">Bakenyi Digital Archive App</h5>
+              <h5 className="font-serif font-bold text-base text-white">Bakenyi System Compatibility & Installer</h5>
               <p className="text-xs text-heritage-cream/70 max-w-xl mt-1 leading-relaxed">
-                Install our PWA on your mobile home screen or desktop taskbar to access offline-ready dictionaries, clan lineage directories, and elder archives smoothly.
+                Our platform automatically profiles your device's architecture and installs an optimized, offline-ready cultural archive package on your home screen or dock.
               </p>
             </div>
           </div>
@@ -101,7 +101,7 @@ export default function Footer() {
             className="relative z-10 w-full md:w-auto px-6 py-2.5 bg-heritage-terracotta hover:bg-heritage-terracotta/90 text-white font-semibold text-xs rounded-xl transition-all flex items-center justify-center space-x-2 shadow-md hover:shadow-lg hover:-translate-y-0.5 cursor-pointer shrink-0"
           >
             <Download className="w-4 h-4" />
-            <span>Install Web App</span>
+            <span>Analyze & Install</span>
           </button>
         </div>
 
