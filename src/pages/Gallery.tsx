@@ -17,10 +17,8 @@ export default function Gallery() {
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [uploadTitle, setUploadTitle] = useState('');
-  const [uploadDesc, setUploadDesc] = useState('');
   const [uploadCategory, setUploadCategory] = useState('Landscape');
-  const [uploadFile, setUploadFile] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ url: string; title: string; desc: string }>>([]);
   const [submittingImage, setSubmittingImage] = useState(false);
 
   useEffect(() => {
@@ -60,48 +58,88 @@ export default function Gallery() {
   }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSubmittingImage(true);
+    const selectedFiles = e.target.files ? Array.from(e.target.files) as File[] : [];
+    if (selectedFiles.length === 0) return;
+
+    setSubmittingImage(true);
+    const newUploads = [...uploadedFiles];
+    
+    for (const file of selectedFiles) {
       try {
         const { url, error } = await uploadMedia(file, 'images');
         if (error) throw error;
-        setUploadFile(url);
+        
+        const cleanTitle = file.name
+          .replace(/\.[^/.]+$/, "")
+          .split(/[-_]+/)
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
+
+        newUploads.push({
+          url,
+          title: cleanTitle,
+          desc: ''
+        });
       } catch (err: any) {
-        alert(err.message || "Failed to upload file. Using local fallback.");
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setUploadFile(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      } finally {
-        setSubmittingImage(false);
+        console.error("Upload error:", err);
+        const cleanTitle = file.name
+          .replace(/\.[^/.]+$/, "")
+          .split(/[-_]+/)
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
+
+        await new Promise<void>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            newUploads.push({
+              url: reader.result as string,
+              title: cleanTitle,
+              desc: ''
+            });
+            resolve();
+          };
+          reader.readAsDataURL(file);
+        });
       }
     }
+    
+    setUploadedFiles(newUploads);
+    setSubmittingImage(false);
   };
 
   const handleAddImage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile || !uploadTitle) return;
+    if (uploadedFiles.length === 0) return;
 
     setSubmittingImage(true);
     try {
-      const { error } = await addGalleryImage(
-        uploadTitle,
-        uploadFile,
-        uploadDesc,
-        uploadCategory,
-        isAdmin ? 'approved' : 'pending'
+      const promises = uploadedFiles.map(file => 
+        addGalleryImage(
+          file.title || "Untitled Artifact",
+          file.url,
+          file.desc,
+          uploadCategory,
+          isAdmin ? 'approved' : 'pending'
+        )
       );
-      if (error) throw error;
+
+      const results = await Promise.all(promises);
+      const errors = results.filter(r => r.error);
+      
+      if (errors.length > 0) {
+        alert(`Some uploads failed. Successfully submitted ${promises.length - errors.length} of ${promises.length} files.`);
+      } else {
+        alert(isAdmin 
+          ? `Successfully published ${uploadedFiles.length} asset(s) to the public gallery in bulk!` 
+          : `Successfully submitted ${uploadedFiles.length} asset(s) to the moderation queue in bulk!`
+        );
+      }
       
       setShowUploadModal(false);
-      setUploadTitle('');
-      setUploadDesc('');
-      setUploadFile(null);
+      setUploadedFiles([]);
       await loadGallery();
     } catch (err: any) {
-      alert(err.message || "Failed to submit image.");
+      alert(err.message || "Failed to submit images.");
     } finally {
       setSubmittingImage(false);
     }
@@ -241,30 +279,18 @@ export default function Gallery() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[32px] p-8 max-w-lg w-full shadow-2xl relative text-left"
+              className="bg-white rounded-[32px] p-8 max-w-2xl w-full shadow-2xl relative text-left"
             >
               <button 
-                onClick={() => setShowUploadModal(false)}
+                onClick={() => { setShowUploadModal(false); setUploadedFiles([]); }}
                 className="absolute right-6 top-6 p-2 text-heritage-brown/40 hover:text-heritage-brown rounded-full cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <h2 className="text-2xl font-serif font-bold text-heritage-brown mb-6">Upload Gallery Asset</h2>
+              <h2 className="text-2xl font-serif font-bold text-heritage-brown mb-6">Bulk Upload Gallery Assets</h2>
 
               <form onSubmit={handleAddImage} className="space-y-5">
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Asset Title</label>
-                  <input
-                    required
-                    type="text"
-                    placeholder="e.g. Traditional Canoes"
-                    value={uploadTitle}
-                    onChange={(e) => setUploadTitle(e.target.value)}
-                    className="w-full px-5 py-3.5 bg-heritage-cream/20 border-2 border-transparent focus:border-heritage-olive/20 rounded-2xl outline-none font-medium text-heritage-brown"
-                  />
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Category</label>
@@ -281,11 +307,12 @@ export default function Gallery() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Select File</label>
+                    <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Select File(s)</label>
                     <div className="relative">
                       <input
                         type="file"
                         accept="image/*"
+                        multiple
                         onChange={handleFileSelect}
                         className="hidden"
                         id="modal-file-upload"
@@ -295,36 +322,62 @@ export default function Gallery() {
                         className="w-full px-5 py-3.5 bg-heritage-cream/40 border-2 border-dashed border-heritage-brown/15 hover:border-heritage-olive/45 rounded-2xl flex items-center justify-center gap-2 cursor-pointer font-bold text-xs text-heritage-brown transition-colors"
                       >
                         <Upload className="w-4 h-4 text-heritage-olive" />
-                        <span>{uploadFile ? 'Change Photo' : 'Choose Photo'}</span>
+                        <span>Add Photos</span>
                       </label>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Description</label>
-                  <textarea
-                    rows={3}
-                    placeholder="Provide cultural context or narrative..."
-                    value={uploadDesc}
-                    onChange={(e) => setUploadDesc(e.target.value)}
-                    className="w-full px-5 py-3.5 bg-heritage-cream/20 border-2 border-transparent focus:border-heritage-olive/20 rounded-2xl outline-none font-medium text-heritage-brown resize-none"
-                  />
-                </div>
-
-                {uploadFile && (
-                  <div className="aspect-video rounded-2xl overflow-hidden border border-heritage-brown/5">
-                    <img src={uploadFile} className="w-full h-full object-cover" alt="Selected Preview" />
+                {uploadedFiles.length > 0 && (
+                  <div className="space-y-4 max-h-72 overflow-y-auto pr-1 border-t border-b border-heritage-brown/5 py-4">
+                    <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1 block">Uploaded Assets ({uploadedFiles.length})</label>
+                    {uploadedFiles.map((file, idx) => (
+                      <div key={idx} className="flex gap-4 p-3 bg-heritage-cream/10 rounded-2xl border border-heritage-brown/5 relative items-start">
+                        <img src={file.url} className="w-16 h-16 object-cover rounded-xl border border-heritage-brown/5 shrink-0" alt="Preview" />
+                        <div className="flex-grow space-y-2">
+                          <input
+                            type="text"
+                            required
+                            value={file.title}
+                            onChange={(e) => {
+                              const copy = [...uploadedFiles];
+                              copy[idx].title = e.target.value;
+                              setUploadedFiles(copy);
+                            }}
+                            placeholder="Asset Title"
+                            className="w-full px-3 py-1.5 bg-white border border-heritage-brown/10 focus:border-heritage-olive/20 rounded-xl outline-none text-xs font-bold text-heritage-brown"
+                          />
+                          <input
+                            type="text"
+                            value={file.desc}
+                            onChange={(e) => {
+                              const copy = [...uploadedFiles];
+                              copy[idx].desc = e.target.value;
+                              setUploadedFiles(copy);
+                            }}
+                            placeholder="Asset Description (optional)"
+                            className="w-full px-3 py-1.5 bg-white border border-heritage-brown/10 focus:border-heritage-olive/20 rounded-xl outline-none text-xs font-medium text-heritage-brown/70"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setUploadedFiles(prev => prev.filter((_, i) => i !== idx))}
+                          className="p-1 hover:bg-rose-50 rounded-lg text-rose-500 cursor-pointer self-center"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
 
                 <button
-                  disabled={submittingImage || !uploadFile}
+                  disabled={submittingImage || uploadedFiles.length === 0}
                   type="submit"
                   className="w-full btn-primary py-4 font-bold flex items-center justify-center gap-2 mt-2 cursor-pointer"
                 >
                   {submittingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                  <span>Upload & Publish Asset</span>
+                  <span>Publish All {uploadedFiles.length > 0 ? `(${uploadedFiles.length} Assets)` : ''}</span>
                 </button>
               </form>
             </motion.div>

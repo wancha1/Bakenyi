@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getSupabase, checkIsAdmin } from '../../lib/supabaseClient';
+import { useTheme } from '../../context/ThemeContext';
 
 const heritageItems = [
   { 
@@ -36,6 +37,13 @@ const heritageItems = [
     path: '/articles', 
     icon: FileText, 
     color: 'text-heritage-terracotta bg-heritage-terracotta/10' 
+  },
+  { 
+    name: 'Search Archives', 
+    desc: 'Search across all clans, leaders, oral histories, and articles in real-time.', 
+    path: '/search', 
+    icon: Search, 
+    color: 'text-purple-600 bg-purple-500/10' 
   },
 ];
 
@@ -90,18 +98,8 @@ export default function Navbar() {
   const communityMenuRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  const [theme, setTheme] = useState<'cream' | 'dark'>(() => {
-    return (localStorage.getItem('bakenyi-theme') as 'cream' | 'dark') || 'cream';
-  });
-
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('bakenyi-theme', theme);
-  }, [theme]);
+  const { theme: appTheme, toggleTheme } = useTheme();
+  const theme = appTheme === 'light' ? 'cream' : 'dark';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -480,6 +478,16 @@ export default function Navbar() {
                 >
                   Contact
                 </Link>
+
+                {/* Admin Link (Directly visible if Administrator or Elder) */}
+                {isAdmin && (
+                  <Link 
+                    to="/admin"
+                    className={`relative px-3 py-2 text-sm font-semibold transition-all rounded-lg hover:bg-heritage-brown/5 text-amber-600 dark:text-amber-400 font-bold`}
+                  >
+                    Admin Panel
+                  </Link>
+                )}
               </div>
 
               {/* Action Utilities Group */}
@@ -499,7 +507,7 @@ export default function Navbar() {
 
                 {/* Theme Switcher */}
                 <button
-                  onClick={() => setTheme(prev => prev === 'cream' ? 'dark' : 'cream')}
+                  onClick={toggleTheme}
                   className="p-1.5 hover:bg-heritage-brown/5 rounded-full border border-heritage-brown/10 text-heritage-brown/70 hover:text-heritage-brown transition-all cursor-pointer shrink-0"
                   title={theme === 'cream' ? 'Switch to High-Contrast Dark' : 'Switch to Cream Theme'}
                 >
@@ -588,7 +596,7 @@ export default function Navbar() {
               
               {/* Theme Switcher */}
               <button
-                onClick={() => setTheme(prev => prev === 'cream' ? 'dark' : 'cream')}
+                onClick={toggleTheme}
                 className="text-heritage-brown hover:text-heritage-terracotta focus:outline-none p-1.5 rounded-full hover:bg-heritage-brown/5 transition-all cursor-pointer"
                 aria-label="Toggle Theme"
               >

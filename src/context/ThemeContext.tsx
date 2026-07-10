@@ -12,8 +12,9 @@ const ThemeContext = React.createContext<ThemeContextType | undefined>(undefined
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = React.useState<Theme>(() => {
     // Check local storage or system preference
-    const saved = localStorage.getItem('bakenye_theme');
-    if (saved === 'dark' || saved === 'light') return saved;
+    const saved = localStorage.getItem('bakenyi-theme');
+    if (saved === 'dark') return 'dark';
+    if (saved === 'cream' || saved === 'light') return 'light';
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
@@ -26,7 +27,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.classList.remove('dark');
       root.style.colorScheme = 'light';
     }
-    localStorage.setItem('theme', theme);
+    localStorage.setItem('bakenyi-theme', theme === 'light' ? 'cream' : 'dark');
   }, [theme]);
 
   const toggleTheme = () => {

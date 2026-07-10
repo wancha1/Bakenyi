@@ -82,45 +82,55 @@ export default function MediaView() {
   async function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    const droppedFiles = e.dataTransfer.files;
-    if (droppedFiles && droppedFiles.length > 0) {
-      await uploadSingleFile(droppedFiles[0]);
+    const droppedFiles = e.dataTransfer.files ? Array.from(e.dataTransfer.files) as File[] : [];
+    if (droppedFiles.length > 0) {
+      await uploadMultipleFiles(droppedFiles);
     }
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const selectedFiles = e.target.files;
-    if (!selectedFiles || selectedFiles.length === 0) return;
-    await uploadSingleFile(selectedFiles[0]);
+    const selectedFiles = e.target.files ? Array.from(e.target.files) as File[] : [];
+    if (selectedFiles.length === 0) return;
+    await uploadMultipleFiles(selectedFiles);
   }
 
-  async function uploadSingleFile(file: File) {
-    if (!file.type.startsWith('image/')) {
+  async function uploadMultipleFiles(fileList: File[]) {
+    const validFiles = fileList.filter(file => file.type.startsWith('image/'));
+    if (validFiles.length === 0) {
       alert('Only image assets (JPEG, PNG, WebP) are supported in this workflow.');
       return;
     }
 
     setIsUploading(true);
-    try {
-      const uploaded = await uploadMediaFile(file);
-      setFiles(prev => [uploaded, ...prev]);
-      
-      // Write action log
-      logAdminActivity(
-        'Staff Editor',
-        'Media Private Upload',
-        `Uploaded raw cultural asset file: "${file.name}". Asset placed in pending vetting queue.`,
-        'Media',
-        'Success',
-        uploaded.name
-      );
-      
-      alert(`Asset "${file.name}" uploaded. It is locked as private until an Elder approves it.`);
-    } catch (err) {
-      console.error('Upload failed:', err);
-      alert('Failed to upload image.');
-    } finally {
-      setIsUploading(false);
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (const file of validFiles) {
+      try {
+        const uploaded = await uploadMediaFile(file);
+        setFiles(prev => [uploaded, ...prev]);
+        
+        // Write action log
+        logAdminActivity(
+          'Staff Editor',
+          'Media Private Upload',
+          `Uploaded raw cultural asset file: "${file.name}". Asset placed in pending vetting queue.`,
+          'Media',
+          'Success',
+          uploaded.name
+        );
+        successCount++;
+      } catch (err) {
+        console.error(`Upload failed for ${file.name}:`, err);
+        failedCount++;
+      }
+    }
+
+    setIsUploading(false);
+    if (failedCount > 0) {
+      alert(`Bulk upload complete: ${successCount} successful, ${failedCount} failed.`);
+    } else {
+      alert(`Successfully uploaded ${successCount} asset(s) in bulk. They are locked as private until approved by an Elder.`);
     }
   }
 
@@ -300,6 +310,7 @@ export default function MediaView() {
                   ref={fileInputRef} 
                   onChange={handleFileChange} 
                   accept="image/*" 
+                  multiple
                   className="hidden" 
                 />
                 {isUploading ? (
@@ -310,8 +321,8 @@ export default function MediaView() {
                 ) : (
                   <div className="space-y-1">
                     <Upload className="w-5 h-5 text-indigo-500 mx-auto" />
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Drag & drop raw file</p>
-                    <p className="text-[9px] text-slate-400">or browse local disk</p>
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Drag & drop raw file(s)</p>
+                    <p className="text-[9px] text-slate-400">or browse local disk (supports multi-select)</p>
                   </div>
                 )}
               </div>
