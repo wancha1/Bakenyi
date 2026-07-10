@@ -69,7 +69,12 @@ export default function SearchPage() {
 
       // 1. Fetch Articles
       try {
-        const { data, error } = await client.from('articles').select('id, title, summary, content');
+        let { data, error } = await client.from('heritage_articles').select('id, title, summary, content');
+        if (error) {
+          const fallbackRes = await client.from('articles').select('id, title, summary, content');
+          data = fallbackRes.data;
+          error = fallbackRes.error;
+        }
         if (!error && data) {
           data.forEach((row: any) => {
             items.push({
@@ -88,18 +93,32 @@ export default function SearchPage() {
 
       // 2. Fetch Gallery (Oral History/Media)
       try {
-        const { data, error } = await client.from('gallery').select('id, title, image_url');
+        let { data, error } = await client.from('media').select('id, title, description, file_url, category');
+        if (error) {
+          const fallbackRes = await client.from('gallery').select('id, title, image_url');
+          if (fallbackRes.data) {
+            data = fallbackRes.data.map((r: any) => ({
+              id: r.id,
+              title: r.title,
+              description: '',
+              file_url: r.image_url,
+              category: 'Oral History'
+            }));
+          } else {
+            error = fallbackRes.error;
+          }
+        }
         if (!error && data) {
           data.forEach((row: any) => {
             let titleVal = row.title;
-            let desc = '';
-            let cat = 'Oral History';
+            let desc = row.description || '';
+            let cat = row.category || 'Oral History';
             try {
-              if (titleVal.startsWith('{')) {
+              if (titleVal && titleVal.startsWith('{')) {
                 const parsed = JSON.parse(titleVal);
                 titleVal = parsed.title;
-                desc = parsed.description || '';
-                cat = parsed.category || 'Oral History';
+                desc = parsed.description || desc;
+                cat = parsed.category || cat;
               }
             } catch (e) {}
 

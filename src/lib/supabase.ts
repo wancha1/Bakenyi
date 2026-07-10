@@ -103,12 +103,22 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
   }
 
   try {
-    const { data, error } = await client
-      .from('articles')
+    let { data, error } = await client
+      .from('heritage_articles')
       .select('id, title, content, status, created_at, updated_at, published_at, summary')
       .order('published_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      // Fallback to legacy articles table
+      const fallbackRes = await client
+        .from('articles')
+        .select('id, title, content, status, created_at, updated_at, published_at, summary')
+        .order('published_at', { ascending: false });
+      
+      data = fallbackRes.data;
+      error = fallbackRes.error;
+      if (error) throw error;
+    }
 
     if (data && data.length > 0) {
       // Map database schema to frontend Article model
@@ -145,13 +155,24 @@ export async function getArticleById(id: string): Promise<Article | null> {
   }
 
   try {
-    const { data, error } = await client
-      .from('articles')
+    let { data, error } = await client
+      .from('heritage_articles')
       .select('id, title, content, status, created_at, updated_at, published_at, summary')
       .eq('id', id)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      // Fallback to legacy articles table
+      const fallbackRes = await client
+        .from('articles')
+        .select('id, title, content, status, created_at, updated_at, published_at, summary')
+        .eq('id', id)
+        .maybeSingle();
+      data = fallbackRes.data;
+      error = fallbackRes.error;
+      if (error) throw error;
+    }
+
     if (data) {
       return {
         id: data.id,
@@ -204,6 +225,7 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
     const dbRecord = {
       id: generatedId,
       title: article.title,
+      slug: generatedId,
       content: article.content || '',
       status: article.status || 'draft',
       published_at: article.publishedAt || new Date().toISOString().split('T')[0],
@@ -212,8 +234,23 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
       updated_at: new Date().toISOString()
     };
 
-    const { error } = await client.from('articles').insert(dbRecord);
-    if (error) throw error;
+    // Try inserting into heritage_articles first
+    let { error } = await client.from('heritage_articles').insert(dbRecord);
+    if (error) {
+      // Fallback to legacy articles table
+      const fallbackRes = await client.from('articles').insert({
+        id: generatedId,
+        title: article.title,
+        content: article.content || '',
+        status: article.status || 'draft',
+        published_at: article.publishedAt || new Date().toISOString().split('T')[0],
+        summary: article.excerpt || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      error = fallbackRes.error;
+      if (error) throw error;
+    }
     return { data: newArticle, error: null };
   } catch (err: any) {
     console.error('Supabase create article failed:', err);
@@ -257,14 +294,32 @@ export async function updateArticle(id: string, articleUpdates: Partial<Article>
     const dbRecord: any = {
       updated_at: new Date().toISOString()
     };
-    if (articleUpdates.title !== undefined) dbRecord.title = articleUpdates.title;
+    if (articleUpdates.title !== undefined) {
+      dbRecord.title = articleUpdates.title;
+      dbRecord.slug = articleUpdates.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    }
     if (articleUpdates.content !== undefined) dbRecord.content = articleUpdates.content;
     if (articleUpdates.status !== undefined) dbRecord.status = articleUpdates.status;
     if (articleUpdates.publishedAt !== undefined) dbRecord.published_at = articleUpdates.publishedAt;
     if (articleUpdates.excerpt !== undefined) dbRecord.summary = articleUpdates.excerpt;
 
-    const { error } = await client.from('articles').update(dbRecord).eq('id', id);
-    if (error) throw error;
+    // Try updating heritage_articles first
+    let { error } = await client.from('heritage_articles').update(dbRecord).eq('id', id);
+    if (error) {
+      // Fallback to legacy articles table
+      const legacyRecord: any = {
+        updated_at: new Date().toISOString()
+      };
+      if (articleUpdates.title !== undefined) legacyRecord.title = articleUpdates.title;
+      if (articleUpdates.content !== undefined) legacyRecord.content = articleUpdates.content;
+      if (articleUpdates.status !== undefined) legacyRecord.status = articleUpdates.status;
+      if (articleUpdates.publishedAt !== undefined) legacyRecord.published_at = articleUpdates.publishedAt;
+      if (articleUpdates.excerpt !== undefined) legacyRecord.summary = articleUpdates.excerpt;
+
+      const fallbackRes = await client.from('articles').update(legacyRecord).eq('id', id);
+      error = fallbackRes.error;
+      if (error) throw error;
+    }
 
     return { data: updated, error: null };
   } catch (err: any) {
@@ -291,8 +346,13 @@ export async function deleteArticle(id: string): Promise<{ success: boolean; err
   }
 
   try {
-    const { error } = await client.from('articles').delete().eq('id', id);
-    if (error) throw error;
+    let { error } = await client.from('heritage_articles').delete().eq('id', id);
+    if (error) {
+      // Fallback to legacy articles table
+      const fallbackRes = await client.from('articles').delete().eq('id', id);
+      error = fallbackRes.error;
+      if (error) throw error;
+    }
     return { success: true, error: null };
   } catch (err: any) {
     console.error(`Supabase delete article ${id} failed:`, err);
@@ -576,31 +636,42 @@ export async function getGalleryImages(includePending = false): Promise<GalleryI
   }
 
   try {
-    const { data, error } = await client.from('gallery').select('id, title, image_url, created_at');
-    if (error) throw error;
+    // Try querying the clean modern media table first
+    let { data, error } = await client
+      .from('media')
+      .select('id, title, description, file_url, category, status, created_at')
+      .eq('file_type', 'image');
+
+    if (error) {
+      // Fallback to legacy gallery table
+      const fallbackRes = await client.from('gallery').select('id, title, image_url, created_at');
+      data = fallbackRes.data;
+      error = fallbackRes.error;
+      if (error) throw error;
+    }
 
     if (data && data.length > 0) {
       const mapped = data.map((row: any) => {
         let titleVal = row.title;
-        let desc = '';
-        let cat = 'General';
-        let statusVal: 'pending' | 'approved' | 'rejected' = 'approved';
+        let desc = row.description || '';
+        let cat = row.category || 'General';
+        let statusVal: 'pending' | 'approved' | 'rejected' = row.status || 'approved';
         
         // Check if title is serialized JSON holding title, description, category and status
         try {
-          if (titleVal.startsWith('{')) {
+          if (titleVal && titleVal.startsWith('{')) {
             const parsed = JSON.parse(titleVal);
             titleVal = parsed.title;
-            desc = parsed.description || '';
-            cat = parsed.category || 'General';
-            statusVal = parsed.status || 'approved';
+            desc = parsed.description || desc;
+            cat = parsed.category || cat;
+            statusVal = parsed.status || statusVal;
           }
         } catch (e) {}
 
         return {
           id: row.id,
           title: titleVal,
-          imageUrl: row.image_url,
+          imageUrl: row.file_url || row.image_url,
           created_at: row.created_at,
           description: desc,
           category: cat,
@@ -644,38 +715,70 @@ export async function addGalleryImage(
   }
 
   try {
+    // Try inserting into the modern media table first
     const { data: dbData, error } = await client
-      .from('gallery')
+      .from('media')
       .insert({
-        title: titleStr,
-        image_url: imageUrl,
+        title,
+        description,
+        file_url: imageUrl,
+        file_type: 'image',
+        category,
+        status,
         created_at: new Date().toISOString()
       })
-      .select('id, title, image_url, created_at')
-      .single();
+      .select('id, title, description, file_url, category, status, created_at')
+      .maybeSingle();
 
     if (error) {
-      // Fallback with custom string ID in case UUID schema is not used
-      const { error: errorWithId } = await client.from('gallery').insert({
-        id,
-        title: titleStr,
-        image_url: imageUrl,
-        created_at: new Date().toISOString()
-      });
-      if (errorWithId) throw errorWithId;
-      return { data: galleryObj, error: null };
+      // Fallback to legacy gallery table
+      const { data: legacyData, error: legacyErr } = await client
+        .from('gallery')
+        .insert({
+          title: titleStr,
+          image_url: imageUrl,
+          created_at: new Date().toISOString()
+        })
+        .select('id, title, image_url, created_at')
+        .maybeSingle();
+
+      if (legacyErr) {
+        // Deeper fallback with manual ID insert in legacy table
+        const { error: errorWithId } = await client.from('gallery').insert({
+          id,
+          title: titleStr,
+          image_url: imageUrl,
+          created_at: new Date().toISOString()
+        });
+        if (errorWithId) throw errorWithId;
+        return { data: galleryObj, error: null };
+      }
+      
+      const returnedId = legacyData?.id || id;
+      return {
+        data: {
+          id: returnedId,
+          title,
+          imageUrl,
+          created_at: legacyData?.created_at || galleryObj.created_at,
+          description,
+          category,
+          status
+        },
+        error: null
+      };
     }
     
     const returnedId = dbData?.id || id;
     return { 
       data: {
         id: returnedId,
-        title,
-        imageUrl,
+        title: dbData?.title || title,
+        imageUrl: dbData?.file_url || imageUrl,
         created_at: dbData?.created_at || galleryObj.created_at,
-        description,
-        category,
-        status
+        description: dbData?.description || description,
+        category: dbData?.category || category,
+        status: dbData?.status || status
       }, 
       error: null 
     };
@@ -690,6 +793,13 @@ export async function updateGalleryImageStatus(id: string, status: 'pending' | '
   if (!client) return { success: false, error: new Error('Supabase client is not configured.') };
 
   try {
+    // Try updating the media table first
+    const { error: mediaErr } = await client.from('media').update({ status }).eq('id', id);
+    if (!mediaErr) {
+      return { success: true, error: null };
+    }
+
+    // Fallback to legacy gallery table
     const { data: row, error: fetchErr } = await client.from('gallery').select('id, title, image_url').eq('id', id).maybeSingle();
     if (fetchErr) throw fetchErr;
     if (!row) throw new Error('Gallery image not found.');

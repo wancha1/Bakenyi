@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History, Mail, Lock, User as UserIcon, HelpCircle, ShieldAlert } from 'lucide-react';
+import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History, Mail, Lock, User as UserIcon, HelpCircle, ShieldAlert, Eye, EyeOff } from 'lucide-react';
 import { getSupabase, checkIsAdmin } from '../lib/supabaseClient';
 import { getContributions, createContribution, uploadMedia, Contribution, getStoryCategories, StoryCategory } from '../lib/supabase';
 import OralHistoryRecorder from '../components/OralHistoryRecorder';
@@ -46,6 +46,7 @@ export default function Contribute() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [showAuthPassword, setShowAuthPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -419,12 +420,19 @@ export default function Contribute() {
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-heritage-brown/40" />
                     <input 
                       required
-                      type="password"
+                      type={showAuthPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={authPassword}
                       onChange={(e) => setAuthPassword(e.target.value)}
-                      className="w-full pl-12 pr-6 py-3.5 bg-heritage-cream/30 border-2 border-transparent focus:border-heritage-terracotta/20 rounded-xl outline-none font-medium text-heritage-brown"
+                      className="w-full pl-12 pr-12 py-3.5 bg-heritage-cream/30 border-2 border-transparent focus:border-heritage-terracotta/20 rounded-xl outline-none font-medium text-heritage-brown"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowAuthPassword(!showAuthPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-heritage-brown/40 hover:text-heritage-terracotta transition-colors focus:outline-none"
+                    >
+                      {showAuthPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
                 </div>
 
@@ -483,7 +491,7 @@ export default function Contribute() {
               </div>
 
               {/* CONTRIBUTION TYPE SELECTOR TABS */}
-              <div className="flex bg-heritage-cream/40 p-2.5 rounded-3xl border border-heritage-brown/10 mb-10">
+              <div className="flex flex-col sm:flex-row bg-heritage-cream/40 p-2.5 rounded-[32px] sm:rounded-3xl border border-heritage-brown/10 mb-10 gap-2 sm:gap-0">
                 <button
                   type="button"
                   onClick={() => {

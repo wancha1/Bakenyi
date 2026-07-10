@@ -262,6 +262,302 @@ CREATE TABLE public.settings (
 );
 
 -- ==========================================
+-- 2B. ADDITIONAL TABLES FOR COMPLETE SYNCHRONIZATION
+-- ==========================================
+
+-- 1. STATUSES TABLE
+CREATE TABLE IF NOT EXISTS public.statuses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    text TEXT NOT NULL,
+    media_items JSONB DEFAULT '[]'::jsonb,
+    link TEXT,
+    author_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    view_count INTEGER DEFAULT 0,
+    visibility TEXT DEFAULT 'public' CHECK (visibility IN ('public', 'private', 'restricted')),
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    reactions JSONB DEFAULT '{}'::jsonb,
+    comments JSONB DEFAULT '[]'::jsonb,
+    expires_at TIMESTAMPTZ,
+    is_archived BOOLEAN DEFAULT false,
+    approved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    approved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.statuses ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view approved public statuses" 
+    ON public.statuses FOR SELECT USING (status = 'approved' AND visibility = 'public' AND NOT is_archived);
+
+CREATE POLICY "Authors can manage their own statuses" 
+    ON public.statuses FOR ALL USING (author_id = auth.uid()) WITH CHECK (author_id = auth.uid());
+
+CREATE POLICY "Elders and moderators can manage all statuses" 
+    ON public.statuses FOR ALL USING (public.is_super_admin() OR public.has_permission('approve_submissions'));
+
+
+-- 2. NEWS TABLE
+CREATE TABLE IF NOT EXISTS public.news (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    summary TEXT,
+    content TEXT NOT NULL,
+    cover_image TEXT,
+    author_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    category TEXT DEFAULT 'General',
+    tags JSONB DEFAULT '[]'::jsonb,
+    featured BOOLEAN DEFAULT false,
+    status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'published', 'archived')),
+    published_at TIMESTAMPTZ,
+    approved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    approved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.news ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view published news" 
+    ON public.news FOR SELECT USING (status = 'published');
+
+CREATE POLICY "Authors can manage own news drafts" 
+    ON public.news FOR ALL USING (author_id = auth.uid()) WITH CHECK (author_id = auth.uid());
+
+CREATE POLICY "Elders and historians can manage all news" 
+    ON public.news FOR ALL USING (public.is_super_admin() OR public.get_user_role() = 'historian');
+
+
+-- 3. CONTRIBUTIONS TABLE
+CREATE TABLE IF NOT EXISTS public.contributions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    content JSONB NOT NULL DEFAULT '{}'::jsonb, -- Store dynamic contribution data (desc, imageUrl, type, email)
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    reporter_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.contributions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own contributions" 
+    ON public.contributions FOR SELECT USING (reporter_id = auth.uid());
+
+CREATE POLICY "Elders and moderators can view all contributions" 
+    ON public.contributions FOR SELECT USING (public.is_super_admin() OR public.has_permission('approve_submissions'));
+
+CREATE POLICY "Authenticated users can submit contributions" 
+    ON public.contributions FOR INSERT WITH CHECK (auth.uid() IS NOT NULL AND reporter_id = auth.uid());
+
+CREATE POLICY "Elders and moderators can manage contributions" 
+    ON public.contributions FOR ALL USING (public.is_super_admin() OR public.has_permission('approve_submissions'));
+
+
+-- 4. CONTACT MESSAGES TABLE
+CREATE TABLE IF NOT EXISTS public.contact_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT,
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'read', 'archived')),
+    admin_notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.contact_messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can insert contact messages" 
+    ON public.contact_messages FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Only Elders can view and manage contact messages" 
+    ON public.contact_messages FOR ALL USING (public.is_super_admin());
+
+
+-- 5. CLANS TABLE
+CREATE TABLE IF NOT EXISTS public.clans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT UNIQUE NOT NULL,
+    totem TEXT NOT NULL,
+    motto TEXT,
+    "desc" TEXT, -- Store raw description
+    status TEXT DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected')),
+    history TEXT,
+    origin TEXT,
+    leadership TEXT,
+    custodian TEXT,
+    gallery_urls JSONB DEFAULT '[]'::jsonb,
+    document_urls JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.clans ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view approved clans" 
+    ON public.clans FOR SELECT USING (status = 'approved');
+
+CREATE POLICY "Elders and historians can manage clans" 
+    ON public.clans FOR ALL USING (public.is_super_admin() OR public.get_user_role() = 'historian');
+
+
+-- 6. LEADERS TABLE
+CREATE TABLE IF NOT EXISTS public.leaders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT UNIQUE NOT NULL,
+    role TEXT,
+    bio TEXT,
+    photo_url TEXT,
+    expertise TEXT,
+    clan TEXT,
+    contact_email TEXT,
+    status TEXT DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.leaders ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view approved leaders" 
+    ON public.leaders FOR SELECT USING (status = 'approved');
+
+CREATE POLICY "Elders and leaders can manage leaders" 
+    ON public.leaders FOR ALL USING (public.is_super_admin() OR public.get_user_role() = 'community_leader');
+
+
+-- 7. VOCABULARY TABLE
+CREATE TABLE IF NOT EXISTS public.vocabulary (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    lukenye TEXT UNIQUE NOT NULL,
+    english TEXT NOT NULL,
+    category TEXT DEFAULT 'General',
+    usage TEXT,
+    audio_url TEXT,
+    example_sentence TEXT,
+    status TEXT DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.vocabulary ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view approved vocabulary" 
+    ON public.vocabulary FOR SELECT USING (status = 'approved');
+
+CREATE POLICY "Elders and historians can manage vocabulary" 
+    ON public.vocabulary FOR ALL USING (public.is_super_admin() OR public.get_user_role() = 'historian');
+
+
+-- 8. STORY CATEGORIES TABLE
+CREATE TABLE IF NOT EXISTS public.story_categories (
+    id TEXT PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    fields JSONB DEFAULT '[]'::jsonb,
+    validation_rules TEXT,
+    upload_requirements TEXT,
+    is_archived BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.story_categories ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view active story categories" 
+    ON public.story_categories FOR SELECT USING (NOT is_archived);
+
+CREATE POLICY "Only Elders can manage story categories" 
+    ON public.story_categories FOR ALL USING (public.is_super_admin());
+
+
+-- 9. ORAL HISTORY TABLE
+CREATE TABLE IF NOT EXISTS public.oral_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    elder TEXT,
+    narrator TEXT,
+    clan TEXT,
+    role TEXT,
+    topic TEXT DEFAULT 'Tradition',
+    duration TEXT,
+    duration_seconds INTEGER DEFAULT 0,
+    image_url TEXT,
+    audio_url TEXT,
+    recording_date TEXT,
+    transcription JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.oral_history ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view oral history" 
+    ON public.oral_history FOR SELECT USING (true);
+
+CREATE POLICY "Elders and historians can manage oral history" 
+    ON public.oral_history FOR ALL USING (public.is_super_admin() OR public.get_user_role() = 'historian');
+
+
+-- 10. TIMELINE EVENTS TABLE
+CREATE TABLE IF NOT EXISTS public.timeline_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    period TEXT,
+    year TEXT,
+    title TEXT NOT NULL,
+    "desc" TEXT, -- Store raw description
+    description TEXT,
+    year_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.timeline_events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view timeline events" 
+    ON public.timeline_events FOR SELECT USING (true);
+
+CREATE POLICY "Elders and historians can manage timeline events" 
+    ON public.timeline_events FOR ALL USING (public.is_super_admin() OR public.get_user_role() = 'historian');
+
+
+-- 11. PRODUCTS TABLE
+CREATE TABLE IF NOT EXISTS public.products (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    price NUMERIC NOT NULL DEFAULT 0,
+    image_url TEXT,
+    category TEXT DEFAULT 'General',
+    stock INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'draft' CHECK (status IN ('active', 'draft', 'out_of_stock')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view active products" 
+    ON public.products FOR SELECT USING (status = 'active' OR status = 'out_of_stock');
+
+CREATE POLICY "Elders can manage products" 
+    ON public.products FOR ALL USING (public.is_super_admin());
+
+
+-- 12. ORDERS TABLE
+CREATE TABLE IF NOT EXISTS public.orders (
+    id TEXT PRIMARY KEY,
+    customer_name TEXT NOT NULL,
+    customer_email TEXT NOT NULL,
+    total_amount NUMERIC NOT NULL DEFAULT 0,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'shipped', 'delivered', 'cancelled')),
+    items_count INTEGER DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own orders" 
+    ON public.orders FOR SELECT USING (customer_email = auth.jwt() ->> 'email');
+
+CREATE POLICY "Elders can manage all orders" 
+    ON public.orders FOR ALL USING (public.is_super_admin());
+
+
+-- ==========================================
 -- 3. SEED DEFAULT ROLES & PERMISSIONS DATA
 -- ==========================================
 
@@ -271,7 +567,10 @@ INSERT INTO public.roles (id, name, description) VALUES
 ('historian', 'Historian', 'Cultural expert authorized to create, edit, submit, and manage cultural archives, media, and articles.'),
 ('community_leader', 'Community Leader', 'Authorized to create local activities, publish community announcements, moderate discussion boards, and approve local submissions.'),
 ('member', 'Registered Member', 'Standard authenticated platform participant who can submit stories, upload items, participate in forum threads, comment, and like.'),
-('public', 'Public Guest', 'Unauthenticated or anonymous visitor with read-only permissions for fully verified content.')
+('public', 'Public Guest', 'Unauthenticated or anonymous visitor with read-only permissions for fully verified content.'),
+('admin', 'Admin', 'Legacy role for administrator access.'),
+('staff', 'Staff', 'Legacy role for staff access.'),
+('customer', 'Customer', 'Legacy role for standard user / customer access.')
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description;
 
 -- Populate Permissions
@@ -308,6 +607,16 @@ INSERT INTO public.role_permissions (role_id, permission_id) VALUES
 -- Members
 INSERT INTO public.role_permissions (role_id, permission_id) VALUES
 ('member', 'upload_media');
+
+-- Legacy Roles Permissions Seed
+INSERT INTO public.role_permissions (role_id, permission_id)
+SELECT 'admin', id FROM public.permissions ON CONFLICT DO NOTHING;
+
+INSERT INTO public.role_permissions (role_id, permission_id)
+SELECT 'staff', id FROM public.permissions WHERE id IN ('approve_submissions', 'create_articles', 'upload_media', 'create_events', 'publish_announcements', 'moderate_discussions') ON CONFLICT DO NOTHING;
+
+INSERT INTO public.role_permissions (role_id, permission_id)
+SELECT 'customer', id FROM public.permissions WHERE id IN ('create_articles', 'upload_media') ON CONFLICT DO NOTHING;
 
 -- ==========================================
 -- 4. RECURSION-SAFE SECURITY AUTH HELPERS

@@ -21,7 +21,9 @@ import {
   Activity,
   FileCode,
   Settings,
-  Heart
+  Heart,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { getSupabase, fetchUsers, updateUserStatus, getSupabaseConfig } from '../lib/supabaseClient';
 import { 
@@ -46,6 +48,7 @@ export default function Admin() {
   // Auth states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<'admin' | 'staff' | 'customer'>('customer');
   const [authChecking, setAuthChecking] = useState(true);
@@ -197,8 +200,12 @@ export default function Admin() {
     if (!supabase) return;
     
     try {
-      const { error } = await supabase.from('gallery').delete().eq('id', id);
-      if (error) throw error;
+      let { error } = await supabase.from('media').delete().eq('id', id);
+      if (error) {
+        const fallbackRes = await supabase.from('gallery').delete().eq('id', id);
+        error = fallbackRes.error;
+        if (error) throw error;
+      }
       alert('Gallery asset unpublished successfully.');
       setRefreshTrigger(prev => prev + 1);
     } catch (err: any) {
@@ -282,14 +289,23 @@ export default function Admin() {
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-widest text-heritage-brown/50">Admin Password</label>
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full px-5 py-3.5 bg-heritage-cream/30 border border-heritage-brown/10 rounded-2xl text-xs font-bold text-heritage-brown outline-none focus:border-heritage-terracotta font-sans"
-                required
-              />
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full pl-5 pr-12 py-3.5 bg-heritage-cream/30 border border-heritage-brown/10 rounded-2xl text-xs font-bold text-heritage-brown outline-none focus:border-heritage-terracotta font-sans"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-heritage-brown/50 hover:text-heritage-terracotta transition-colors focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             {authError && (

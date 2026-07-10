@@ -279,10 +279,18 @@ export const checkIsAdmin = async (user: any): Promise<boolean> => {
   
   const { isConfigured } = getSupabaseConfig();
   
-  // 1. If we are in local Sandbox mode (Supabase is NOT configured), deny all admin privileges (fail-closed)
+  // 1. If we are in local Sandbox mode (Supabase is NOT configured), allow specific sandbox admin emails to let local development work, otherwise fail-closed
   if (!isConfigured) {
-    console.warn('checkIsAdmin called but Supabase is not configured. Access denied (fail-closed).');
-    return false;
+    const email = user.email?.toLowerCase() || '';
+    return (
+      email === 'superadmin@bakenye.com' ||
+      email === 'admin@bakenye.com' ||
+      email === 'admin@bakenyi.org' ||
+      email === 'wanchaaaron@gmail.com' ||
+      email === 'aaronwancha@gmail.com' ||
+      email.includes('staff') ||
+      email.includes('reporter')
+    );
   }
 
   // 2. Query real Supabase profiles database table
