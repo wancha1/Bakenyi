@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Globe, Mail, Phone, MapPin, Facebook, Twitter, Instagram } from 'lucide-react';
+import { Globe, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Smartphone, Download } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -80,6 +80,29 @@ export default function Footer() {
               </li>
             </ul>
           </div>
+        </div>
+
+        {/* Web App CTA Banner */}
+        <div className="mt-8 mb-12 p-6 rounded-2xl bg-heritage-olive/15 border border-heritage-cream/10 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+          <div className="absolute inset-0 cultural-pattern opacity-5 pointer-events-none" />
+          <div className="relative z-10 flex items-center space-x-4">
+            <div className="p-3 bg-heritage-terracotta text-white rounded-xl shrink-0">
+              <Smartphone className="w-6 h-6" />
+            </div>
+            <div className="text-left">
+              <h5 className="font-serif font-bold text-base text-white">Bakenyi Digital Archive App</h5>
+              <p className="text-xs text-heritage-cream/70 max-w-xl mt-1 leading-relaxed">
+                Install our PWA on your mobile home screen or desktop taskbar to access offline-ready dictionaries, clan lineage directories, and elder archives smoothly.
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => window.dispatchEvent(new CustomEvent('trigger-app-install'))}
+            className="relative z-10 w-full md:w-auto px-6 py-2.5 bg-heritage-terracotta hover:bg-heritage-terracotta/90 text-white font-semibold text-xs rounded-xl transition-all flex items-center justify-center space-x-2 shadow-md hover:shadow-lg hover:-translate-y-0.5 cursor-pointer shrink-0"
+          >
+            <Download className="w-4 h-4" />
+            <span>Install Web App</span>
+          </button>
         </div>
 
         <div className="pt-8 border-t border-heritage-cream/10 text-center text-xs text-heritage-cream/50 tracking-widest uppercase">

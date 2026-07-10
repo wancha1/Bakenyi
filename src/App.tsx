@@ -8,6 +8,7 @@ import { getSupabaseConfig, getSupabase, checkIsAdmin } from './lib/supabaseClie
 // Core Layout components
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
+import AppInstallPrompt from './components/AppInstallPrompt';
 
 // Admin Components
 import Login from './components/admin/Login';
@@ -69,6 +70,7 @@ function StorefrontLayout({ user, userRole }: { user: any; userRole: string | nu
         <Outlet />
       </main>
       <Footer />
+      <AppInstallPrompt />
     </div>
   );
 }
