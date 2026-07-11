@@ -15,7 +15,8 @@ import {
   UserCheck,
   Volume2,
   Languages,
-  ShieldCheck
+  ShieldCheck,
+  Activity
 } from 'lucide-react';
 import PendingApprovalInbox from './PendingApprovalInbox';
 import { 
@@ -406,6 +407,17 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
     pendingContributions.length + 
     pendingGalleryImages.length;
 
+  // Curation model statistics for Elders & Administrators
+  const totalApprovedCount = 
+    users.filter(u => u.status === 'active').length + 
+    articles.filter(a => a.status === 'published' || a.status === 'approved').length + 
+    media.filter(m => m.status === 'approved').length + 
+    vocabularies.filter(v => v.status === 'approved').length + 
+    contributions.filter(c => c.status === 'approved').length + 
+    galleryImages.filter(g => g.status === 'approved').length;
+  const totalRecordsCount = totalApprovedCount + totalQueueCount;
+  const vettingIntegrityPercentage = totalRecordsCount > 0 ? Math.round((totalApprovedCount / totalRecordsCount) * 100) : 100;
+
   // Filter content authored by the current logged-in reporter
   const reporterEmail = user?.email || '';
   const myArticles = articles.filter(a => a.authorEmail === reporterEmail || a.author === reporterEmail.split('@')[0]);
@@ -603,105 +615,401 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
 
       {/* Header Banner - Clean Heritage Style */}
       {resolvedRole === 'super_admin' ? (
-        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden border border-amber-500/20 shadow-lg shadow-amber-500/5">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-500/15 via-transparent to-transparent pointer-events-none" />
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-amber-500">
-                <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Respected Elder Council Sanctuary</span>
+        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/90 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden border border-amber-500/20 shadow-xl shadow-amber-500/5">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-500/10 via-transparent to-transparent pointer-events-none" />
+          {/* Background decorative ring */}
+          <div className="absolute -right-16 -bottom-16 w-64 h-64 border-8 border-amber-500/5 rounded-full pointer-events-none" />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
+            <div className="lg:col-span-8 space-y-4">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black uppercase tracking-[0.2em] text-amber-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Respected Elder Council Sanctuary
+                </span>
+                <span className="px-2.5 py-1 rounded-full bg-slate-900/40 border border-slate-800 text-[9px] font-mono font-bold text-slate-300">
+                  ID: {user?.email?.split('@')[0]}
+                </span>
               </div>
-              <h1 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight">
-                Webale Kushemererwa, Respected Custodian
-              </h1>
-              <p className="text-xs text-slate-350 max-w-xl font-medium leading-relaxed">
-                As an honored **Elder** of the Bakenyi heritage portal, you possess full sovereignty over the sacred chronicle publication queues, user credential promotions, media vetting, and historical preservation safety.
-              </p>
+              
+              <div className="space-y-1.5">
+                <h1 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight leading-tight">
+                  Webale Kushemererwa, Respected Custodian
+                </h1>
+                <p className="text-xs text-slate-300 max-w-xl font-medium leading-relaxed">
+                  As an honored **Elder** of the Bakenyi heritage portal, you possess full sovereignty over the sacred chronicle publication queues, user credential promotions, media vetting, and historical preservation safety.
+                </p>
+              </div>
+              
+              {/* Curation Integrity Metrics Progress bar */}
+              <div className="pt-3 max-w-md space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-bold tracking-wider uppercase text-slate-300">
+                  <span>Portal Curation Integrity Index</span>
+                  <span className="text-amber-400 font-mono text-xs">{vettingIntegrityPercentage}% vetted</span>
+                </div>
+                <div className="w-full bg-slate-900/60 h-2 rounded-full border border-slate-800 overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300 h-full rounded-full transition-all duration-1000"
+                    style={{ width: `${vettingIntegrityPercentage}%` }}
+                  />
+                </div>
+                <p className="text-[9px] text-slate-400 font-medium">
+                  Curation score represents approved public heritage assets versus total submissions. Maintain &gt;90% for high preservation accuracy.
+                </p>
+              </div>
             </div>
-            <div className="hidden lg:block shrink-0 bg-amber-500/5 border border-amber-500/15 p-4 rounded-2xl max-w-xs text-right">
-              <span className="block text-[9px] text-amber-500 font-bold uppercase tracking-widest mb-1">Ancestral Wisdom</span>
-              <p className="text-[10px] text-slate-300 italic leading-relaxed">
-                "Abagurusi nibo bikwatira enanga ya Bakenye."
-              </p>
-              <span className="block text-[8px] text-slate-500 font-medium mt-1">— Heritage Proverb on Guardianship</span>
+            
+            <div className="lg:col-span-4 flex flex-col justify-between items-end gap-4">
+              <div className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-2xl w-full text-right shadow-xs">
+                <span className="block text-[9px] text-amber-500 font-black uppercase tracking-widest mb-1.5">Ancestral Wisdom</span>
+                <p className="text-[11px] text-amber-100/90 italic leading-relaxed font-serif">
+                  "Abagurusi nibo bikwatira enanga ya Bakenye."
+                </p>
+                <span className="block text-[8px] text-slate-500 font-bold mt-1.5">— Heritage Proverb on Guardianship</span>
+              </div>
+              
+              <div className="flex items-center gap-2 self-stretch lg:self-auto bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/40 w-full lg:w-auto text-left lg:text-right">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">Gatekeeper Signature</span>
+                  <span className="block text-[10px] text-amber-400 font-mono font-bold truncate">{user?.email || 'elder@bakenyi.org'}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="bg-slate-950 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden shadow-lg shadow-slate-950/20">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/15 via-transparent to-transparent pointer-events-none" />
-          <div className="space-y-1.5 relative z-10">
-            <div className="flex items-center gap-2 text-indigo-400">
-              <UserCheck className="w-4 h-4 animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Platform Administration Space</span>
+        <div className="bg-gradient-to-br from-slate-950 to-slate-900 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden shadow-lg border border-slate-800/60">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute -right-12 -bottom-12 w-48 h-48 border-4 border-indigo-500/5 rounded-full pointer-events-none" />
+          
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                <UserCheck className="w-3.5 h-3.5 animate-pulse" />
+                <span>Platform Administration Space</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight">
+                Platform Moderator Panel
+              </h1>
+              <p className="text-xs text-slate-400 max-w-xl font-medium leading-relaxed">
+                Oversee Bakenyi community content reviews, public publication approvals, media library assets vetting, and user management workflows.
+              </p>
             </div>
-            <h1 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight">
-              Platform Moderator Panel
-            </h1>
-            <p className="text-xs text-slate-400 max-w-xl font-medium leading-relaxed">
-              Oversee Bakenyi community content reviews, public publication approvals, media library assets vetting, and user management workflows.
-            </p>
+            <div className="bg-slate-900/80 border border-slate-800 p-3.5 rounded-xl text-left flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 shrink-0">
+                <Users className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Staff ID</span>
+                <span className="block text-[10px] text-white font-mono font-bold">{user?.email || 'admin@bakenye.com'}</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Admin Central Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-          <div className="space-y-1">
+        {/* Backlog Metric */}
+        <div className={`p-6 rounded-3xl border shadow-xs flex items-center justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ${
+          totalQueueCount > 0 
+            ? 'bg-amber-50/50 dark:bg-amber-950/10 border-amber-200/50 dark:border-amber-950/30 shadow-amber-500/2' 
+            : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700/50'
+        }`}>
+          <div className="space-y-1.5 text-left">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Moderation Backlog</p>
-            <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
+            <h3 className={`text-3xl font-serif font-black leading-none ${totalQueueCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>
               {resolvedRole === 'admin' ? pendingArticles.length + pendingMedia.length : totalQueueCount}
             </h3>
             <span className="text-[10px] text-slate-400 font-semibold block">Awaiting publication vetting</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform duration-300 hover:scale-105 ${
+            totalQueueCount > 0 
+              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+              : 'bg-slate-100 dark:bg-slate-750 text-slate-500 dark:text-slate-400'
+          }`}>
             <Inbox className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-          <div className="space-y-1">
+        {/* Active Preservers Metric */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
+          <div className="space-y-1.5 text-left">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Active Preservers</p>
             <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
               {users.filter(u => u.status === 'active').length}
             </h3>
             <span className="text-[10px] text-slate-400 font-semibold block">Authorized portal profiles</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center hover:scale-105 transition-transform duration-300">
             <Users className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-          <div className="space-y-1">
+        {/* Live Chronicles Metric */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
+          <div className="space-y-1.5 text-left">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Live Chronicles</p>
             <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
               {articles.filter(a => a.status === 'published' || a.status === 'approved').length}
             </h3>
             <span className="text-[10px] text-slate-400 font-semibold block">Published public articles</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center hover:scale-105 transition-transform duration-300">
             <BookOpen className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
-          <div className="space-y-1">
+        {/* Vetted Media Assets Metric */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
+          <div className="space-y-1.5 text-left">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Vetted Media Assets</p>
             <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
               {media.filter(m => m.status === 'approved').length}
             </h3>
             <span className="text-[10px] text-slate-400 font-semibold block">Approved public gallery assets</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 flex items-center justify-center hover:scale-105 transition-transform duration-300">
             <ImageIcon className="w-6 h-6" />
           </div>
         </div>
       </div>
 
+      {/* Curation Chamber Bento Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Directives (5 cols) */}
+        <div className="lg:col-span-5 bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700/50 p-6 shadow-xs flex flex-col justify-between space-y-6 text-left">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-50 dark:border-slate-700/40">
+              <div className="space-y-0.5">
+                <span className="text-[9px] font-black text-amber-500 uppercase tracking-wider block font-sans">Administrative Mandates</span>
+                <h3 className="font-serif font-black text-base text-slate-900 dark:text-white">Active Preservation Directives</h3>
+              </div>
+              <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-md text-[8px] font-black uppercase tracking-wider font-sans">
+                Elders Code
+              </span>
+            </div>
+            
+            <div className="space-y-3">
+              {/* Directive 1 */}
+              <button 
+                onClick={() => {
+                  setModerationMode('classic');
+                  setActiveVettingTab('articles');
+                  const el = document.getElementById('vetting-desk-title');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="w-full text-left p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 hover:bg-amber-500/5 border border-slate-100 dark:border-slate-850 hover:border-amber-500/20 transition-all flex items-center justify-between group cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Written Chronicles</span>
+                    <span className="block text-[10px] text-slate-400 font-medium">Verify ancestral historical articles</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {pendingArticles.length > 0 ? (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[9px] font-black font-mono">
+                      {pendingArticles.length} Pending
+                    </span>
+                  ) : (
+                    <span className="text-[9px] text-slate-400 font-medium font-mono">Idle</span>
+                  )}
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </button>
+
+              {/* Directive 2 */}
+              <button 
+                onClick={() => {
+                  setModerationMode('classic');
+                  setActiveVettingTab('oral_histories');
+                  const el = document.getElementById('vetting-desk-title');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="w-full text-left p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 hover:bg-amber-500/5 border border-slate-100 dark:border-slate-850 hover:border-amber-500/20 transition-all flex items-center justify-between group cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+                    <Volume2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Oral Histories</span>
+                    <span className="block text-[10px] text-slate-400 font-medium">Moderate community audio logs</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {pendingContributions.length > 0 ? (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[9px] font-black font-mono">
+                      {pendingContributions.length} Pending
+                    </span>
+                  ) : (
+                    <span className="text-[9px] text-slate-400 font-medium font-mono">Idle</span>
+                  )}
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </button>
+
+              {/* Directive 3 */}
+              <button 
+                onClick={() => {
+                  setModerationMode('classic');
+                  setActiveVettingTab('vocabulary');
+                  const el = document.getElementById('vetting-desk-title');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="w-full text-left p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 hover:bg-amber-500/5 border border-slate-100 dark:border-slate-850 hover:border-amber-500/20 transition-all flex items-center justify-between group cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                    <Languages className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Vocabulary Proposals</span>
+                    <span className="block text-[10px] text-slate-400 font-medium">Verify Lukenye linguistic proposals</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {pendingVocabularies.length > 0 ? (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[9px] font-black font-mono">
+                      {pendingVocabularies.length} Pending
+                    </span>
+                  ) : (
+                    <span className="text-[9px] text-slate-400 font-medium font-mono">Idle</span>
+                  )}
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </button>
+
+              {/* Directive 4 */}
+              {resolvedRole === 'super_admin' && (
+                <button 
+                  onClick={() => {
+                    setModerationMode('classic');
+                    setActiveVettingTab('users');
+                    const el = document.getElementById('vetting-desk-title');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="w-full text-left p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 hover:bg-amber-500/5 border border-slate-100 dark:border-slate-850 hover:border-amber-500/20 transition-all flex items-center justify-between group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center shrink-0">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Registry Approvals</span>
+                      <span className="block text-[10px] text-slate-400 font-medium">Activate new heritage preservers</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {pendingUsers.length > 0 ? (
+                      <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[9px] font-black font-mono">
+                        {pendingUsers.length} Pending
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-slate-400 font-medium font-mono">Idle</span>
+                    )}
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => {
+              setModerationMode('unified');
+              const el = document.getElementById('vetting-desk-title');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-300 font-bold uppercase tracking-wider text-[10px] py-3 rounded-2xl cursor-pointer flex items-center justify-center gap-2 transition-all border border-slate-200/50 dark:border-slate-800/40"
+          >
+            <span>Open Unified Moderation Terminal</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Right Column: Immutable Audit Ledger (7 cols) */}
+        <div className="lg:col-span-7 bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700/50 p-6 shadow-xs flex flex-col justify-between space-y-4 text-left">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-50 dark:border-slate-700/40">
+              <div className="space-y-0.5">
+                <span className="text-[9px] font-black text-indigo-500 uppercase tracking-wider block font-sans">Security & Operations</span>
+                <h3 className="font-serif font-black text-base text-slate-900 dark:text-white">Immutable Platform Audit Ledger</h3>
+              </div>
+              <button 
+                onClick={() => onNavigate('activity_logs')}
+                className="text-indigo-500 dark:text-indigo-400 hover:underline text-[10px] font-bold uppercase tracking-wider cursor-pointer"
+              >
+                View Full Logs
+              </button>
+            </div>
+            
+            <div className="divide-y divide-slate-100/50 dark:divide-slate-700/30 overflow-y-auto max-h-[310px] space-y-1">
+              {auditLogs.slice(0, 4).map((log) => {
+                const statusBadgeColors = {
+                  Success: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                  Warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                  Error: 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                };
+                
+                return (
+                  <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs font-semibold gap-3">
+                    <div className="min-w-0 flex items-start gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-400 shrink-0 border border-slate-100 dark:border-slate-850">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <div className="text-left space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800 dark:text-white truncate max-w-[150px]" title={log.actor}>
+                            {log.actor.split('@')[0]}
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 text-[8px] font-black uppercase font-mono">
+                            {log.category}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1 leading-snug">
+                          {log.details}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${statusBadgeColors[log.status as keyof typeof statusBadgeColors] || 'bg-slate-100'}`}>
+                        {log.status}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {auditLogs.length === 0 && (
+                <div className="text-center py-16 text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[10px] space-y-1">
+                  <p>No activity records compiled yet.</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="bg-slate-50 dark:bg-slate-900/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-850 flex items-center gap-3">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <div className="text-[11px] text-slate-400 dark:text-slate-500 leading-normal">
+              <strong>Sentinel Integrity Scan Active:</strong> All publication pipelines require cryptographic signature of designated Elders prior to database replication.
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Vetting Dashboard Console Title */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+      <div id="vetting-desk-title" className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-4 border-t border-slate-100 dark:border-slate-800 scroll-mt-6">
         <div>
           <h2 className="text-xl font-serif font-black text-slate-900 dark:text-white flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-amber-500" />
@@ -719,7 +1027,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
               onClick={() => setModerationMode('unified')}
               className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                 moderationMode === 'unified' 
-                  ? 'bg-amber-500 text-white shadow-xs' 
+                  ? 'bg-amber-500 text-slate-950 shadow-xs' 
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -729,7 +1037,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
               onClick={() => setModerationMode('classic')}
               className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                 moderationMode === 'classic' 
-                  ? 'bg-amber-500 text-white shadow-xs' 
+                  ? 'bg-amber-500 text-slate-950 shadow-xs' 
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
