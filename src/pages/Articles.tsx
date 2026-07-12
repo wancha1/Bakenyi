@@ -283,6 +283,19 @@ export default function Articles() {
           {/* Main content with rich typography styling */}
           <div className="prose max-w-none text-heritage-brown/85 leading-relaxed text-base md:text-lg mb-12 space-y-6 tracking-wide">
             {activeArticle.content.split('\n\n').map((paragraph, index) => {
+              const trimmed = paragraph.trim();
+              if (trimmed === '---') {
+                return (
+                  <hr key={index} className="border-t border-heritage-brown/20 my-6" />
+                );
+              }
+              if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
+                return (
+                  <div key={index} className="bg-amber-50/20 dark:bg-slate-900/10 border border-heritage-brown/10 rounded-2xl p-6 my-6 overflow-x-auto font-mono text-center text-sm md:text-base text-heritage-brown shadow-inner">
+                    {trimmed.replace(/\$\$/g, '').trim()}
+                  </div>
+                );
+              }
               // Simple Markdown Parsing for Headings
               if (paragraph.startsWith('### ')) {
                 return (

@@ -99,7 +99,23 @@ export async function getCurrentUser(): Promise<any> {
 export async function getArticles(onlyPublished = true): Promise<Article[]> {
   const client = getSupabase();
   if (!client) {
-    return [];
+    const stored = localStorage.getItem('bakenye_demo_articles');
+    if (stored) {
+      let list: Article[] = JSON.parse(stored);
+      let listChanged = false;
+      bakenyiArticles.forEach(defaultArt => {
+        if (!list.some(a => a.id === defaultArt.id)) {
+          list.push(defaultArt);
+          listChanged = true;
+        }
+      });
+      if (listChanged) {
+        localStorage.setItem('bakenye_demo_articles', JSON.stringify(list));
+      }
+      return onlyPublished ? list.filter(a => a.status === 'published' || a.status === 'approved') : list;
+    }
+    localStorage.setItem('bakenye_demo_articles', JSON.stringify(bakenyiArticles));
+    return onlyPublished ? bakenyiArticles.filter(a => a.status === 'published' || a.status === 'approved') : bakenyiArticles;
   }
 
   try {
@@ -151,7 +167,10 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
 export async function getArticleById(id: string): Promise<Article | null> {
   const client = getSupabase();
   if (!client) {
-    return null;
+    const stored = localStorage.getItem('bakenye_demo_articles');
+    const list: Article[] = stored ? JSON.parse(stored) : bakenyiArticles;
+    const found = list.find(a => a.id === id);
+    return found || null;
   }
 
   try {
