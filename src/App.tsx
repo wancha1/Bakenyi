@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
@@ -12,33 +12,52 @@ import AppInstallPrompt from './components/AppInstallPrompt';
 import ScrollToTop from './components/ScrollToTop';
 
 // Admin Components
-import Login from './components/admin/Login';
+const Login = lazy(() => import('./components/admin/Login'));
 import Sidebar from './components/admin/Sidebar';
 import Header from './components/admin/Header';
 
-// Storefront Pages
-import Home from './pages/Home';
-import About from './pages/About';
-import History from './pages/History';
-import Clans from './pages/Clans';
-import Leadership from './pages/Leadership';
-import Gallery from './pages/Gallery';
-import Language from './pages/Language';
-import Articles from './pages/Articles';
-import Contribute from './pages/Contribute';
-import Contact from './pages/Contact';
-import Search from './pages/Search';
+// Storefront Pages (Lazy loaded for massive speed improvements and micro-chunk code-splitting)
+const Home = lazy(() => import('./pages/Home'));
+const About = lazy(() => import('./pages/About'));
+const History = lazy(() => import('./pages/History'));
+const Clans = lazy(() => import('./pages/Clans'));
+const Leadership = lazy(() => import('./pages/Leadership'));
+const Gallery = lazy(() => import('./pages/Gallery'));
+const Language = lazy(() => import('./pages/Language'));
+const Articles = lazy(() => import('./pages/Articles'));
+const Contribute = lazy(() => import('./pages/Contribute'));
+const Contact = lazy(() => import('./pages/Contact'));
+const Search = lazy(() => import('./pages/Search'));
 
-// Admin View Panels
-import DashboardView from './components/admin/views/DashboardView';
-import UsersView from './components/admin/views/UsersView';
-import RolesView from './components/admin/views/RolesView';
-import ContentView from './components/admin/views/ContentView';
-import MediaView from './components/admin/views/MediaView';
-import ReportsView from './components/admin/views/ReportsView';
-import ActivityLogsView from './components/admin/views/ActivityLogsView';
-import SettingsView from './components/admin/views/SettingsView';
-import SystemHealthView from './components/admin/views/SystemHealthView';
+// Admin View Panels (Lazy loaded to optimize bundle size for general visitors)
+const DashboardView = lazy(() => import('./components/admin/views/DashboardView'));
+const UsersView = lazy(() => import('./components/admin/views/UsersView'));
+const RolesView = lazy(() => import('./components/admin/views/RolesView'));
+const ContentView = lazy(() => import('./components/admin/views/ContentView'));
+const MediaView = lazy(() => import('./components/admin/views/MediaView'));
+const ReportsView = lazy(() => import('./components/admin/views/ReportsView'));
+const ActivityLogsView = lazy(() => import('./components/admin/views/ActivityLogsView'));
+const SettingsView = lazy(() => import('./components/admin/views/SettingsView'));
+const SystemHealthView = lazy(() => import('./components/admin/views/SystemHealthView'));
+
+/**
+ * Beautiful Page Loader with pulsing Bakenyi cultural pattern.
+ */
+function PageLoader() {
+  return (
+    <div className="w-full min-h-[60vh] flex flex-col items-center justify-center py-20 px-4">
+      <div className="relative">
+        <div className="w-16 h-16 rounded-full border-4 border-heritage-terracotta/20 border-t-heritage-terracotta animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-heritage-sand/10 cultural-pattern animate-pulse" />
+        </div>
+      </div>
+      <p className="text-xs font-bold uppercase tracking-widest text-heritage-brown/40 mt-6 animate-pulse">
+        Unveiling Bakenyi Wisdom...
+      </p>
+    </div>
+  );
+}
 
 /**
  * Public Layout which includes the global Navbar and Footer.
@@ -68,7 +87,9 @@ function StorefrontLayout({ user, userRole }: { user: any; userRole: string | nu
       )}
       <Navbar />
       <main className="flex-grow">
-        <Outlet />
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
       <Footer />
       <AppInstallPrompt />
@@ -309,7 +330,14 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
 
         {/* Inner Content Area */}
         <main className="flex-grow p-6 md:p-8 space-y-6 max-w-7xl mx-auto w-full">
-          {renderView()}
+          <Suspense fallback={
+            <div className="py-20 flex flex-col justify-center items-center">
+              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+              <span className="text-xs text-slate-400 dark:text-slate-500 mt-3 font-semibold uppercase tracking-wider">Accessing chronicles...</span>
+            </div>
+          }>
+            {renderView()}
+          </Suspense>
         </main>
       </div>
     </div>
@@ -464,7 +492,9 @@ export default function App() {
               path="/login" 
               element={
                 <PublicLoginRoute user={user} isAuthLoading={isAuthLoading}>
-                  <Login onLoginSuccess={handleLoginSuccess} />
+                  <Suspense fallback={<PageLoader />}>
+                    <Login onLoginSuccess={handleLoginSuccess} />
+                  </Suspense>
                 </PublicLoginRoute>
               } 
             />
@@ -474,7 +504,14 @@ export default function App() {
               path="/admin" 
               element={
                 <ProtectedAdminRoute user={user} isAuthLoading={isAuthLoading}>
-                  <DashboardApp user={user} onLogout={handleLogout} />
+                  <Suspense fallback={
+                    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col justify-center items-center">
+                      <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                      <span className="text-xs text-slate-400 dark:text-slate-500 mt-3 font-semibold uppercase tracking-wider">Opening sanctuary...</span>
+                    </div>
+                  }>
+                    <DashboardApp user={user} onLogout={handleLogout} />
+                  </Suspense>
                 </ProtectedAdminRoute>
               } 
             />
