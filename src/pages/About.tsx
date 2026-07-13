@@ -88,13 +88,14 @@ export default function About() {
         keywords="About Bakenye, cultural preservation project, digital archives, Bantu history, community outreach"
       />
       {/* Page Header */}
-      <section className="bg-heritage-brown py-20 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 cultural-pattern opacity-10" />
+      <section className="relative bg-gradient-to-br from-stone-950 via-stone-900 to-[#2c1d11] py-24 px-4 overflow-hidden border-b border-stone-800/60 text-center">
+        <div className="absolute inset-0 cultural-pattern opacity-10 pointer-events-none" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-heritage-terracotta/10 rounded-full blur-3xl pointer-events-none" />
         <div className="max-w-7xl mx-auto relative z-10 text-center">
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-6xl font-serif font-bold text-white mb-6"
+            className="text-4xl md:text-6xl font-serif font-black text-white mb-6 tracking-tight leading-tight"
           >
             About the Platform
           </motion.h1>
@@ -102,7 +103,7 @@ export default function About() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-heritage-sand max-w-2xl mx-auto text-lg md:text-xl font-medium tracking-wide uppercase"
+            className="text-heritage-sand max-w-2xl mx-auto text-sm md:text-base font-black tracking-widest uppercase"
           >
             Preserving tradition, uniting a people, safeguarding the future.
           </motion.p>

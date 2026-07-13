@@ -55,26 +55,66 @@ html {
 }
 
 .cultural-pattern {
-  background-image: radial-gradient(var(--color-heritage-brown) 0.5px, transparent 0.5px);
-  background-size: 24px 24px;
-  opacity: 0.05;
+  background-image: radial-gradient(var(--color-heritage-brown) 1.2px, transparent 1.2px);
+  background-size: 20px 20px;
+  opacity: 0.04;
 }
 
 .heritage-card {
   background-color: var(--bg-white-override);
-  @apply border border-heritage-brown/10 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-heritage-terracotta/20;
+  position: relative;
+  border: 1px solid rgba(86, 61, 45, 0.08);
+  border-radius: 24px;
+  overflow: hidden;
+  transition: all 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px -2px rgba(86, 61, 45, 0.02), 0 2px 8px -1px rgba(86, 61, 45, 0.01);
+}
+
+.heritage-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-heritage-terracotta), var(--color-heritage-sand));
+  opacity: 0;
+  transition: opacity 300ms ease;
+  z-index: 10;
+}
+
+.heritage-card:hover {
+  transform: translateY(-6px) scale(1.005);
+  border-color: rgba(188, 108, 37, 0.25);
+  box-shadow: 0 20px 35px -10px rgba(86, 61, 45, 0.08), 0 10px 20px -5px rgba(188, 108, 37, 0.03);
+}
+
+.heritage-card:hover::before {
+  opacity: 1;
 }
 
 .nav-link {
-  @apply text-heritage-brown/70 hover:text-heritage-terracotta transition-colors font-medium text-sm uppercase tracking-wider;
+  @apply text-heritage-brown/80 hover:text-heritage-terracotta transition-all duration-200 font-semibold text-xs uppercase tracking-widest;
 }
 
 .btn-primary {
-  @apply bg-heritage-terracotta text-white px-6 py-3 rounded-2xl font-bold transition-all hover:bg-heritage-brown hover:shadow-lg hover:shadow-heritage-terracotta/10 active:scale-95 text-xs uppercase tracking-widest;
+  @apply bg-heritage-terracotta text-white px-7 py-3.5 rounded-2xl font-bold transition-all duration-300 hover:bg-heritage-brown hover:shadow-[0_12px_24px_-8px_rgba(188,108,37,0.35)] active:scale-95 text-xs uppercase tracking-widest cursor-pointer;
 }
 
 .btn-secondary {
-  @apply border-2 border-heritage-brown text-heritage-brown px-6 py-3 rounded-2xl font-bold transition-all hover:bg-heritage-brown hover:text-white active:scale-95 text-xs uppercase tracking-widest;
+  @apply border-2 border-heritage-brown/20 text-heritage-brown px-7 py-3.5 rounded-2xl font-bold transition-all duration-300 hover:bg-heritage-brown hover:text-white active:scale-95 text-xs uppercase tracking-widest cursor-pointer;
+}
+
+.heritage-badge {
+  @apply inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest font-mono shadow-xs;
+}
+
+.heritage-focus {
+  @apply focus:outline-none focus:ring-4 focus:ring-heritage-terracotta/20 focus:border-heritage-terracotta;
+}
+
+.parchment-glow {
+  background: radial-gradient(circle at top right, rgba(221, 161, 94, 0.08) 0%, transparent 70%);
 }
 
 /* Premium custom scrollbar */

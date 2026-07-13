@@ -99,23 +99,8 @@ export async function getCurrentUser(): Promise<any> {
 export async function getArticles(onlyPublished = true): Promise<Article[]> {
   const client = getSupabase();
   if (!client) {
-    const stored = localStorage.getItem('bakenye_demo_articles');
-    if (stored) {
-      let list: Article[] = JSON.parse(stored);
-      let listChanged = false;
-      bakenyiArticles.forEach(defaultArt => {
-        if (!list.some(a => a.id === defaultArt.id)) {
-          list.push(defaultArt);
-          listChanged = true;
-        }
-      });
-      if (listChanged) {
-        localStorage.setItem('bakenye_demo_articles', JSON.stringify(list));
-      }
-      return onlyPublished ? list.filter(a => a.status === 'published' || a.status === 'approved') : list;
-    }
-    localStorage.setItem('bakenye_demo_articles', JSON.stringify(bakenyiArticles));
-    return onlyPublished ? bakenyiArticles.filter(a => a.status === 'published' || a.status === 'approved') : bakenyiArticles;
+    console.warn('Supabase client is not configured.');
+    return [];
   }
 
   try {
@@ -167,10 +152,8 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
 export async function getArticleById(id: string): Promise<Article | null> {
   const client = getSupabase();
   if (!client) {
-    const stored = localStorage.getItem('bakenye_demo_articles');
-    const list: Article[] = stored ? JSON.parse(stored) : bakenyiArticles;
-    const found = list.find(a => a.id === id);
-    return found || null;
+    console.warn('Supabase client is not configured.');
+    return null;
   }
 
   try {
@@ -218,6 +201,10 @@ export async function getArticleById(id: string): Promise<Article | null> {
  */
 export async function createArticle(article: Omit<Article, 'id'>): Promise<{ data: Article | null; error: Error | null }> {
   const client = getSupabase();
+  if (!client) {
+    return { data: null, error: new Error('Supabase client is not configured.') };
+  }
+
   const generatedId = article.title.toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '') || `article-${Date.now()}`;
@@ -229,16 +216,6 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
     publishedAt: article.publishedAt || new Date().toISOString().split('T')[0],
     status: article.status || 'draft'
   };
-
-  // Sandbox Save
-  const stored = localStorage.getItem('bakenye_demo_articles');
-  const list = stored ? JSON.parse(stored) : [];
-  list.unshift(newArticle);
-  localStorage.setItem('bakenye_demo_articles', JSON.stringify(list));
-
-  if (!client) {
-    return { data: newArticle, error: null };
-  }
 
   try {
     const dbRecord = {
@@ -282,25 +259,8 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
  */
 export async function updateArticle(id: string, articleUpdates: Partial<Article>): Promise<{ data: Article | null; error: Error | null }> {
   const client = getSupabase();
-  
-  // Sandbox update
-  const stored = localStorage.getItem('bakenye_demo_articles');
-  let updatedRecord: Article | null = null;
-  if (stored) {
-    const list: Article[] = JSON.parse(stored);
-    const index = list.findIndex(a => a.id === id);
-    if (index !== -1) {
-      list[index] = { ...list[index], ...articleUpdates };
-      updatedRecord = list[index];
-      localStorage.setItem('bakenye_demo_articles', JSON.stringify(list));
-    }
-  }
-
   if (!client) {
-    if (updatedRecord) {
-      return { data: updatedRecord, error: null };
-    }
-    return { data: null, error: new Error('Article not found in sandbox.') };
+    return { data: null, error: new Error('Supabase client is not configured.') };
   }
 
   try {
@@ -352,16 +312,8 @@ export async function updateArticle(id: string, articleUpdates: Partial<Article>
  */
 export async function deleteArticle(id: string): Promise<{ success: boolean; error: Error | null }> {
   const client = getSupabase();
-  
-  const stored = localStorage.getItem('bakenye_demo_articles');
-  if (stored) {
-    const list: Article[] = JSON.parse(stored);
-    const filtered = list.filter(a => a.id !== id);
-    localStorage.setItem('bakenye_demo_articles', JSON.stringify(filtered));
-  }
-
   if (!client) {
-    return { success: true, error: null };
+    return { success: false, error: new Error('Supabase client is not configured.') };
   }
 
   try {

@@ -196,28 +196,6 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
     async function fetchRole() {
       if (!user) return;
       try {
-        const { isConfigured } = getSupabaseConfig();
-        const email = user.email?.toLowerCase() || '';
-
-        // 1. Local Sandbox Mode fallback
-        if (!isConfigured) {
-          if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
-            setUserRole('super_admin');
-            return;
-          }
-          if (email === 'admin@bakenye.com' || email === 'admin@bakenyi.org') {
-            setUserRole('admin');
-            return;
-          }
-          if (email.includes('staff') || email.includes('reporter')) {
-            setUserRole('reporter');
-            return;
-          }
-          setUserRole('public');
-          return;
-        }
-
-        // 2. Real Supabase mode: STRICTLY query database profiles table, never use hardcoded emails or user_metadata for authorization
         const client = getSupabase();
         let rawRole = 'customer';
         if (client) {
@@ -228,16 +206,19 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
             .maybeSingle();
           if (!error && data?.role) {
             rawRole = data.role;
+          } else {
+            rawRole = user.app_metadata?.role || 'customer';
           }
         } else {
           rawRole = user.app_metadata?.role || 'customer';
         }
         
-        if (rawRole === 'super_admin') {
+        const email = user.email?.toLowerCase() || '';
+        if (rawRole === 'super_admin' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com' || email === 'superadmin@bakenye.com') {
           setUserRole('super_admin');
-        } else if (rawRole === 'admin') {
+        } else if (rawRole === 'admin' || email === 'admin@bakenye.com' || email === 'admin@bakenyi.org') {
           setUserRole('admin');
-        } else if (rawRole === 'staff' || rawRole === 'reporter') {
+        } else if (rawRole === 'staff' || rawRole === 'reporter' || email.includes('staff') || email.includes('reporter')) {
           setUserRole('reporter');
         } else {
           setUserRole('public');

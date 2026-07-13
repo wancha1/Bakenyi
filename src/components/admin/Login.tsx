@@ -144,39 +144,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         setIsLoading(false);
       }
     } else {
-      // Sandbox Mode Emulation
-      setTimeout(() => {
-        setIsLoading(false);
-        const lowerEmail = email.toLowerCase();
-
-        if (mode === 'signin') {
-          // Match standard sandbox credentials
-          if (
-            (lowerEmail === 'admin@bakenye.com' || lowerEmail === 'wanchaaaron@gmail.com' || lowerEmail === 'aaronwancha@gmail.com' || lowerEmail === 'admin@bakenyi.org') && 
-            password === 'admin123'
-          ) {
-            const mockUser = {
-              id: 'sandbox-admin-user-uuid',
-              email: lowerEmail,
-              role: 'admin',
-              user_metadata: { name: fullName || 'Artisan Admin' }
-            };
-            onLoginSuccess(mockUser);
-          } else {
-            setError('Invalid credentials. (Hint: For sandbox mode, use: admin@bakenye.com and admin123)');
-          }
-        } else if (mode === 'signup') {
-          // Sandbox Account Creation
-          setSuccessMsg(`Sandbox Mode Account created successfully for ${fullName}! You can now sign in using your credentials.`);
-          setMode('signin');
-          setPassword('');
-          setConfirmPassword('');
-        } else if (mode === 'forgot') {
-          // Sandbox Forgot Password
-          setSuccessMsg(`Sandbox Mode: A mock password reset email has been successfully sent to ${email}.`);
-          setMode('signin');
-        }
-      }, 800);
+      setError('Supabase is not configured. Please define VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment to start secure production sessions.');
+      setIsLoading(false);
     }
   }
 
@@ -206,17 +175,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         setIsLoading(false);
       }
     } else {
-      // Sandbox Google Login Emulation
-      setTimeout(() => {
-        setIsLoading(false);
-        const mockUser = {
-          id: 'sandbox-google-user-uuid',
-          email: 'aaronwancha@gmail.com',
-          role: 'admin',
-          user_metadata: { name: 'Google Admin' }
-        };
-        onLoginSuccess(mockUser);
-      }, 800);
+      setError('Supabase is not configured. Please define VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment to start secure production sessions.');
+      setIsLoading(false);
     }
   }
 
@@ -508,27 +468,33 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           </div>
         </div>
 
-        {/* Sandbox Instruction Help Indicator */}
-        <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm space-y-2 text-xs">
+        {/* Database Configuration Guide Panel */}
+        <div className="p-5 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-sm space-y-3 text-xs">
           <div className="flex items-center gap-2 border-b dark:border-slate-700 pb-2">
-            <Database className="w-4 h-4 text-indigo-500" />
+            <Database className="w-4 h-4 text-indigo-500 animate-pulse" />
             <h4 className="font-bold text-slate-800 dark:text-white uppercase tracking-wider text-[10px]">
-              {isConfigured ? 'Live Supabase Environment' : 'Sandbox Mode active'}
+              {isConfigured ? 'Production Database Online' : 'Database Awaiting Configuration'}
             </h4>
           </div>
 
-          <div className="space-y-1 text-slate-500 dark:text-slate-400 font-medium text-left">
+          <div className="space-y-1.5 text-slate-500 dark:text-slate-400 font-medium text-left text-[11px] leading-relaxed">
             {isConfigured ? (
-              <p className="text-[11px]">
-                Supabase credentials loaded. Run SQL editor migrations first, and enter your real registered user accounts to sign in.
+              <p>
+                All secure authentication, chronicled wisdom, and digital collections are saved and persistent directly within your Supabase PostgreSQL cluster.
               </p>
             ) : (
-              <div className="space-y-1.5 text-[11px]">
-                <p>No keys detected. To explore this premium storefront dashboard, sign in with these bypass sandbox details:</p>
-                <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg space-y-0.5 font-mono text-[10px] text-slate-600 dark:text-slate-300">
-                  <div>📩 Email: <span className="font-bold text-indigo-500">admin@bakenye.com</span></div>
-                  <div>🔑 Password: <span className="font-bold text-indigo-500">admin123</span></div>
+              <div className="space-y-2">
+                <p>
+                  This system is ready for <strong>Production Level Deployment</strong>. Connect your Supabase cluster by declaring the required keys:
+                </p>
+                <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1 font-mono text-[10px] text-slate-600 dark:text-slate-300">
+                  <div className="text-slate-400"># Declare in your server environment:</div>
+                  <div>VITE_SUPABASE_URL=<span className="text-amber-600">"https://..."</span></div>
+                  <div>VITE_SUPABASE_ANON_KEY=<span className="text-amber-600">"eyJhbG..."</span></div>
                 </div>
+                <p className="text-[10px] text-slate-400">
+                  Once declared, your custom schema containing <code>heritage_articles</code>, <code>profiles</code>, and security RLS guidelines takes effect instantly.
+                </p>
               </div>
             )}
           </div>

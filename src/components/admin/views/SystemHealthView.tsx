@@ -16,7 +16,7 @@ import { isSupabaseConfigured } from '../../../lib/supabase';
 import { getSupabase } from '../../../lib/supabaseClient';
 
 export default function SystemHealthView() {
-  const [dbStatus, setDbStatus] = useState<'connected' | 'sandbox'>('sandbox');
+  const [dbStatus, setDbStatus] = useState<'connected' | 'disconnected'>('disconnected');
   const [latency, setLatency] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,14 +37,14 @@ export default function SystemHealthView() {
           if (!error) {
             setDbStatus('connected');
           } else {
-            setDbStatus('sandbox');
+            setDbStatus('disconnected');
           }
         }
       } else {
-        setDbStatus('sandbox');
+        setDbStatus('disconnected');
       }
     } catch (err) {
-      setDbStatus('sandbox');
+      setDbStatus('disconnected');
     } finally {
       const duration = Math.round(performance.now() - start);
       setLatency(duration);
@@ -76,20 +76,20 @@ export default function SystemHealthView() {
             <div className={`p-6 rounded-3xl border shadow-xs flex items-center gap-5 ${
               dbStatus === 'connected' 
                 ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/10 text-emerald-600' 
-                : 'bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/10 text-amber-600'
+                : 'bg-rose-500/5 dark:bg-rose-500/10 border-rose-500/10 text-rose-600'
             }`}>
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                dbStatus === 'connected' ? 'bg-emerald-500/10' : 'bg-amber-500/10'
+                dbStatus === 'connected' ? 'bg-emerald-500/10' : 'bg-rose-500/10'
               }`}>
                 <Activity className="w-6 h-6" />
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Database Engine</span>
                 <h3 className="text-xl font-serif font-black text-slate-900 dark:text-white leading-none">
-                  {dbStatus === 'connected' ? 'Supabase Postgres' : 'High-Fi Sandbox Emulation'}
+                  {dbStatus === 'connected' ? 'Supabase Postgres' : 'Supabase Disconnected'}
                 </h3>
                 <p className="text-xs text-slate-500 font-medium leading-tight">
-                  {dbStatus === 'connected' ? 'Secure persistent cloud layer' : 'Local Storage fallbacks active'}
+                  {dbStatus === 'connected' ? 'Secure persistent cloud layer' : 'Awaiting keys in environment'}
                 </p>
               </div>
             </div>

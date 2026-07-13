@@ -5,7 +5,7 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
   
   return (
-    <footer className="relative bg-heritage-brown text-heritage-cream pt-16 pb-8 overflow-hidden">
+    <footer className="relative bg-stone-950 text-heritage-cream pt-16 pb-8 overflow-hidden border-t border-stone-900">
       {/* Background Pattern Overlay */}
       <div className="absolute inset-0 cultural-pattern opacity-10 pointer-events-none" />
       
