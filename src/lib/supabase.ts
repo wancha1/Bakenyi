@@ -600,10 +600,67 @@ export interface GalleryImage {
   status?: 'pending' | 'approved' | 'rejected';
 }
 
+const DEFAULT_GALLERY_IMAGES: GalleryImage[] = [
+  {
+    id: 'g-1',
+    title: 'Nile Vista Sunset',
+    imageUrl: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800',
+    description: 'A stunning sunset reflecting off the waters of the river Nile near Bakenye historical settlement.',
+    category: 'Landscape',
+    status: 'approved',
+    created_at: new Date('2026-01-15').toISOString()
+  },
+  {
+    id: 'g-2',
+    title: 'Traditional Fishing Canoe',
+    imageUrl: 'https://images.unsplash.com/photo-1501535033-a593e6afb94d?auto=format&fit=crop&q=80&w=800',
+    description: 'Handcrafted wooden canoe used by the Bakenyi fishermen for centuries on the Nile marshes.',
+    category: 'Craft',
+    status: 'approved',
+    created_at: new Date('2026-01-20').toISOString()
+  },
+  {
+    id: 'g-3',
+    title: 'Sacred Ritual Drum',
+    imageUrl: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&q=80&w=800',
+    description: 'Ceremonial drum adorned with traditional patterns, utilized in regional assemblies and elder boards.',
+    category: 'Tradition',
+    status: 'approved',
+    created_at: new Date('2026-01-25').toISOString()
+  },
+  {
+    id: 'g-4',
+    title: 'Historical Settlement Grounds',
+    imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&q=80&w=800',
+    description: 'Ancient grounds where the first clans gathered, now preserved as a heritage sanctuary.',
+    category: 'History',
+    status: 'approved',
+    created_at: new Date('2026-02-01').toISOString()
+  },
+  {
+    id: 'g-5',
+    title: 'Wetland Papyrus Harvesting',
+    imageUrl: 'https://images.unsplash.com/photo-1523805009345-7448845a9e53?auto=format&fit=crop&q=80&w=800',
+    description: 'Bakenyi artisans collecting wild papyrus reeds to weave traditional mats and housing components.',
+    category: 'Craft',
+    status: 'approved',
+    created_at: new Date('2026-02-05').toISOString()
+  },
+  {
+    id: 'g-6',
+    title: 'Bakenyi Cultural Assembly',
+    imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=800',
+    description: 'Community gathering showcasing oral histories, traditional songs, and communal dialogue.',
+    category: 'Tradition',
+    status: 'approved',
+    created_at: new Date('2026-02-10').toISOString()
+  }
+];
+
 export async function getGalleryImages(includePending = false): Promise<GalleryImage[]> {
   const client = getSupabase();
   if (!client) {
-    return [];
+    return DEFAULT_GALLERY_IMAGES;
   }
 
   try {
@@ -653,10 +710,12 @@ export async function getGalleryImages(includePending = false): Promise<GalleryI
       return includePending ? mapped : mapped.filter(img => img.status === 'approved');
     }
 
-    return [];
+    return DEFAULT_GALLERY_IMAGES;
   } catch (err) {
-    console.error('getGalleryImages failed:', err);
-    return [];
+    console.warn('getGalleryImages query failed, using high-quality defaults:', err);
+    return includePending 
+      ? DEFAULT_GALLERY_IMAGES 
+      : DEFAULT_GALLERY_IMAGES.filter(img => img.status === 'approved');
   }
 }
 

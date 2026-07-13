@@ -46,7 +46,7 @@ export default function Home() {
   const [vocabulary, setVocabulary] = useState<any[]>([]);
   const [galleryImages, setGalleryImages] = useState<any[]>([]);
   
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Search states
   const [searchTerm, setSearchTerm] = useState('');
@@ -133,76 +133,69 @@ export default function Home() {
 
   useEffect(() => {
     async function loadAllContent() {
-      try {
-        const [
-          articlesData,
-          contribsData,
-          statusesData,
-          newsData,
-          announcementsData,
-          eventsData,
-          clansData,
-          leadersData,
-          vocabData,
-          galleryData
-        ] = await Promise.all([
-          getArticles(true).catch(() => []),
-          getContributions().catch(() => []),
-          getStatuses(true).catch(() => []),
-          getNews(true).catch(() => []),
-          getAnnouncements(true).catch(() => []),
-          getEvents(true).catch(() => []),
-          getClans(true).catch(() => []),
-          getLeaders(true).catch(() => []),
-          getVocabulary(true).catch(() => []),
-          getGalleryImages(false).catch(() => [])
-        ]) as [any[], any[], any[], any[], any[], any[], any[], any[], any[], any[]];
-
+      // Fetch each collection in parallel and update state progressively
+      getArticles(true).then(articlesData => {
         setRecentArticles(articlesData.slice(0, 4));
-        
+        setCounterStats(prev => ({
+          ...prev,
+          stories: prev.stories + articlesData.length
+        }));
+      }).catch(err => console.warn('Articles fetch failed:', err));
+
+      getContributions().then(contribsData => {
         const approvedStories = contribsData.filter((c: any) => c.status === 'approved');
         setRecentStories(approvedStories.slice(0, 4));
+        setCounterStats(prev => ({
+          ...prev,
+          stories: prev.stories + approvedStories.length
+        }));
+      }).catch(err => console.warn('Contributions fetch failed:', err));
 
-        // Filter out expired statuses in compliance with "Expired statuses should never appear"
+      getStatuses(true).then(statusesData => {
         const now = new Date();
         const activeStatuses = statusesData.filter((status: Status) => {
           const notExpired = status.expires_at ? new Date(status.expires_at) > now : true;
           return notExpired && status.status === 'approved' && !status.is_archived;
         });
         setStatuses(activeStatuses);
+      }).catch(err => console.warn('Statuses fetch failed:', err));
 
+      getNews(true).then(newsData => {
         setNews(newsData.slice(0, 3));
+      }).catch(err => console.warn('News fetch failed:', err));
+
+      getAnnouncements(true).then(announcementsData => {
         setAnnouncements(announcementsData);
+      }).catch(err => console.warn('Announcements fetch failed:', err));
+
+      getEvents(true).then(eventsData => {
         setEvents(eventsData);
+        setCounterStats(prev => ({ ...prev, events: eventsData.length || prev.events }));
+      }).catch(err => console.warn('Events fetch failed:', err));
+
+      getClans(true).then(clansData => {
         setClans(clansData);
+        setCounterStats(prev => ({ ...prev, clans: clansData.length || prev.clans }));
+      }).catch(err => console.warn('Clans fetch failed:', err));
+
+      getLeaders(true).then(leadersData => {
         setLeaders(leadersData);
+        setCounterStats(prev => ({ ...prev, leaders: leadersData.length || prev.leaders }));
+      }).catch(err => console.warn('Leaders fetch failed:', err));
+
+      getVocabulary(true).then(vocabData => {
         setVocabulary(vocabData);
+        setCounterStats(prev => ({ ...prev, vocabulary: vocabData.length || prev.vocabulary }));
+      }).catch(err => console.warn('Vocabulary fetch failed:', err));
+
+      getGalleryImages(false).then(galleryData => {
         setGalleryImages(galleryData);
-
-        // Update statistics counter from database lengths
-        const uniqueContributors = new Set([
-          ...approvedStories.map((c: any) => c.userEmail),
-          ...articlesData.map((a: any) => a.author),
-          ...newsData.map((n: any) => n.author_id)
-        ]);
-
-        setCounterStats({
-          stories: approvedStories.length + articlesData.length,
-          clans: clansData.length || 12,
-          leaders: leadersData.length || 8,
-          photos: galleryData.filter((g: any) => g.type === 'photo').length || 24,
-          videos: galleryData.filter((g: any) => g.type === 'video').length || 6,
-          vocabulary: vocabData.length || 125,
-          contributors: uniqueContributors.size || 15,
-          events: eventsData.length || 4,
-          visitors: 1850
-        });
-
-      } catch (err) {
-        console.error('Error fetching home content:', err);
-      } finally {
-        setLoading(false);
-      }
+        setCounterStats(prev => ({
+          ...prev,
+          photos: galleryData.filter((g: any) => g.type === 'photo').length || prev.photos,
+          videos: galleryData.filter((g: any) => g.type === 'video').length || prev.videos
+        }));
+      }).catch(err => console.warn('Gallery images fetch failed:', err));
     }
     loadAllContent();
   }, []);
@@ -385,24 +378,6 @@ export default function Home() {
     { name: 'Events', path: '/contact', icon: Calendar, desc: 'Schedule of language learning groups and handcraft circles.', color: 'from-emerald-600/10 to-emerald-700/5 hover:border-emerald-500/40', count: events.length || 2 },
     { name: 'News', path: '/articles', icon: Megaphone, desc: 'Official declarations and press pieces from the Elder Board.', color: 'from-red-600/10 to-red-700/5 hover:border-red-500/40', count: news.length || 3 },
   ];
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-heritage-cream flex flex-col justify-center items-center py-12 px-4">
-        <motion.div 
-          animate={{ rotate: 360 }} 
-          transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-          className="w-12 h-12 border-4 border-heritage-terracotta border-t-transparent rounded-full mb-4"
-        />
-        <h3 className="font-serif text-lg text-heritage-brown font-bold tracking-wide">
-          Unfolding the Bakenyi Archives...
-        </h3>
-        <p className="text-xs text-heritage-brown/60 mt-1 font-mono">
-          Verifying community seals & oral records
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="relative overflow-hidden bg-[#faf8f5] dark:bg-stone-950 text-stone-900 dark:text-stone-100 min-h-screen font-sans">

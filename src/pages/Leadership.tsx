@@ -57,27 +57,28 @@ export default function Leadership() {
         keywords="Elders, leadership, chief historians, community guardians, Bakenye council"
       />
       {/* Page Header */}
-      <section className="bg-heritage-brown py-20 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 cultural-pattern opacity-10" />
+      <section className="relative bg-gradient-to-br from-stone-950 via-stone-900 to-[#2c1d11] py-24 px-4 overflow-hidden border-b border-stone-800/60 text-center">
+        <div className="absolute inset-0 cultural-pattern opacity-10 pointer-events-none" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-heritage-terracotta/10 rounded-full blur-3xl pointer-events-none" />
         <div className="max-w-7xl mx-auto relative z-10 text-center">
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-6xl font-serif font-bold text-white mb-6"
+            className="text-4xl md:text-6xl font-serif font-black text-white mb-6 tracking-tight leading-tight"
           >
             Custodians of Culture
           </motion.h1>
-          <p className="text-heritage-sand max-w-2xl mx-auto text-lg md:text-xl font-medium tracking-wide uppercase">
+          <p className="text-heritage-sand max-w-2xl mx-auto text-sm md:text-base font-black tracking-widest uppercase mb-10">
             The committee dedicated to steering the Bakenyi Heritage Platform.
           </p>
 
           {/* Search Bar */}
-          <div className="relative max-w-xl mx-auto mt-10">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-heritage-brown/40 w-5 h-5" />
+          <div className="relative max-w-xl mx-auto shadow-2xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-500 w-5 h-5" />
             <input
               type="text"
               placeholder="Search elders by name, role, expertise..."
-              className="w-full pl-12 pr-4 py-4 rounded-full bg-white border-2 border-heritage-terracotta/20 focus:border-heritage-terracotta focus:outline-none text-heritage-brown transition-all font-semibold"
+              className="w-full pl-12 pr-4 py-4 rounded-full bg-white dark:bg-stone-900 border border-stone-200/10 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 focus:outline-none text-stone-900 dark:text-white transition-all font-medium text-sm"
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
             />
