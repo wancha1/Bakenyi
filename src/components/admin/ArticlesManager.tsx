@@ -29,6 +29,7 @@ import {
 import { Article } from '../../types/article';
 import { getArticles, createArticle, updateArticle, deleteArticle, uploadMedia, isSupabaseConfigured } from '../../lib/supabase';
 import { logAdminActivity } from '../../lib/operations';
+import DangerAction, { DangerActionType, DangerLevel } from '../DangerAction';
 
 export default function ArticlesManager() {
   // State
@@ -38,6 +39,19 @@ export default function ArticlesManager() {
   const [success, setSuccess] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
+  
+  // DangerAction configuration state
+  const [dangerActionConfig, setDangerActionConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmText?: string;
+    actionType?: DangerActionType;
+    dangerLevel?: DangerLevel;
+    requireConfirmWord?: string;
+    placeholderConfirmWord?: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
   
   // Simulated Role Switch for testing workflows
   const [simulatedRole, setSimulatedRole] = useState<'admin' | 'staff'>('admin');
@@ -160,17 +174,31 @@ export default function ArticlesManager() {
 
   // Handle article deletion
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to permanently delete this article? This action cannot be undone.')) return;
-    
-    try {
-      const { success: delSuccess, error: delError } = await deleteArticle(id);
-      if (delError) throw delError;
-      
-      showNotification('Article deleted successfully.');
-      loadArticles();
-    } catch (err: any) {
-      showNotification(err.message || 'Failed to delete article.', false);
-    }
+    const article = articles.find(art => art.id === id);
+    const title = article ? article.title : 'this article';
+
+    setDangerActionConfig({
+      isOpen: true,
+      title: 'Permanently Delete Article',
+      description: `Are you sure you want to permanently delete "${title}"? This action is irreversible, will instantly remove the article from the public database and platform, and cannot be undone.`,
+      confirmText: 'Delete Article',
+      actionType: 'delete',
+      dangerLevel: 'high',
+      requireConfirmWord: 'DELETE',
+      placeholderConfirmWord: 'Type DELETE to confirm',
+      onConfirm: async () => {
+        try {
+          const { success: delSuccess, error: delError } = await deleteArticle(id);
+          if (delError) throw delError;
+          
+          showNotification('Article deleted successfully.');
+          loadArticles();
+        } catch (err: any) {
+          showNotification(err.message || 'Failed to delete article.', false);
+          throw err;
+        }
+      }
+    });
   };
 
   // Handle Form input changes
@@ -1112,6 +1140,12 @@ export default function ArticlesManager() {
           )}
         </div>
         </div>
+      )}
+      {dangerActionConfig && (
+        <DangerAction
+          {...dangerActionConfig}
+          onClose={() => setDangerActionConfig(null)}
+        />
       )}
     </div>
   );

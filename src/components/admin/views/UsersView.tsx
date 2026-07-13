@@ -34,6 +34,7 @@ import {
   getSupabaseConfig 
 } from '../../../lib/supabaseClient';
 import { logAdminActivity } from '../../../lib/operations';
+import DangerAction, { DangerActionType, DangerLevel } from '../../DangerAction';
 
 export default function UsersView() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -53,6 +54,19 @@ export default function UsersView() {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  // DangerAction modal configuration state
+  const [dangerActionConfig, setDangerActionConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmText?: string;
+    actionType?: DangerActionType;
+    dangerLevel?: DangerLevel;
+    requireConfirmWord?: string;
+    placeholderConfirmWord?: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
 
   // Edit form states
   const [editFullName, setEditFullName] = useState('');
@@ -223,57 +237,72 @@ export default function UsersView() {
 
   // Quick Action: Reject / Suspend Registration
   async function handleReject(user: UserProfile) {
-    if (window.confirm(`Are you sure you want to REJECT and suspend the registration of ${user.email}?`)) {
-      setIsSubmitting(true);
-      try {
-        const updated = await updateUserStatus(user.id, 'suspended');
-        if (updated) {
-          setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: 'suspended' } : u));
-          logAdminActivity(
-            'Super Admin',
-            'User Registration Rejected',
-            `Denied registration application for ${user.email}. Status set to suspended.`,
-            'Security',
-            'Warning',
-            user.id
-          );
-          flashMessage(`Registration for ${user.email} has been suspended.`);
-          window.dispatchEvent(new Event('bakenye_operations_updated'));
+    setDangerActionConfig({
+      isOpen: true,
+      title: 'Reject User Registration',
+      description: `Are you sure you want to REJECT and suspend the registration of ${user.email}? This will deny their entry to the platform.`,
+      confirmText: 'Reject & Suspend',
+      actionType: 'reject',
+      dangerLevel: 'medium',
+      onConfirm: async () => {
+        setIsSubmitting(true);
+        try {
+          const updated = await updateUserStatus(user.id, 'suspended');
+          if (updated) {
+            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: 'suspended' } : u));
+            logAdminActivity(
+              'Super Admin',
+              'User Registration Rejected',
+              `Denied registration application for ${user.email}. Status set to suspended.`,
+              'Security',
+              'Warning',
+              user.id
+            );
+            flashMessage(`Registration for ${user.email} has been suspended.`);
+            window.dispatchEvent(new Event('bakenye_operations_updated'));
+          }
+        } catch (err) {
+          console.error('Failed to reject registration:', err);
+          alert('Failed to reject registration.');
+        } finally {
+          setIsSubmitting(false);
         }
-      } catch (err) {
-        console.error('Failed to reject registration:', err);
-        alert('Failed to reject registration.');
-      } finally {
-        setIsSubmitting(false);
       }
-    }
+    });
   }
 
   // Quick Action: Toggle Status (Suspend / Reactivate)
   async function handleToggleStatus(user: UserProfile) {
     const nextStatus: UserProfile['status'] = user.status === 'active' ? 'suspended' : 'active';
-    const label = nextStatus === 'suspended' ? 'SUSPEND' : 'ACTIVATE';
     
-    if (window.confirm(`Are you sure you want to ${label} the user account ${user.email}?`)) {
-      try {
-        const updated = await updateUserStatus(user.id, nextStatus);
-        if (updated) {
-          setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: nextStatus } : u));
-          logAdminActivity(
-            'Super Admin',
-            nextStatus === 'suspended' ? 'Account Suspended' : 'Account Re-activated',
-            `Manually toggled account status for ${user.email} to ${nextStatus.toUpperCase()}.`,
-            'Security',
-            nextStatus === 'suspended' ? 'Warning' : 'Success',
-            user.id
-          );
-          flashMessage(`Account for ${user.email} is now ${nextStatus.toUpperCase()}.`);
-          window.dispatchEvent(new Event('bakenye_operations_updated'));
+    setDangerActionConfig({
+      isOpen: true,
+      title: nextStatus === 'suspended' ? 'Suspend User Account' : 'Reactivate User Account',
+      description: `Are you sure you want to ${nextStatus === 'suspended' ? 'suspend' : 'reactivate'} the user account for ${user.email}?`,
+      confirmText: nextStatus === 'suspended' ? 'Suspend Account' : 'Reactivate Account',
+      actionType: nextStatus === 'suspended' ? 'suspend' : 'custom',
+      dangerLevel: nextStatus === 'suspended' ? 'high' : 'medium',
+      onConfirm: async () => {
+        try {
+          const updated = await updateUserStatus(user.id, nextStatus);
+          if (updated) {
+            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: nextStatus } : u));
+            logAdminActivity(
+              'Super Admin',
+              nextStatus === 'suspended' ? 'Account Suspended' : 'Account Re-activated',
+              `Manually toggled account status for ${user.email} to ${nextStatus.toUpperCase()}.`,
+              'Security',
+              nextStatus === 'suspended' ? 'Warning' : 'Success',
+              user.id
+            );
+            flashMessage(`Account for ${user.email} is now ${nextStatus.toUpperCase()}.`);
+            window.dispatchEvent(new Event('bakenye_operations_updated'));
+          }
+        } catch (err) {
+          console.error('Failed to toggle status:', err);
         }
-      } catch (err) {
-        console.error('Failed to toggle status:', err);
       }
-    }
+    });
   }
 
   // Delete Action: Elder Only
@@ -288,27 +317,37 @@ export default function UsersView() {
       return;
     }
 
-    if (window.confirm(`⚠️ WARNING: Are you sure you want to PERMANENTLY DELETE ${user.email}? This action is irreversible and deletes their entire database profile record.`)) {
-      try {
-        const success = await deleteUser(user.id);
-        if (success) {
-          setUsers(prev => prev.filter(u => u.id !== user.id));
-          logAdminActivity(
-            'Elder',
-            'Profile Deleted',
-            `Permanently deleted database profile record for ${user.email} (${user.id}).`,
-            'Security',
-            'Error',
-            user.id
-          );
-          flashMessage(`Permanently deleted user account ${user.email}`);
-          window.dispatchEvent(new Event('bakenye_operations_updated'));
+    setDangerActionConfig({
+      isOpen: true,
+      title: 'Permanently Delete User Profile',
+      description: `CRITICAL WARNING: Are you sure you want to permanently delete user ${user.email}? This action is irreversible, removes their entire profile record from the database, and cannot be undone.`,
+      confirmText: 'Permanently Delete',
+      actionType: 'delete',
+      dangerLevel: 'critical',
+      requireConfirmWord: 'DELETE',
+      placeholderConfirmWord: 'Type DELETE to confirm permanent removal',
+      onConfirm: async () => {
+        try {
+          const success = await deleteUser(user.id);
+          if (success) {
+            setUsers(prev => prev.filter(u => u.id !== user.id));
+            logAdminActivity(
+              'Elder',
+              'Profile Deleted',
+              `Permanently deleted database profile record for ${user.email} (${user.id}).`,
+              'Security',
+              'Error',
+              user.id
+            );
+            flashMessage(`Permanently deleted user account ${user.email}`);
+            window.dispatchEvent(new Event('bakenye_operations_updated'));
+          }
+        } catch (err) {
+          console.error('Failed to delete user:', err);
+          alert('Failed to delete user record.');
         }
-      } catch (err) {
-        console.error('Failed to delete user:', err);
-        alert('Failed to delete user record.');
       }
-    }
+    });
   }
 
   // Edit Modal triggers
@@ -898,6 +937,13 @@ export default function UsersView() {
             </form>
           </div>
         </div>
+      )}
+
+      {dangerActionConfig && (
+        <DangerAction
+          {...dangerActionConfig}
+          onClose={() => setDangerActionConfig(null)}
+        />
       )}
 
     </div>

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { fetchMediaFiles, uploadMediaFile, updateMediaStatus, deleteMediaFile, MediaFile } from '../../../lib/supabaseClient';
 import { logAdminActivity } from '../../../lib/operations';
+import DangerAction, { DangerActionType, DangerLevel } from '../../DangerAction';
 
 export default function MediaView() {
   const [files, setFiles] = useState<MediaFile[]>([]);
@@ -28,6 +29,19 @@ export default function MediaView() {
   const [isUploading, setIsUploading] = useState(false);
   const [search, setSearch] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  
+  // DangerAction configuration state
+  const [dangerActionConfig, setDangerActionConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmText?: string;
+    actionType?: DangerActionType;
+    dangerLevel?: DangerLevel;
+    requireConfirmWord?: string;
+    placeholderConfirmWord?: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
   
   // Workflow Tab: 'pending' (Vetting Workspace) or 'approved' (Public Library)
   const [activeSubTab, setActiveSubTab] = useState<'pending' | 'approved'>('pending');
@@ -160,47 +174,65 @@ export default function MediaView() {
 
   // Workflow: Reject & Purge Media
   async function handleRejectMedia(file: MediaFile) {
-    if (window.confirm(`Are you sure you want to REJECT and permanently delete the raw upload "${file.name}"?`)) {
-      try {
-        await updateMediaStatus(file.name, 'rejected');
-        setFiles(prev => prev.filter(f => f.name !== file.name));
-        
-        logAdminActivity(
-          'Elder',
-          'Media Asset Rejected',
-          `Rejected and deleted private raw media upload: "${file.name}".`,
-          'Media',
-          'Warning',
-          file.name
-        );
-        
-        alert(`Media asset "${file.name}" has been rejected and purged from private storage.`);
-        setReviewingFile(null);
-      } catch (err) {
-        console.error('Failed to reject media:', err);
+    setDangerActionConfig({
+      isOpen: true,
+      title: 'Reject & Purge Media Asset',
+      description: `Are you sure you want to REJECT and permanently delete the raw upload "${file.name}"? This action is irreversible, and the asset will be completely purged from private storage.`,
+      confirmText: 'Reject & Purge',
+      actionType: 'reject',
+      dangerLevel: 'high',
+      onConfirm: async () => {
+        try {
+          await updateMediaStatus(file.name, 'rejected');
+          setFiles(prev => prev.filter(f => f.name !== file.name));
+          
+          logAdminActivity(
+            'Elder',
+            'Media Asset Rejected',
+            `Rejected and deleted private raw media upload: "${file.name}".`,
+            'Media',
+            'Warning',
+            file.name
+          );
+          
+          alert(`Media asset "${file.name}" has been rejected and purged from private storage.`);
+          setReviewingFile(null);
+        } catch (err) {
+          console.error('Failed to reject media:', err);
+        }
       }
-    }
+    });
   }
 
   // Handle direct deletion of approved media
   async function handleDeleteApproved(name: string) {
-    if (window.confirm('Are you sure you want to permanently delete this approved asset? This will break content referencing its public URL.')) {
-      try {
-        await deleteMediaFile(name);
-        setFiles(prev => prev.filter(f => f.name !== name));
-        
-        logAdminActivity(
-          'Elder',
-          'Media Asset Deleted',
-          `Permanently deleted public media library file "${name}".`,
-          'Media',
-          'Warning',
-          name
-        );
-      } catch (err) {
-        console.error('Delete media failed:', err);
+    setDangerActionConfig({
+      isOpen: true,
+      title: 'Permanently Delete Approved Asset',
+      description: `CRITICAL WARNING: Are you sure you want to permanently delete "${name}"? This is completely irreversible and WILL BREAK any articles, stories, or announcements currently referencing this public media URL.`,
+      confirmText: 'Permanently Delete File',
+      actionType: 'delete',
+      dangerLevel: 'critical',
+      requireConfirmWord: 'DELETE',
+      placeholderConfirmWord: 'Type DELETE to confirm file purge',
+      onConfirm: async () => {
+        try {
+          await deleteMediaFile(name);
+          setFiles(prev => prev.filter(f => f.name !== name));
+          
+          logAdminActivity(
+            'Elder',
+            'Media Asset Deleted',
+            `Permanently deleted public media library file "${name}".`,
+            'Media',
+            'Warning',
+            name
+          );
+        } catch (err) {
+          console.error('Delete media failed:', err);
+        }
       }
-    }
+    });
   }
 
   // Copy Link utility
@@ -562,6 +594,14 @@ export default function MediaView() {
         )}
 
       </div>
+
+      {dangerActionConfig && (
+        <DangerAction
+          {...dangerActionConfig}
+          onClose={() => setDangerActionConfig(null)}
+        />
+      )}
+
     </div>
   );
 }

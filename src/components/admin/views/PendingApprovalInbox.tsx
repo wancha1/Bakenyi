@@ -28,6 +28,7 @@ import {
 import { Status, News, Announcement, Event as HeritageEvent } from '../../../types/heritage';
 import { Article } from '../../../types/article';
 import { logAdminActivity } from '../../../lib/operations';
+import DangerAction, { DangerActionType, DangerLevel } from '../../DangerAction';
 
 // Extended type for unified queue
 export interface ModerationItem {
@@ -50,6 +51,19 @@ export default function PendingApprovalInbox() {
   const [items, setItems] = useState<ModerationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ModerationItem | null>(null);
+  
+  // DangerAction configuration state
+  const [dangerActionConfig, setDangerActionConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmText?: string;
+    actionType?: DangerActionType;
+    dangerLevel?: DangerLevel;
+    requireConfirmWord?: string;
+    placeholderConfirmWord?: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
   
   // Filtering & Sorting
   const [search, setSearch] = useState('');
@@ -410,56 +424,72 @@ export default function PendingApprovalInbox() {
   // Bulk operation triggers
   const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return;
-    if (!window.confirm(`Are you sure you want to BULK APPROVE & PUBLISH all ${selectedIds.length} selected items?`)) return;
+    setDangerActionConfig({
+      isOpen: true,
+      title: 'Bulk Approve & Publish',
+      description: `Are you sure you want to BULK APPROVE & PUBLISH all ${selectedIds.length} selected items? This will instantly publish them to the public platform.`,
+      confirmText: 'Bulk Approve',
+      actionType: 'custom',
+      dangerLevel: 'medium',
+      onConfirm: async () => {
+        setLoading(true);
+        let successCount = 0;
 
-    setLoading(true);
-    let successCount = 0;
+        for (const id of selectedIds) {
+          const item = items.find(i => i.id === id);
+          if (!item) continue;
+          const ok = await executeApproveAction(item, false); // silent logs inside
+          if (ok) successCount++;
+        }
 
-    for (const id of selectedIds) {
-      const item = items.find(i => i.id === id);
-      if (!item) continue;
-      const ok = await executeApproveAction(item, false); // silent logs inside
-      if (ok) successCount++;
-    }
+        logAdminActivity(
+          'Elder',
+          'Bulk Items Approved',
+          `Bulk approved and synchronized ${successCount} cultural items in unified queue.`,
+          'Content',
+          'Success'
+        );
 
-    logAdminActivity(
-      'Elder',
-      'Bulk Items Approved',
-      `Bulk approved and synchronized ${successCount} cultural items in unified queue.`,
-      'Content',
-      'Success'
-    );
-
-    setSelectedIds([]);
-    await loadAllContent();
-    alert(`Successfully approved ${successCount} items!`);
+        setSelectedIds([]);
+        await loadAllContent();
+        alert(`Successfully approved ${successCount} items!`);
+      }
+    });
   };
 
   const handleBulkReject = async () => {
     if (selectedIds.length === 0) return;
-    if (!window.confirm(`Are you sure you want to BULK REJECT all ${selectedIds.length} selected items?`)) return;
+    setDangerActionConfig({
+      isOpen: true,
+      title: 'Bulk Reject Items',
+      description: `Are you sure you want to BULK REJECT all ${selectedIds.length} selected items? This will deny and archive their applications.`,
+      confirmText: 'Bulk Reject',
+      actionType: 'reject',
+      dangerLevel: 'high',
+      onConfirm: async () => {
+        setLoading(true);
+        let successCount = 0;
 
-    setLoading(true);
-    let successCount = 0;
+        for (const id of selectedIds) {
+          const item = items.find(i => i.id === id);
+          if (!item) continue;
+          const ok = await executeRejectAction(item, false);
+          if (ok) successCount++;
+        }
 
-    for (const id of selectedIds) {
-      const item = items.find(i => i.id === id);
-      if (!item) continue;
-      const ok = await executeRejectAction(item, false);
-      if (ok) successCount++;
-    }
+        logAdminActivity(
+          'Elder',
+          'Bulk Items Rejected',
+          `Bulk rejected ${successCount} cultural items from unified queue.`,
+          'Content',
+          'Warning'
+        );
 
-    logAdminActivity(
-      'Elder',
-      'Bulk Items Rejected',
-      `Bulk rejected ${successCount} cultural items from unified queue.`,
-      'Content',
-      'Warning'
-    );
-
-    setSelectedIds([]);
-    await loadAllContent();
-    alert(`Rejected ${successCount} items.`);
+        setSelectedIds([]);
+        await loadAllContent();
+        alert(`Rejected ${successCount} items.`);
+      }
+    });
   };
 
   // Base Single Actions execution
@@ -664,74 +694,94 @@ export default function PendingApprovalInbox() {
   };
 
   const handleArchiveSingle = async (item: ModerationItem) => {
-    if (!window.confirm(`Are you sure you want to ARCHIVE "${item.title}"? It will be removed from public view.`)) return;
-    setLoading(true);
-    try {
-      localStorage.setItem(`bakenyi_status_override_${item.id}`, 'archived');
-      
-      // Call archive/draft transitions
-      if (item.contentType === 'Article') {
-        await updateArticle(item.id, { status: 'draft' });
-      } else if (item.contentType === 'Clan') {
-        await updateClan(item.id, { status: 'archived' });
-      } else {
-        // Fallback update
-        await executeRejectAction(item, false);
-      }
+    setDangerActionConfig({
+      isOpen: true,
+      title: 'Archive Content',
+      description: `Are you sure you want to ARCHIVE "${item.title}"? It will be immediately removed from public view and tucked into draft/archive status.`,
+      confirmText: 'Archive Content',
+      actionType: 'archive',
+      dangerLevel: 'medium',
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          localStorage.setItem(`bakenyi_status_override_${item.id}`, 'archived');
+          
+          // Call archive/draft transitions
+          if (item.contentType === 'Article') {
+            await updateArticle(item.id, { status: 'draft' });
+          } else if (item.contentType === 'Clan') {
+            await updateClan(item.id, { status: 'archived' });
+          } else {
+            // Fallback update
+            await executeRejectAction(item, false);
+          }
 
-      logAdminActivity(
-        'Elder',
-        'Content Archived',
-        `Archived ${item.contentType} item: "${item.title}".`,
-        'Content',
-        'Success',
-        item.id
-      );
-      alert(`"${item.title}" successfully archived.`);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      await loadAllContent();
-    }
+          logAdminActivity(
+            'Elder',
+            'Content Archived',
+            `Archived ${item.contentType} item: "${item.title}".`,
+            'Content',
+            'Success',
+            item.id
+          );
+          alert(`"${item.title}" successfully archived.`);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          await loadAllContent();
+        }
+      }
+    });
   };
 
   const handleDeleteSingle = async (item: ModerationItem) => {
-    if (!window.confirm(`CRITICAL WARNING: Are you sure you want to PERMANENTLY DELETE "${item.title}"? This is completely irreversible and deletes the record from the database.`)) return;
-    setLoading(true);
-    try {
-      if (item.contentType === 'Article') {
-        await deleteArticle(item.id);
-      } else if (item.contentType === 'Status') {
-        await deleteStatus(item.id);
-      } else if (item.contentType === 'News') {
-        await deleteNews(item.id);
-      } else if (item.contentType === 'Announcement') {
-        await deleteAnnouncement(item.id);
-      } else if (item.contentType === 'Event') {
-        await deleteEvent(item.id);
-      } else if (item.contentType === 'Clan') {
-        await deleteClan(item.id);
-      } else if (item.contentType === 'Leader') {
-        await deleteLeader(item.id);
-      }
+    setDangerActionConfig({
+      isOpen: true,
+      title: 'Permanently Delete Record',
+      description: `CRITICAL WARNING: Are you sure you want to PERMANENTLY DELETE "${item.title}"? This action is completely irreversible, deletes the entry from the archives database, and cannot be undone.`,
+      confirmText: 'Permanently Delete',
+      actionType: 'delete',
+      dangerLevel: 'critical',
+      requireConfirmWord: 'DELETE',
+      placeholderConfirmWord: 'Type DELETE to confirm permanent deletion',
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          if (item.contentType === 'Article') {
+            await deleteArticle(item.id);
+          } else if (item.contentType === 'Status') {
+            await deleteStatus(item.id);
+          } else if (item.contentType === 'News') {
+            await deleteNews(item.id);
+          } else if (item.contentType === 'Announcement') {
+            await deleteAnnouncement(item.id);
+          } else if (item.contentType === 'Event') {
+            await deleteEvent(item.id);
+          } else if (item.contentType === 'Clan') {
+            await deleteClan(item.id);
+          } else if (item.contentType === 'Leader') {
+            await deleteLeader(item.id);
+          }
 
-      logAdminActivity(
-        'Elder',
-        'Record Permanently Deleted',
-        `Permanently deleted ${item.contentType} entry "${item.title}" from archives database.`,
-        'Database',
-        'Warning',
-        item.id
-      );
-      
-      setSelectedItem(null);
-      alert('Record successfully purged.');
-    } catch (e) {
-      console.error(e);
-      alert('Purge failed.');
-    } finally {
-      await loadAllContent();
-    }
+          logAdminActivity(
+            'Elder',
+            'Record Permanently Deleted',
+            `Permanently deleted ${item.contentType} entry "${item.title}" from archives database.`,
+            'Database',
+            'Warning',
+            item.id
+          );
+          
+          setSelectedItem(null);
+          alert('Record successfully purged.');
+        } catch (e) {
+          console.error(e);
+          alert('Purge failed.');
+        } finally {
+          await loadAllContent();
+        }
+      }
+    });
   };
 
   const handleFeatureToggle = async () => {
@@ -1572,6 +1622,13 @@ export default function PendingApprovalInbox() {
             </div>
           </motion.div>
         </div>
+      )}
+
+      {dangerActionConfig && (
+        <DangerAction
+          {...dangerActionConfig}
+          onClose={() => setDangerActionConfig(null)}
+        />
       )}
 
     </div>
