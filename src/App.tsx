@@ -28,6 +28,7 @@ const Articles = lazy(() => import('./pages/Articles'));
 const Contribute = lazy(() => import('./pages/Contribute'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Search = lazy(() => import('./pages/Search'));
+const MemberDashboard = lazy(() => import('./pages/MemberDashboard'));
 
 // Admin View Panels (Lazy loaded to optimize bundle size for general visitors)
 const DashboardView = lazy(() => import('./components/admin/views/DashboardView'));
@@ -487,6 +488,7 @@ export default function App() {
               <Route path="/contribute" element={<Contribute />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/search" element={<Search />} />
+              <Route path="/member" element={<MemberDashboard />} />
             </Route>
 
             {/* Public Login Route (redirects if already logged in) */}

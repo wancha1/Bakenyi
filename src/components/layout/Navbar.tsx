@@ -555,9 +555,18 @@ export default function Navbar() {
                                 className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-heritage-brown hover:bg-heritage-brown/5 transition-all"
                               >
                                 <LayoutDashboard className="w-4 h-4 text-heritage-terracotta" />
-                                <span>Admin Dashboard</span>
+                                <span>Admin Panel</span>
                               </Link>
                             )}
+
+                            <Link
+                              to="/member"
+                              onClick={() => setIsProfileOpen(false)}
+                              className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-heritage-brown hover:bg-heritage-brown/5 transition-all"
+                            >
+                              <User className="w-4 h-4 text-heritage-terracotta" />
+                              <span>My Sanctuary</span>
+                            </Link>
 
                             <button
                               onClick={handleLogout}
@@ -757,6 +766,13 @@ export default function Navbar() {
                             <span>Admin Panel</span>
                           </Link>
                         )}
+                        <Link
+                          to="/member"
+                          className="flex items-center justify-center gap-2 py-2.5 bg-heritage-terracotta text-white rounded-lg text-xs font-bold transition-all"
+                        >
+                          <User className="w-4 h-4" />
+                          <span>My Sanctuary</span>
+                        </Link>
                         <button
                           onClick={handleLogout}
                           className="w-full flex items-center justify-center gap-2 py-2.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
