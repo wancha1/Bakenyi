@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { getSupabase } from '../lib/supabaseClient';
 import SEO from '../components/SEO';
+import HeritageTimeline from '../components/HeritageTimeline';
 
 interface AudioTrack {
   id: string;
@@ -221,6 +222,23 @@ export default function History() {
     }
   }, [playbackRate]);
 
+  const handleSelectOralTrack = (trackId: string) => {
+    if (oralHistoryTracks.length === 0) return;
+    
+    const index = oralHistoryTracks.findIndex(t => t.id === trackId || t.title.toLowerCase().includes('migration'));
+    const targetIdx = index !== -1 ? index : 0;
+    
+    setActiveTrackIndex(targetIdx);
+    setIsPlaying(true);
+    
+    setTimeout(() => {
+      const playerEl = document.getElementById('oral-history-archive');
+      if (playerEl) {
+        playerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 150);
+  };
+
   const togglePlay = () => {
     if (!audioRef.current) return;
     if (isPlaying) {
@@ -330,105 +348,57 @@ export default function History() {
       </section>
 
       {/* Main Content Sections */}
-      <section className="py-24 px-4 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+      <section className="py-24 px-4 max-w-7xl mx-auto border-b border-stone-200/40">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
           
           {/* Left Column - Historical Narratives */}
-          <div className="lg:col-span-7 space-y-16">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <div className="flex items-center space-x-3 text-heritage-terracotta mb-4">
-                <Map className="w-6 h-6" />
-                <span className="text-sm font-bold uppercase tracking-widest">The Great Migration</span>
-              </div>
-              <h2 className="text-3xl font-serif font-bold text-heritage-brown mb-6">Migration from the Lakeshores</h2>
-              <p className="text-heritage-brown/70 leading-relaxed mb-6 text-lg">
-                Historical oral traditions suggest that the Bakenyi entered the Kyoga region from multiple directions. One significant route traces ancestry to the ancestors of the Baganda and Basoga near Lake Victoria, while another branch shares lineage roots with the people of Bunyoro.
-              </p>
-              <p className="text-heritage-brown/70 leading-relaxed text-lg">
-                Known as the 'Water People', the Bakenyi were the masters of Lake Kyoga long before modern navigation. They were recognized for their unique dugout canoes and their reliance on the papyrus floating islands, which acted as mobile homes and protective fortress.
-              </p>
-            </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="space-y-6 text-left"
+          >
+            <div className="flex items-center space-x-3 text-heritage-terracotta mb-4">
+              <Map className="w-6 h-6" />
+              <span className="text-sm font-bold uppercase tracking-widest">The Great Migration</span>
+            </div>
+            <h2 className="text-3xl font-serif font-bold text-heritage-brown mb-6">Migration from the Lakeshores</h2>
+            <p className="text-heritage-brown/70 leading-relaxed mb-6 text-base md:text-lg">
+              Historical oral traditions suggest that the Bakenyi entered the Kyoga region from multiple directions. One significant route traces ancestry to the ancestors of the Baganda and Basoga near Lake Victoria, while another branch shares lineage roots with the people of Bunyoro.
+            </p>
+            <p className="text-heritage-brown/70 leading-relaxed text-base md:text-lg">
+              Known as the 'Water People', the Bakenyi were the masters of Lake Kyoga long before modern navigation. They were recognized for their unique dugout canoes and their reliance on the papyrus floating islands, which acted as mobile homes and protective fortresses.
+            </p>
+          </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <div className="flex items-center space-x-3 text-heritage-olive mb-4">
-                <MessageCircle className="w-6 h-6" />
-                <span className="text-sm font-bold uppercase tracking-widest">Oral Tradition</span>
-              </div>
-              <h2 className="text-3xl font-serif font-bold text-heritage-brown mb-6">The Power of the Word</h2>
-              <p className="text-heritage-brown/70 leading-relaxed mb-6 text-lg">
-                For centuries, Bakenyi history was preserved through 'Engero' (proverbs) and epic storytelling sessions around fires at night. Elders would recount the heroic acts of clan leaders who navigated the treacherous storms of Lake Kyoga and successfully negotiated peace with neighboring tribes.
-              </p>
-              <div className="bg-heritage-olive/5 p-8 rounded-2xl border-l-4 border-heritage-olive italic text-heritage-brown/80">
-                "We do not write on paper alone; we write on the hearts of our children. When an elder dies, it is as if a whole library has burned down." 
-                <span className="block mt-4 font-bold text-xs uppercase not-italic text-heritage-olive">— Traditional Wisdom</span>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Right Column - Timeline */}
-          <div id="history-timeline" className="lg:col-span-5 relative">
-            <h3 className="text-2xl font-serif font-bold text-heritage-brown mb-12 flex items-center">
-              <Calendar className="w-6 h-6 mr-3 text-heritage-terracotta" />
-              Timeline of Milestones
-            </h3>
-            
-            {loading ? (
-              <div className="flex items-center space-x-3 text-heritage-brown/40 font-bold uppercase tracking-wider py-8">
-                <div className="w-4 h-4 border-2 border-heritage-terracotta border-t-transparent animate-spin rounded-full"></div>
-                <span>Reading Chronicles...</span>
-              </div>
-            ) : timelineEvents.length === 0 ? (
-              <div className="p-8 border border-heritage-brown/10 rounded-2xl bg-white italic text-heritage-brown/40">
-                No timeline events have been cataloged yet.
-              </div>
-            ) : (
-              <div className="relative pl-8 border-l-2 border-heritage-brown/10 ml-4 space-y-12">
-                {timelineEvents.map((event, idx) => {
-                  const isSectionHighlighted = idx === activeSectionIdx;
-                  return (
-                    <motion.div 
-                      key={idx}
-                      initial={{ opacity: 0, x: 20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: idx * 0.1 }}
-                      className={`relative p-4 rounded-2xl transition-all duration-500 ${
-                        isSectionHighlighted ? 'bg-heritage-terracotta/10 ring-2 ring-heritage-terracotta shadow-md scale-[1.02]' : ''
-                      }`}
-                    >
-                      {isSectionHighlighted && (
-                        <span className="absolute -top-3 right-4 bg-heritage-terracotta text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full shadow-sm">
-                          Timeline Match
-                        </span>
-                      )}
-                      {/* Dot */}
-                      <div className={`absolute -left-[41px] w-4 h-4 rounded-full border-4 border-heritage-cream transition-colors ${
-                        isSectionHighlighted ? 'bg-heritage-terracotta scale-110' : 'bg-heritage-terracotta'
-                      }`} style={{ top: '22px' }} />
-                      
-                      <span className="text-xs font-bold text-heritage-terracotta uppercase tracking-tighter block mb-1">
-                        {event.period}
-                      </span>
-                      <h4 className="text-lg font-bold text-heritage-brown mb-2">{event.title}</h4>
-                      <p className="text-sm text-heritage-brown/60 leading-relaxed tracking-tight font-medium">
-                        {event.desc}
-                      </p>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* Right Column - Oral Tradition */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="space-y-6 text-left"
+          >
+            <div className="flex items-center space-x-3 text-heritage-olive mb-4">
+              <MessageCircle className="w-6 h-6" />
+              <span className="text-sm font-bold uppercase tracking-widest">Oral Tradition</span>
+            </div>
+            <h2 className="text-3xl font-serif font-bold text-heritage-brown mb-6">The Power of the Word</h2>
+            <p className="text-heritage-brown/70 leading-relaxed mb-6 text-base md:text-lg">
+              For centuries, Bakenyi history was preserved through 'Engero' (proverbs) and epic storytelling sessions around fires at night. Elders would recount the heroic acts of clan leaders who navigated the treacherous storms of Lake Kyoga and successfully negotiated peace with neighboring tribes.
+            </p>
+            <div className="bg-heritage-olive/5 p-8 rounded-3xl border-l-4 border-heritage-olive italic text-heritage-brown/80 text-sm md:text-base leading-relaxed">
+              "We do not write on paper alone; we write on the hearts of our children. When an elder dies, it is as if a whole library has burned down." 
+              <span className="block mt-4 font-bold text-xs uppercase not-italic text-heritage-olive">— Traditional Wisdom</span>
+            </div>
+          </motion.div>
         </div>
       </section>
+
+      {/* Magnificent Interactive Horizontal Scrollable Heritage Timeline */}
+      <HeritageTimeline 
+        dynamicEvents={timelineEvents} 
+        onSelectOralTrack={handleSelectOralTrack} 
+      />
 
       {/* Oral History Archive Section */}
       <section id="oral-history-archive" className="py-24 bg-heritage-brown text-white relative overflow-hidden">
