@@ -29,11 +29,14 @@ export default function Header({ onMobileMenuToggle, activeTab, userEmail, userR
   const resolvedRole = 
     userRole === 'staff' ? 'reporter' : 
     userRole === 'customer' ? 'public' : 
+    userRole === 'member' ? 'public' :
     userRole;
 
   const roleBadge = 
     resolvedRole === 'super_admin' ? 'Elder' :
     resolvedRole === 'admin' ? 'Platform Admin' :
+    resolvedRole === 'community_leader' ? 'Community Leader' :
+    resolvedRole === 'historian' ? 'Historian' :
     resolvedRole === 'reporter' ? 'Heritage Reporter' :
     'Public User';
 
@@ -89,9 +92,9 @@ export default function Header({ onMobileMenuToggle, activeTab, userEmail, userR
       <div className="flex items-center gap-3">
         {/* Supabase Status Chip */}
         <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider select-none border dark:border-slate-700 border-slate-100 bg-slate-50 dark:bg-slate-900/50">
-          <span className={`w-1.5 h-1.5 rounded-full ${isConfigured ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
-          <span className={isConfigured ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
-            {isConfigured ? 'Live Database' : 'Local Sandbox'}
+          <span className={`w-1.5 h-1.5 rounded-full ${isConfigured ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`} />
+          <span className={isConfigured ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
+            {isConfigured ? 'Live Database' : 'Database Inactive'}
           </span>
         </div>
 

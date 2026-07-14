@@ -151,14 +151,8 @@ initializeLocalStorage();
 
 export async function getStatuses(onlyApproved = true): Promise<Status[]> {
   const client = getSupabase();
-  initializeLocalStorage();
-  const localList: Status[] = JSON.parse(localStorage.getItem('bakenye_statuses') || '[]');
-
   if (!client) {
-    const now = new Date();
-    return onlyApproved
-      ? localList.filter(s => s.status === 'approved' && !s.is_archived && new Date(s.expires_at) > now)
-      : localList;
+    throw new Error('Supabase client is not configured.');
   }
 
   try {
@@ -191,12 +185,9 @@ export async function getStatuses(onlyApproved = true): Promise<Status[]> {
     return onlyApproved
       ? mapped.filter(s => s.status === 'approved' && !s.is_archived && new Date(s.expires_at) > now)
       : mapped;
-  } catch (err) {
-    console.warn('Supabase fetch statuses failed, using sandbox fallback:', err);
-    const now = new Date();
-    return onlyApproved
-      ? localList.filter(s => s.status === 'approved' && !s.is_archived && new Date(s.expires_at) > now)
-      : localList;
+  } catch (err: any) {
+    console.error('Supabase fetch statuses failed:', err);
+    throw err;
   }
 }
 
@@ -321,11 +312,8 @@ export async function deleteStatus(id: string): Promise<boolean> {
 
 export async function getNews(onlyPublished = true): Promise<News[]> {
   const client = getSupabase();
-  initializeLocalStorage();
-  const localList: News[] = JSON.parse(localStorage.getItem('bakenye_news') || '[]');
-
   if (!client) {
-    return onlyPublished ? localList.filter(n => n.status === 'published') : localList;
+    throw new Error('Supabase client is not configured.');
   }
 
   try {
@@ -356,9 +344,9 @@ export async function getNews(onlyPublished = true): Promise<News[]> {
     }));
 
     return onlyPublished ? mapped.filter(n => n.status === 'published') : mapped;
-  } catch (err) {
-    console.warn('Supabase fetch news failed, using sandbox fallback:', err);
-    return onlyPublished ? localList.filter(n => n.status === 'published') : localList;
+  } catch (err: any) {
+    console.error('Supabase fetch news failed:', err);
+    throw err;
   }
 }
 
@@ -486,14 +474,8 @@ export async function deleteNews(id: string): Promise<boolean> {
 
 export async function getAnnouncements(onlyApproved = true): Promise<Announcement[]> {
   const client = getSupabase();
-  initializeLocalStorage();
-  const localList: Announcement[] = JSON.parse(localStorage.getItem('bakenye_announcements') || '[]');
-
   if (!client) {
-    const now = new Date();
-    return onlyApproved
-      ? localList.filter(a => a.status === 'approved' && new Date(a.start_date) <= now && (!a.end_date || new Date(a.end_date) >= now))
-      : localList;
+    throw new Error('Supabase client is not configured.');
   }
 
   try {
@@ -524,12 +506,9 @@ export async function getAnnouncements(onlyApproved = true): Promise<Announcemen
     return onlyApproved
       ? mapped.filter(a => a.status === 'approved' && new Date(a.start_date) <= now && (!a.end_date || new Date(a.end_date) >= now))
       : mapped;
-  } catch (err) {
-    console.warn('Supabase fetch announcements failed, using sandbox fallback:', err);
-    const now = new Date();
-    return onlyApproved
-      ? localList.filter(a => a.status === 'approved' && new Date(a.start_date) <= now && (!a.end_date || new Date(a.end_date) >= now))
-      : localList;
+  } catch (err: any) {
+    console.error('Supabase fetch announcements failed:', err);
+    throw err;
   }
 }
 
@@ -651,18 +630,15 @@ export async function deleteAnnouncement(id: string): Promise<boolean> {
 
 export async function getEvents(onlyApproved = true): Promise<Event[]> {
   const client = getSupabase();
-  initializeLocalStorage();
-  const localList: Event[] = JSON.parse(localStorage.getItem('bakenye_events') || '[]');
-
   if (!client) {
-    return onlyApproved ? localList.filter(e => e.status === 'approved') : localList;
+    throw new Error('Supabase client is not configured.');
   }
 
   try {
     const { data, error } = await client
       .from('events')
-      .select('*')
-      .order('start_datetime', { ascending: true });
+      .select('id, title, description, location, starts_at, ends_at, image_url, organizer, status, created_at, updated_at')
+      .order('starts_at', { ascending: true });
 
     if (error) throw error;
 
@@ -671,24 +647,24 @@ export async function getEvents(onlyApproved = true): Promise<Event[]> {
       title: row.title,
       description: row.description,
       location: row.location,
-      start_datetime: row.start_datetime,
-      end_datetime: row.end_datetime,
-      cover_image: row.cover_image,
+      start_datetime: row.starts_at || '',
+      end_datetime: row.ends_at || '',
+      cover_image: row.image_url || '',
       organizer: row.organizer,
-      contact: row.contact,
-      rsvp_settings: row.rsvp_settings || { enabled: false, limit: null },
-      map_location: row.map_location || { latitude: null, longitude: null },
-      created_by: row.created_by,
-      approved_by: row.approved_by,
+      contact: '',
+      rsvp_settings: { enabled: false, limit: null },
+      map_location: { latitude: null, longitude: null },
+      created_by: '',
+      approved_by: '',
       status: row.status,
       created_at: row.created_at,
       updated_at: row.updated_at
     }));
 
     return onlyApproved ? mapped.filter(e => e.status === 'approved') : mapped;
-  } catch (err) {
-    console.warn('Supabase fetch events failed, using sandbox fallback:', err);
-    return onlyApproved ? localList.filter(e => e.status === 'approved') : localList;
+  } catch (err: any) {
+    console.error('Supabase fetch events failed:', err);
+    throw err;
   }
 }
 
@@ -712,14 +688,10 @@ export async function createEvent(event: Omit<Event, 'id'>): Promise<{ data: Eve
       title: event.title,
       description: event.description,
       location: event.location,
-      start_datetime: event.start_datetime,
-      end_datetime: event.end_datetime,
-      cover_image: event.cover_image,
+      starts_at: event.start_datetime,
+      ends_at: event.end_datetime,
+      image_url: event.cover_image,
       organizer: event.organizer,
-      contact: event.contact,
-      rsvp_settings: event.rsvp_settings,
-      map_location: event.map_location,
-      created_by: event.created_by,
       status: event.status,
       created_at: event.created_at,
       updated_at: event.updated_at
@@ -759,15 +731,10 @@ export async function updateEvent(id: string, updates: Partial<Event>): Promise<
     if (updates.title !== undefined) dbRecord.title = updates.title;
     if (updates.description !== undefined) dbRecord.description = updates.description;
     if (updates.location !== undefined) dbRecord.location = updates.location;
-    if (updates.start_datetime !== undefined) dbRecord.start_datetime = updates.start_datetime;
-    if (updates.end_datetime !== undefined) dbRecord.end_datetime = updates.end_datetime;
-    if (updates.cover_image !== undefined) dbRecord.cover_image = updates.cover_image;
+    if (updates.start_datetime !== undefined) dbRecord.starts_at = updates.start_datetime;
+    if (updates.end_datetime !== undefined) dbRecord.ends_at = updates.end_datetime;
+    if (updates.cover_image !== undefined) dbRecord.image_url = updates.cover_image;
     if (updates.organizer !== undefined) dbRecord.organizer = updates.organizer;
-    if (updates.contact !== undefined) dbRecord.contact = updates.contact;
-    if (updates.rsvp_settings !== undefined) dbRecord.rsvp_settings = updates.rsvp_settings;
-    if (updates.map_location !== undefined) dbRecord.map_location = updates.map_location;
-    if (updates.created_by !== undefined && isUUID(updates.created_by)) dbRecord.created_by = updates.created_by;
-    if (updates.approved_by !== undefined && isUUID(updates.approved_by)) dbRecord.approved_by = updates.approved_by;
     if (updates.status !== undefined) dbRecord.status = updates.status;
     if (updates.created_at !== undefined) dbRecord.created_at = updates.created_at;
     dbRecord.updated_at = new Date().toISOString();

@@ -211,7 +211,7 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [userRole, setUserRole] = useState<'super_admin' | 'admin' | 'reporter' | 'public'>('public');
+  const [userRole, setUserRole] = useState<'super_admin' | 'admin' | 'historian' | 'community_leader' | 'reporter' | 'member' | 'public' | 'staff' | 'customer'>('public');
   const [roleLoading, setRoleLoading] = useState(true);
 
   useEffect(() => {
@@ -240,8 +240,14 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
           setUserRole('super_admin');
         } else if (rawRole === 'admin' || email === 'admin@bakenye.com' || email === 'admin@bakenyi.org') {
           setUserRole('admin');
+        } else if (rawRole === 'historian') {
+          setUserRole('historian');
+        } else if (rawRole === 'community_leader') {
+          setUserRole('community_leader');
         } else if (rawRole === 'staff' || rawRole === 'reporter' || email.includes('staff') || email.includes('reporter')) {
           setUserRole('reporter');
+        } else if (rawRole === 'member') {
+          setUserRole('member');
         } else {
           setUserRole('public');
         }
@@ -255,10 +261,13 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
     fetchRole();
   }, [user]);
 
-  // Handle reporter members attempting to load restricted tabs
+  // Handle reporter or historian members attempting to load restricted tabs
   useEffect(() => {
-    if (!roleLoading && userRole === 'reporter' && !['dashboard', 'content', 'media'].includes(activeTab)) {
-      setActiveTab('dashboard');
+    if (!roleLoading) {
+      const isRestricted = userRole === 'reporter' || userRole === 'historian';
+      if (isRestricted && !['dashboard', 'content', 'media'].includes(activeTab)) {
+        setActiveTab('dashboard');
+      }
     }
   }, [activeTab, userRole, roleLoading]);
 
@@ -273,8 +282,9 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
 
   // Render view by tab ID
   const renderView = () => {
-    // Reporter role restriction guard
-    if (userRole === 'reporter' && !['dashboard', 'content', 'media'].includes(activeTab)) {
+    const isRestricted = userRole === 'reporter' || userRole === 'historian';
+    // Reporter/Historian role restriction guard
+    if (isRestricted && !['dashboard', 'content', 'media'].includes(activeTab)) {
       return <DashboardView onNavigate={(tab) => setActiveTab(tab)} user={user} userRole={userRole} />;
     }
 
@@ -351,7 +361,7 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [appUserRole, setAppUserRole] = useState<'super_admin' | 'admin' | 'reporter' | 'public' | null>(null);
+  const [appUserRole, setAppUserRole] = useState<'super_admin' | 'admin' | 'historian' | 'community_leader' | 'member' | 'public' | 'reporter' | 'staff' | 'customer' | null>(null);
 
   useEffect(() => {
     async function resolveRole() {
@@ -369,21 +379,7 @@ export default function App() {
           return;
         }
 
-        // 1. Local Sandbox Mode fallback
-        if (!isConfigured) {
-          if (email === 'admin@bakenye.com' || email === 'admin@bakenyi.org') {
-            setAppUserRole('admin');
-            return;
-          }
-          if (email.includes('staff') || email.includes('reporter')) {
-            setAppUserRole('reporter');
-            return;
-          }
-          setAppUserRole('public');
-          return;
-        }
-
-        // 2. Real Supabase mode: STRICTLY query database profiles table, never use hardcoded emails or user_metadata for authorization
+        // Real Supabase mode: STRICTLY query database profiles table, never use hardcoded emails or user_metadata for authorization
         const client = getSupabase();
         let rawRole = 'customer';
         if (client) {
@@ -403,8 +399,14 @@ export default function App() {
           setAppUserRole('super_admin');
         } else if (rawRole === 'admin') {
           setAppUserRole('admin');
+        } else if (rawRole === 'historian') {
+          setAppUserRole('historian');
+        } else if (rawRole === 'community_leader') {
+          setAppUserRole('community_leader');
         } else if (rawRole === 'staff' || rawRole === 'reporter') {
           setAppUserRole('reporter');
+        } else if (rawRole === 'member') {
+          setAppUserRole('member');
         } else {
           setAppUserRole('public');
         }
@@ -437,13 +439,6 @@ export default function App() {
         subscription?.unsubscribe();
       };
     } else {
-      // Sandbox mode: Check local storage for mocked session
-      const stored = localStorage.getItem('bakenye_sandbox_session');
-      if (stored) {
-        try {
-          setUser(JSON.parse(stored));
-        } catch (e) {}
-      }
       setIsAuthLoading(false);
     }
   }, []);
@@ -454,7 +449,6 @@ export default function App() {
     if (client) {
       await client.auth.signOut();
     } else {
-      localStorage.removeItem('bakenye_sandbox_session');
       setUser(null);
     }
   };
@@ -462,11 +456,6 @@ export default function App() {
   // Handle Login Success Action
   const handleLoginSuccess = (loggedInUser: any) => {
     setUser(loggedInUser);
-    // Persist mock session if in Sandbox mode
-    const client = getSupabase();
-    if (!client) {
-      localStorage.setItem('bakenye_sandbox_session', JSON.stringify(loggedInUser));
-    }
   };
 
   return (

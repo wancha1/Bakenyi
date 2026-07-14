@@ -111,7 +111,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             options: {
               data: {
                 full_name: fullName,
-                role: 'customer', // Default register as customer to prevent unauthorized privilege escalation
+                role: 'member', // Default register as member to prevent unauthorized privilege escalation
               },
             },
           });
@@ -144,28 +144,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         setIsLoading(false);
       }
     } else {
-      // Sandbox mode mock sign-in bypass
-      if (mode === 'signin') {
-        const lowerEmail = email.toLowerCase();
-        const mockUser = {
-          id: lowerEmail === 'wanchaaaron@gmail.com' ? 'usr_wanchaaaron' : 'usr_sandbox_admin',
-          email: lowerEmail,
-          app_metadata: {
-            role: (lowerEmail === 'wanchaaaron@gmail.com' || lowerEmail === 'aaronwancha@gmail.com' || lowerEmail === 'superadmin@bakenye.com') ? 'super_admin' : 'admin'
-          },
-          user_metadata: {
-            full_name: lowerEmail === 'wanchaaaron@gmail.com' ? 'Aaron Wancha (Elder)' : 'Sandbox Administrator'
-          }
-        };
-        onLoginSuccess(mockUser);
-        setSuccessMsg('Logged in successfully under Sandbox Mode!');
-      } else if (mode === 'signup') {
-        setSuccessMsg('Sandbox Mode: Administrator account created simulated! Please Sign In.');
-        setMode('signin');
-      } else {
-        setSuccessMsg('Sandbox Mode: Password reset link simulated successfully.');
-        setMode('signin');
-      }
+      setError('Authentication failed: Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
       setIsLoading(false);
     }
   }
@@ -196,15 +175,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         setIsLoading(false);
       }
     } else {
-      // Sandbox mode: mock sign-in as wanchaaaron@gmail.com as Elder
-      const mockUser = {
-        id: 'usr_wanchaaaron',
-        email: 'wanchaaaron@gmail.com',
-        app_metadata: { role: 'super_admin' },
-        user_metadata: { full_name: 'Aaron Wancha (Elder)' }
-      };
-      onLoginSuccess(mockUser);
-      setSuccessMsg('Logged in successfully as Elder via simulated Google Sign-In!');
+      setError('Authentication failed: Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
       setIsLoading(false);
     }
   }

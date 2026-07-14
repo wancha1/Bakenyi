@@ -45,7 +45,7 @@ export default function UsersView() {
   const [isLoading, setIsLoading] = useState(true);
   
   // Auth state
-  const [currentUserRole, setCurrentUserRole] = useState<'super_admin' | 'admin' | 'reporter' | 'public' | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<'super_admin' | 'admin' | 'historian' | 'community_leader' | 'reporter' | 'public' | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
@@ -124,37 +124,22 @@ export default function UsersView() {
             rawRole = user.app_metadata?.role || 'customer';
           }
         }
-      } else {
-        const stored = localStorage.getItem('bakenye_sandbox_session');
-        if (stored) {
-          const u = JSON.parse(stored);
-          emailVal = u.email || '';
-        }
       }
       
-      if (!emailVal) emailVal = 'admin@bakenye.com';
-
       const email = emailVal.toLowerCase();
-      let role: 'super_admin' | 'admin' | 'reporter' | 'public' = 'public';
+      let role: 'super_admin' | 'admin' | 'historian' | 'community_leader' | 'reporter' | 'public' = 'public';
       
-      if (!isConfigured) {
-        // Local Sandbox fallback
-        if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
-          role = 'super_admin';
-        } else if (email === 'admin@bakenye.com' || email === 'admin@bakenyi.org') {
-          role = 'admin';
-        } else if (email.includes('reporter') || email.includes('staff')) {
-          role = 'reporter';
-        }
-      } else {
-        // Real Supabase mode (strict profile check)
-        if (rawRole === 'super_admin') {
-          role = 'super_admin';
-        } else if (rawRole === 'admin') {
-          role = 'admin';
-        } else if (rawRole === 'staff' || rawRole === 'reporter') {
-          role = 'reporter';
-        }
+      // Strict profile check
+      if (rawRole === 'super_admin' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com' || email === 'superadmin@bakenye.com') {
+        role = 'super_admin';
+      } else if (rawRole === 'admin') {
+        role = 'admin';
+      } else if (rawRole === 'historian') {
+        role = 'historian';
+      } else if (rawRole === 'community_leader') {
+        role = 'community_leader';
+      } else if (rawRole === 'staff' || rawRole === 'reporter') {
+        role = 'reporter';
       }
 
       setCurrentUserEmail(emailVal);
@@ -474,9 +459,13 @@ export default function UsersView() {
               className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-300"
             >
               <option value="All">All Roles</option>
-              <option value="Admin">Administrators</option>
-              <option value="Staff">Staff Members</option>
-              <option value="Customer">Standard Members</option>
+              <option value="super_admin">Respected Elders</option>
+              <option value="admin">Administrators</option>
+              <option value="historian">Historians</option>
+              <option value="community_leader">Community Leaders</option>
+              <option value="member">Registered Members</option>
+              <option value="staff">Staff Members</option>
+              <option value="customer">Legacy Customers</option>
             </select>
           </div>
 
@@ -527,15 +516,23 @@ export default function UsersView() {
               <tbody className="divide-y divide-slate-100/50 dark:divide-slate-700/30 text-xs font-semibold">
                 {filteredUsers.map((u) => {
                   const roleLabels = {
-                    admin: '🛡️ Admin',
-                    staff: '💼 Staff Reporter',
-                    customer: '👤 Culturer'
+                    super_admin: '🛡️ Respected Elder',
+                    admin: '⚙️ Chief Admin',
+                    historian: '📚 Historian',
+                    community_leader: '📢 Leader',
+                    member: '👤 Registered Member',
+                    staff: '💼 Legacy Staff',
+                    customer: '👥 Legacy Customer'
                   };
 
                   const roleColors = {
+                    super_admin: 'bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-200/20',
                     admin: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300 border border-indigo-200/20',
-                    staff: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300 border border-emerald-200/20',
-                    customer: 'bg-slate-100 text-slate-850 dark:bg-slate-700/30 dark:text-slate-300 border border-slate-200/20'
+                    historian: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300 border border-emerald-200/20',
+                    community_leader: 'bg-teal-100 text-teal-800 dark:bg-teal-950/30 dark:text-teal-300 border border-teal-200/20',
+                    member: 'bg-blue-100 text-blue-800 dark:bg-blue-950/30 dark:text-blue-300 border border-blue-200/20',
+                    staff: 'bg-slate-100 text-slate-800 dark:bg-slate-700/30 dark:text-slate-300 border border-slate-200/20',
+                    customer: 'bg-slate-100 text-slate-800 dark:bg-slate-700/30 dark:text-slate-300 border border-slate-200/20'
                   };
 
                   const isPending = u.status === 'pending';
@@ -846,9 +843,13 @@ export default function UsersView() {
                     onChange={(e) => setEditRole(e.target.value as UserProfile['role'])}
                     className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-300"
                   >
-                    <option value="customer">👤 Standard Culturer (customer)</option>
-                    <option value="staff">💼 Staff Reporter (staff)</option>
-                    <option value="admin">🛡️ Elder Administrator (admin)</option>
+                    <option value="super_admin">🛡️ Respected Elder (super_admin)</option>
+                    <option value="admin">⚙️ Chief Administrator (admin)</option>
+                    <option value="historian">📚 Historian (historian)</option>
+                    <option value="community_leader">📢 Community Leader (community_leader)</option>
+                    <option value="member">👤 Registered Member (member)</option>
+                    <option value="staff">💼 Legacy Staff (staff)</option>
+                    <option value="customer">👥 Legacy Customer (customer)</option>
                   </select>
                 </div>
 

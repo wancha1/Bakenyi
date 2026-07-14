@@ -13,13 +13,13 @@ import {
 import { Status, News, Announcement, Event } from '../../../types/heritage';
 
 interface HeritageModulesManagerProps {
-  userRole: 'super_admin' | 'admin' | 'reporter' | 'public' | 'staff' | 'customer';
+  userRole: 'super_admin' | 'admin' | 'historian' | 'community_leader' | 'reporter' | 'member' | 'public' | 'staff' | 'customer';
 }
 
 export default function HeritageModulesManager({ userRole }: HeritageModulesManagerProps) {
   const isElder = userRole === 'super_admin';
-  const isAdmin = userRole === 'admin';
-  const isReporter = userRole === 'reporter' || userRole === 'staff';
+  const isAdmin = userRole === 'admin' || userRole === 'community_leader';
+  const isReporter = userRole === 'reporter' || userRole === 'staff' || userRole === 'historian';
 
   const [activeTab, setActiveTab] = useState<'statuses' | 'news' | 'announcements' | 'events'>('statuses');
   

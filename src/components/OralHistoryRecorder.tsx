@@ -108,18 +108,6 @@ export default function OralHistoryRecorder({ onRecordingSubmitted }: { onRecord
         subscription?.unsubscribe();
       };
     } else {
-      // Sandbox fallback user
-      const stored = localStorage.getItem('bakenye_sandbox_session');
-      if (stored) {
-        try {
-          const u = JSON.parse(stored);
-          setCurrentUser(u);
-          setMetadata(prev => ({ 
-            ...prev, 
-            contributorName: u.user_metadata?.full_name || u.email?.split('@')[0] || 'Artisan Contributor' 
-          }));
-        } catch (e) {}
-      }
       setIsAuthChecking(false);
     }
   }, [supabase]);

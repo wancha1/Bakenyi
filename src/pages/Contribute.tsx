@@ -247,7 +247,7 @@ export default function Contribute() {
         await supabase.from('profiles').upsert({
           id: data.user?.id,
           email: authEmail,
-          role: 'customer',
+          role: 'member',
           is_admin: false,
           updated_at: new Date().toISOString()
         });

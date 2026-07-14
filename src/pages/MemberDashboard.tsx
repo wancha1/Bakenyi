@@ -390,16 +390,6 @@ export default function MemberDashboard() {
       });
       return () => subscription.unsubscribe();
     } else {
-      // Sandbox Mode
-      const stored = localStorage.getItem('bakenye_sandbox_session');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setUser(parsed);
-          setProfileName(parsed.email?.split('@')[0] || 'Sandbox Learner');
-          checkRole(parsed);
-        } catch (e) {}
-      }
       setLoading(false);
     }
   }, []);
@@ -515,8 +505,6 @@ export default function MemberDashboard() {
     const client = getSupabase();
     if (client) {
       await client.auth.signOut();
-    } else {
-      localStorage.removeItem('bakenye_sandbox_session');
     }
     triggerToast('Logged out successfully.');
     navigate('/');

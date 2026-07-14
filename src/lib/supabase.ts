@@ -45,11 +45,11 @@ export async function signIn(email: string, password: string): Promise<{ user: a
         .maybeSingle();
       
       if (!profile) {
-        // Create initial profile only if it does not exist, with default customer privileges
+        // Create initial profile only if it does not exist, with default member privileges
         await client.from('profiles').insert({
           id: data.user.id,
           email: data.user.email,
-          role: 'customer',
+          role: 'member',
           is_admin: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -1133,109 +1133,89 @@ export interface Leader {
 
 export async function getLeaders(onlyApproved = true): Promise<Leader[]> {
   const client = getSupabase();
-  const stored = localStorage.getItem('bakenye_leaders') || '[]';
-  let localList = JSON.parse(stored);
 
   if (!client) {
-    return onlyApproved ? localList.filter((l: any) => l.status === 'approved') : localList;
+    throw new Error('Supabase client is not configured.');
   }
 
   try {
-    const { data, error } = await client.from('leaders').select('*').order('name', { ascending: true });
+    const { data, error } = await client
+      .from('leaders')
+      .select('id, full_name, title, biography, clan_id, status, created_at')
+      .order('full_name', { ascending: true });
     if (error) throw error;
 
     const mapped = (data || []).map((row: any) => ({
       id: row.id,
-      name: row.name,
-      role: row.role || '',
-      bio: row.bio || '',
-      photo_url: row.photo_url || row.imageUrl || '',
-      expertise: row.expertise || 'Cultural Custodian',
-      clan: row.clan || '',
-      contact_email: row.contact_email || '',
+      name: row.full_name || '',
+      role: row.title || '',
+      bio: row.biography || '',
+      photo_url: '',
+      expertise: 'Cultural Custodian',
+      clan: row.clan_id || '',
+      contact_email: '',
       status: row.status || 'approved',
       created_at: row.created_at
     }));
 
-    const pendingLocal = localList.filter((l: any) => l.status === 'pending');
-    const combined = [...mapped, ...pendingLocal];
-    const unique = combined.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
-
-    return onlyApproved ? unique.filter(l => l.status === 'approved') : unique;
-  } catch (err) {
-    console.warn('Supabase fetch leaders failed, showing local cache:', err);
-    return onlyApproved ? localList.filter((l: any) => l.status === 'approved') : localList;
+    return onlyApproved ? mapped.filter(l => l.status === 'approved') : mapped;
+  } catch (err: any) {
+    console.error('Supabase fetch leaders failed:', err);
+    throw err;
   }
 }
 
 export async function createLeader(leader: Omit<Leader, 'id'>): Promise<{ data: Leader | null; error: Error | null }> {
   const client = getSupabase();
-  const id = generateUUID();
-  const completeLeader = { ...leader, id, created_at: new Date().toISOString() };
-
-  const stored = localStorage.getItem('bakenye_leaders') || '[]';
-  const list = JSON.parse(stored);
-  list.unshift(completeLeader);
-  localStorage.setItem('bakenye_leaders', JSON.stringify(list));
-
   if (!client) {
-    return { data: completeLeader, error: null };
+    return { data: null, error: new Error('Supabase client is not configured.') };
   }
 
   try {
     const dbRecord = {
-      name: leader.name,
-      role: leader.role,
-      bio: leader.bio,
-      photo_url: leader.photo_url || '',
-      expertise: leader.expertise || 'Cultural Custodian',
-      clan: leader.clan || '',
-      contact_email: leader.contact_email || '',
+      full_name: leader.name,
+      title: leader.role,
+      biography: leader.bio,
+      clan_id: leader.clan || '',
       status: leader.status || 'pending'
     };
 
     const { data, error } = await client.from('leaders').insert(dbRecord).select().single();
-    if (error) {
-      const { error: errorWithId } = await client.from('leaders').insert({ ...dbRecord, id });
-      if (errorWithId) throw errorWithId;
-      return { data: completeLeader, error: null };
-    }
-    return { data: data || completeLeader, error: null };
+    if (error) throw error;
+
+    const mapped: Leader = {
+      id: data.id,
+      name: data.full_name || '',
+      role: data.title || '',
+      bio: data.biography || '',
+      photo_url: '',
+      expertise: 'Cultural Custodian',
+      clan: data.clan_id || '',
+      contact_email: '',
+      status: data.status || 'approved',
+      created_at: data.created_at
+    };
+    return { data: mapped, error: null };
   } catch (err: any) {
-    console.warn('Supabase create leader write failed, cached locally:', err);
-    return { data: completeLeader, error: null };
+    console.error('Supabase create leader failed:', err);
+    return { data: null, error: err };
   }
 }
 
 export async function updateLeader(id: string, updates: Partial<Leader>): Promise<boolean> {
   const client = getSupabase();
-  const stored = localStorage.getItem('bakenye_leaders') || '[]';
-  const list = JSON.parse(stored);
-  const idx = list.findIndex((l: any) => l.id === id);
-  if (idx !== -1) {
-    list[idx] = { ...list[idx], ...updates };
-    localStorage.setItem('bakenye_leaders', JSON.stringify(list));
-  }
-
-  if (!client) return true;
+  if (!client) throw new Error('Supabase client is not configured.');
 
   try {
     const dbRecord: any = {};
-    if (updates.name !== undefined) dbRecord.name = updates.name;
-    if (updates.role !== undefined) dbRecord.role = updates.role;
-    if (updates.bio !== undefined) dbRecord.bio = updates.bio;
-    if (updates.photo_url !== undefined) dbRecord.photo_url = updates.photo_url;
-    if (updates.expertise !== undefined) dbRecord.expertise = updates.expertise;
-    if (updates.clan !== undefined) dbRecord.clan = updates.clan;
-    if (updates.contact_email !== undefined) dbRecord.contact_email = updates.contact_email;
+    if (updates.name !== undefined) dbRecord.full_name = updates.name;
+    if (updates.role !== undefined) dbRecord.title = updates.role;
+    if (updates.bio !== undefined) dbRecord.biography = updates.bio;
+    if (updates.clan !== undefined) dbRecord.clan_id = updates.clan;
     if (updates.status !== undefined) dbRecord.status = updates.status;
 
     const { error } = await client.from('leaders').update(dbRecord).eq('id', id);
-    if (error) {
-      if (list[idx]) {
-        await client.from('leaders').update(dbRecord).eq('name', list[idx].name);
-      }
-    }
+    if (error) throw error;
     return true;
   } catch (err) {
     console.error('Failed to update leader:', err);
@@ -1245,15 +1225,11 @@ export async function updateLeader(id: string, updates: Partial<Leader>): Promis
 
 export async function deleteLeader(id: string): Promise<boolean> {
   const client = getSupabase();
-  const stored = localStorage.getItem('bakenye_leaders') || '[]';
-  const list = JSON.parse(stored);
-  const filtered = list.filter((l: any) => l.id !== id);
-  localStorage.setItem('bakenye_leaders', JSON.stringify(filtered));
-
-  if (!client) return true;
+  if (!client) throw new Error('Supabase client is not configured.');
 
   try {
-    await client.from('leaders').delete().eq('id', id);
+    const { error } = await client.from('leaders').delete().eq('id', id);
+    if (error) throw error;
     return true;
   } catch (err) {
     console.error('Failed to delete leader:', err);

@@ -456,9 +456,13 @@ export default function RolesView() {
               className="px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-300"
             >
               <option value="All">All Roles</option>
-              <option value="admin">Administrator</option>
-              <option value="staff">Staff Member</option>
-              <option value="customer">Customer</option>
+              <option value="super_admin">Respected Elder (super_admin)</option>
+              <option value="admin">Administrator (admin)</option>
+              <option value="historian">Historian (historian)</option>
+              <option value="community_leader">Community Leader (community_leader)</option>
+              <option value="member">Registered Member (member)</option>
+              <option value="staff">Staff Member (staff)</option>
+              <option value="customer">Customer (customer)</option>
             </select>
           </div>
         </div>
@@ -493,7 +497,7 @@ export default function RolesView() {
                           <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" />
                         ) : (
                           <>
-                            {currentUserRole !== 'admin' && (
+                            {currentUserRole !== 'admin' && currentUserRole !== 'super_admin' && (
                               <span className="text-[10px] text-slate-450 dark:text-slate-500 flex items-center gap-1 select-none font-black uppercase tracking-wider mr-1">
                                 <Shield className="w-3.5 h-3.5 text-amber-500" />
                                 <span>Read-Only</span>
@@ -501,13 +505,17 @@ export default function RolesView() {
                             )}
                             <select
                               value={u.role}
-                              disabled={currentUserRole !== 'admin'}
+                              disabled={currentUserRole !== 'admin' && currentUserRole !== 'super_admin'}
                               onChange={(e) => handleRoleChange(u.id, e.target.value as UserProfile['role'])}
                               className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                              <option value="admin">🛡️ Administrator</option>
-                              <option value="staff">💼 Staff Member</option>
-                              <option value="customer">👤 Public User</option>
+                              <option value="super_admin">🛡️ Respected Elder</option>
+                              <option value="admin">⚙️ Chief Administrator</option>
+                              <option value="historian">📚 Historian</option>
+                              <option value="community_leader">📢 Community Leader</option>
+                              <option value="member">👤 Registered Member</option>
+                              <option value="staff">💼 Legacy Staff</option>
+                              <option value="customer">👥 Legacy Customer</option>
                             </select>
                           </>
                         )}

@@ -154,16 +154,6 @@ export default function Navbar() {
       return () => {
         subscription?.unsubscribe();
       };
-    } else {
-      // Sandbox fallback checking
-      const stored = localStorage.getItem('bakenye_sandbox_session');
-      if (stored) {
-        try {
-          const u = JSON.parse(stored);
-          setUser(u);
-          checkIsAdmin(u).then(setIsAdmin);
-        } catch (e) {}
-      }
     }
   }, []);
 
@@ -173,7 +163,6 @@ export default function Navbar() {
     if (client) {
       await client.auth.signOut();
     } else {
-      localStorage.removeItem('bakenye_sandbox_session');
       setUser(null);
       setIsAdmin(false);
     }

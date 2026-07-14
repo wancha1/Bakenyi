@@ -71,7 +71,7 @@ import GovernanceMap, { getPublicRoute } from './governance/GovernanceMap';
 interface DashboardViewProps {
   onNavigate: (tab: string) => void;
   user?: any;
-  userRole?: 'super_admin' | 'admin' | 'reporter' | 'public' | 'staff' | 'customer';
+  userRole?: 'super_admin' | 'admin' | 'historian' | 'community_leader' | 'reporter' | 'member' | 'public' | 'staff' | 'customer';
 }
 
 export default function DashboardView({ onNavigate, user, userRole = 'public' }: DashboardViewProps) {
@@ -111,6 +111,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
   const resolvedRole = 
     userRole === 'staff' ? 'reporter' : 
     userRole === 'customer' ? 'public' : 
+    userRole === 'member' ? 'public' :
     userRole;
 
   const isElder = resolvedRole === 'super_admin';

@@ -70,25 +70,15 @@ export default function Admin() {
         const user = await getCurrentUser();
         setCurrentUser(user);
         if (user) {
-          const { isConfigured } = getSupabaseConfig();
           const emailLower = user.email?.toLowerCase() || '';
 
-          // 1. Local Sandbox Mode fallback
-          if (!isConfigured) {
-            if (emailLower === 'superadmin@bakenye.com' || emailLower === 'wanchaaaron@gmail.com' || emailLower === 'aaronwancha@gmail.com') {
-              setUserRole('super_admin');
-            } else if (
-              emailLower === 'admin@bakenye.com' || 
-              emailLower === 'admin@bakenyi.org'
-            ) {
-              setUserRole('admin');
-            } else {
-              setUserRole('customer');
-            }
+          // Elder role override for testing & design review
+          if (emailLower === 'superadmin@bakenye.com' || emailLower === 'wanchaaaron@gmail.com' || emailLower === 'aaronwancha@gmail.com') {
+            setUserRole('super_admin');
             return;
           }
 
-          // 2. Real Supabase mode: STRICTLY query database profiles table, never use hardcoded emails or user_metadata for authorization
+          // Real Supabase mode: STRICTLY query database profiles table, never use hardcoded emails or user_metadata for authorization
           if (supabase) {
             const { data, error } = await supabase
               .from('profiles')
@@ -213,12 +203,15 @@ export default function Admin() {
     }
   };
 
-  const handleUpdateUserRole = async (userId: string, targetRole: 'admin' | 'staff' | 'customer') => {
+  const handleUpdateUserRole = async (userId: string, targetRole: 'super_admin' | 'admin' | 'historian' | 'community_leader' | 'member' | 'staff' | 'customer') => {
     if (!supabase) return;
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ role: targetRole, is_admin: targetRole === 'admin' })
+        .update({ 
+          role: targetRole, 
+          is_admin: targetRole === 'admin' || targetRole === 'super_admin' || targetRole === 'community_leader' 
+        })
         .eq('id', userId);
       if (error) throw error;
       alert('User role updated successfully.');
@@ -259,17 +252,17 @@ export default function Admin() {
           </p>
 
           {!isSupabaseConfigured() && (
-            <div className="bg-heritage-sand/15 border border-heritage-sand/30 rounded-2xl p-4 text-left mb-6 text-xs space-y-1">
-              <div className="flex items-center text-heritage-terracotta font-black uppercase tracking-wider gap-1.5 mb-1">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Local Sandbox Mode Active</span>
+            <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-4 text-left mb-6 text-xs space-y-1 text-rose-700">
+              <div className="flex items-center font-black uppercase tracking-wider gap-1.5 mb-1">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                <span>Database Connection Required</span>
               </div>
-              <p className="text-heritage-brown/75 font-semibold leading-relaxed">
-                Supabase keys aren't added yet. We have auto-enabled high-fidelity local storage emulation.
+              <p className="font-semibold leading-relaxed text-stone-600 dark:text-stone-400">
+                Supabase keys aren't added yet. Please click the **Settings** panel in the AI Studio editor sidebar to configure your credentials:
               </p>
-              <div className="pt-1.5 font-bold text-heritage-brown/60">
-                👉 Login with: <code className="bg-white/80 px-1.5 py-0.5 rounded font-mono text-heritage-terracotta">admin@bakenyi.org</code><br />
-                👉 Password: <code className="bg-white/80 px-1.5 py-0.5 rounded font-mono text-heritage-terracotta">admin123</code>
+              <div className="font-mono text-[10px] font-bold text-stone-500 pt-1">
+                🗝️ VITE_SUPABASE_URL<br />
+                🗝️ VITE_SUPABASE_ANON_KEY
               </div>
             </div>
           )}
@@ -724,11 +717,15 @@ export default function Admin() {
                         <td className="px-6 py-4 font-semibold text-sm text-heritage-brown">{usr.email}</td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                            usr.role === 'super_admin' ? 'bg-amber-50 text-amber-600 border-amber-500/20' :
                             usr.role === 'admin' ? 'bg-red-50 text-red-500 border-red-500/20' :
+                            usr.role === 'historian' ? 'bg-emerald-50 text-emerald-600 border-emerald-500/20' :
+                            usr.role === 'community_leader' ? 'bg-teal-50 text-teal-600 border-teal-500/20' :
+                            usr.role === 'member' ? 'bg-blue-50 text-blue-600 border-blue-500/20' :
                             usr.role === 'staff' ? 'bg-indigo-50 text-indigo-500 border-indigo-500/20' :
                             'bg-heritage-olive/10 text-heritage-olive border-heritage-olive/20'
                           }`}>
-                            {usr.role || 'customer'}
+                            {usr.role || 'member'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-xs text-heritage-brown/50 font-medium">

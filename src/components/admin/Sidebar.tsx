@@ -26,7 +26,7 @@ interface SidebarProps {
   isMobileOpen: boolean;
   setIsMobileOpen: (open: boolean) => void;
   userEmail?: string;
-  userRole?: 'super_admin' | 'admin' | 'reporter' | 'public' | 'staff' | 'customer';
+  userRole?: 'super_admin' | 'admin' | 'historian' | 'community_leader' | 'reporter' | 'member' | 'public' | 'staff' | 'customer';
 }
 
 export default function Sidebar({
@@ -45,16 +45,17 @@ export default function Sidebar({
   const resolvedRole = 
     userRole === 'staff' ? 'reporter' : 
     userRole === 'customer' ? 'public' : 
+    userRole === 'member' ? 'public' :
     userRole;
 
   const isElder = resolvedRole === 'super_admin';
 
   const allNavItems = [
-    { id: 'dashboard', label: resolvedRole === 'reporter' ? 'My Workspace' : (isElder ? 'Council Chamber' : 'Dashboard'), icon: LayoutDashboard },
+    { id: 'dashboard', label: (resolvedRole === 'reporter' || resolvedRole === 'historian') ? 'My Workspace' : (isElder ? 'Council Chamber' : 'Dashboard'), icon: LayoutDashboard },
     { id: 'users', label: isElder ? 'Heritage Guardians' : 'Users', icon: Users },
     { id: 'roles', label: isElder ? 'Council Hierarchy' : 'Roles & Permissions', icon: Shield },
-    { id: 'content', label: resolvedRole === 'reporter' ? 'My Submissions' : (isElder ? 'Chronicled Wisdom' : 'Content'), icon: FileText },
-    { id: 'media', label: resolvedRole === 'reporter' ? 'My Media' : (isElder ? 'Sacred Media Library' : 'Media Library'), icon: Image },
+    { id: 'content', label: (resolvedRole === 'reporter' || resolvedRole === 'historian') ? 'My Submissions' : (isElder ? 'Chronicled Wisdom' : 'Content'), icon: FileText },
+    { id: 'media', label: (resolvedRole === 'reporter' || resolvedRole === 'historian') ? 'My Media' : (isElder ? 'Sacred Media Library' : 'Media Library'), icon: Image },
     { id: 'reports', label: 'Reports', icon: BarChart2 },
     { id: 'activity_logs', label: 'Activity Logs', icon: Activity },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -63,11 +64,11 @@ export default function Sidebar({
 
   // Filter based on normalized role
   let navItems = allNavItems;
-  if (resolvedRole === 'admin') {
-    // Admins see everything except roles, settings, system_health
+  if (resolvedRole === 'admin' || resolvedRole === 'community_leader') {
+    // Admins and Community Leaders see everything except roles, settings, system_health
     navItems = allNavItems.filter(item => ['dashboard', 'users', 'content', 'media', 'reports', 'activity_logs'].includes(item.id));
-  } else if (resolvedRole === 'reporter') {
-    // Reporters see workspace, submissions, media
+  } else if (resolvedRole === 'reporter' || resolvedRole === 'historian') {
+    // Reporters and Historians see workspace, submissions, media
     navItems = allNavItems.filter(item => ['dashboard', 'content', 'media'].includes(item.id));
   } else if (resolvedRole === 'super_admin') {
     navItems = allNavItems;

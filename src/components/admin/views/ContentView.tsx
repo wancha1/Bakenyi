@@ -50,17 +50,18 @@ import ArticlesManager from '../ArticlesManager';
 import HeritageModulesManager from './HeritageModulesManager';
 
 interface ContentViewProps {
-  userRole?: 'super_admin' | 'admin' | 'reporter' | 'public' | 'staff' | 'customer';
+  userRole?: 'super_admin' | 'admin' | 'historian' | 'community_leader' | 'reporter' | 'member' | 'public' | 'staff' | 'customer';
 }
 
 export default function ContentView({ userRole = 'admin' }: ContentViewProps) {
   const resolvedRole = 
     userRole === 'staff' ? 'reporter' : 
     userRole === 'customer' ? 'public' : 
+    userRole === 'member' ? 'public' :
     userRole;
 
   const isElder = resolvedRole === 'super_admin';
-  const isAdmin = resolvedRole === 'admin';
+  const isAdmin = resolvedRole === 'admin' || resolvedRole === 'community_leader' || resolvedRole === 'super_admin';
 
   const [activeSubTab, setActiveSubTab] = useState<'articles' | 'submissions' | 'clans' | 'leadership' | 'categories' | 'heritage_modules'>('articles');
   const [contributions, setContributions] = useState<Contribution[]>([]);

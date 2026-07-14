@@ -250,13 +250,13 @@ create table if nulls distinct profiles (
                   </code>
                 </div>
               ) : (
-                <div className="p-3.5 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/10 dark:border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl space-y-1.5">
+                <div className="p-3.5 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/10 dark:border-rose-500/20 text-rose-700 dark:text-rose-400 rounded-xl space-y-1.5">
                   <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px]">
                     <AlertCircle className="w-4 h-4" />
-                    <span>SANDBOX MODE ACTIVE</span>
+                    <span>DATABASE NOT CONFIGURED</span>
                   </div>
                   <p className="font-semibold leading-relaxed text-slate-600 dark:text-slate-300 text-[11px]">
-                    Running in offline safe mode. To link your database, click the **Settings** panel in the AI Studio editor sidebar, and fill in:
+                    Supabase connection is inactive. To link your live database, click the **Settings** panel in the AI Studio editor sidebar and supply:
                   </p>
                   <div className="space-y-1 font-mono text-[9px] text-slate-500 font-bold">
                     <div>🗝️ VITE_SUPABASE_URL</div>

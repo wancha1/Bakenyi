@@ -26,7 +26,7 @@ export interface Order {
 export interface UserProfile {
   id: string;
   email: string;
-  role: 'admin' | 'staff' | 'customer';
+  role: 'super_admin' | 'admin' | 'historian' | 'community_leader' | 'member' | 'public' | 'reporter' | 'staff' | 'customer';
   status: 'active' | 'suspended' | 'pending';
   created_at: string;
   full_name?: string;
@@ -286,19 +286,7 @@ export const checkIsAdmin = async (user: any): Promise<boolean> => {
     return true;
   }
   
-  const { isConfigured } = getSupabaseConfig();
-  
-  // 1. If we are in local Sandbox mode (Supabase is NOT configured), allow specific sandbox admin emails to let local development work, otherwise fail-closed
-  if (!isConfigured) {
-    return (
-      email === 'admin@bakenye.com' ||
-      email === 'admin@bakenyi.org' ||
-      email.includes('staff') ||
-      email.includes('reporter')
-    );
-  }
-
-  // 2. Query real Supabase profiles database table
+  // Query real Supabase profiles database table
   const client = getSupabase();
   if (client) {
     try {
@@ -312,6 +300,8 @@ export const checkIsAdmin = async (user: any): Promise<boolean> => {
         return (
           data.role === 'super_admin' ||
           data.role === 'admin' ||
+          data.role === 'historian' ||
+          data.role === 'community_leader' ||
           data.role === 'reporter' ||
           data.role === 'staff' ||
           data.is_admin === true
@@ -327,6 +317,8 @@ export const checkIsAdmin = async (user: any): Promise<boolean> => {
   return (
     appRole === 'super_admin' ||
     appRole === 'admin' ||
+    appRole === 'historian' ||
+    appRole === 'community_leader' ||
     appRole === 'reporter' ||
     appRole === 'staff'
   );
