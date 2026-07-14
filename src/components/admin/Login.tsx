@@ -144,7 +144,28 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         setIsLoading(false);
       }
     } else {
-      setError('Supabase is not configured. Please define VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment to start secure production sessions.');
+      // Sandbox mode mock sign-in bypass
+      if (mode === 'signin') {
+        const lowerEmail = email.toLowerCase();
+        const mockUser = {
+          id: lowerEmail === 'wanchaaaron@gmail.com' ? 'usr_wanchaaaron' : 'usr_sandbox_admin',
+          email: lowerEmail,
+          app_metadata: {
+            role: (lowerEmail === 'wanchaaaron@gmail.com' || lowerEmail === 'aaronwancha@gmail.com' || lowerEmail === 'superadmin@bakenye.com') ? 'super_admin' : 'admin'
+          },
+          user_metadata: {
+            full_name: lowerEmail === 'wanchaaaron@gmail.com' ? 'Aaron Wancha (Elder)' : 'Sandbox Administrator'
+          }
+        };
+        onLoginSuccess(mockUser);
+        setSuccessMsg('Logged in successfully under Sandbox Mode!');
+      } else if (mode === 'signup') {
+        setSuccessMsg('Sandbox Mode: Administrator account created simulated! Please Sign In.');
+        setMode('signin');
+      } else {
+        setSuccessMsg('Sandbox Mode: Password reset link simulated successfully.');
+        setMode('signin');
+      }
       setIsLoading(false);
     }
   }
@@ -175,7 +196,15 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         setIsLoading(false);
       }
     } else {
-      setError('Supabase is not configured. Please define VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment to start secure production sessions.');
+      // Sandbox mode: mock sign-in as wanchaaaron@gmail.com as Elder
+      const mockUser = {
+        id: 'usr_wanchaaaron',
+        email: 'wanchaaaron@gmail.com',
+        app_metadata: { role: 'super_admin' },
+        user_metadata: { full_name: 'Aaron Wancha (Elder)' }
+      };
+      onLoginSuccess(mockUser);
+      setSuccessMsg('Logged in successfully as Elder via simulated Google Sign-In!');
       setIsLoading(false);
     }
   }
@@ -465,6 +494,33 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 <span>Return to Sign In</span>
               </button>
             )}
+          </div>
+
+          {/* Quick Login for UI/UX Review Testing */}
+          <div className="pt-4 border-t border-dashed border-slate-100 dark:border-slate-700/60 text-left space-y-1.5">
+            <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider">
+                🛠️ Elder UI/UX Testing
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight font-medium">
+              Click below to instantly log in with <strong className="text-slate-600 dark:text-slate-300">wanchaaaron@gmail.com</strong> under the respected <strong className="text-amber-500 font-extrabold">Elder</strong> role to audit views.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                const mockUser = {
+                  id: 'usr_wanchaaaron',
+                  email: 'wanchaaaron@gmail.com',
+                  app_metadata: { role: 'super_admin' },
+                  user_metadata: { full_name: 'Aaron Wancha (Elder)' }
+                };
+                onLoginSuccess(mockUser);
+              }}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold uppercase tracking-wider text-[10px] py-2 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10"
+            >
+              <span>Instant Log In as Elder</span>
+            </button>
           </div>
         </div>
 

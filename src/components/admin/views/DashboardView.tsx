@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Users, 
   Inbox, 
@@ -16,35 +16,57 @@ import {
   Volume2,
   Languages,
   ShieldCheck,
-  Activity
+  Activity,
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  Search,
+  Book,
+  Calendar,
+  Lock,
+  Compass,
+  Flame,
+  Globe,
+  Quote,
+  Music,
+  Smile,
+  Scroll,
+  Heart,
+  Eye,
+  Sliders,
+  Bell,
+  BarChart2,
+  FileCode,
+  Newspaper,
+  FileSpreadsheet,
+  Phone,
+  Sparkles
 } from 'lucide-react';
-import PendingApprovalInbox from './PendingApprovalInbox';
 import { 
   fetchUsers, 
   fetchMediaFiles, 
-  updateUserStatus, 
-  updateUserRole, 
-  updateMediaStatus, 
   UserProfile, 
   MediaFile, 
   getSupabaseConfig 
 } from '../../../lib/supabaseClient';
 import { 
   getArticles, 
-  updateArticle,
   getVocabulary,
-  updateVocabularyStatus,
   getContributions,
-  updateContributionStatus,
   getGalleryImages,
-  updateGalleryImageStatus,
-  addGalleryImage,
   Vocabulary,
   Contribution,
   GalleryImage
 } from '../../../lib/supabase';
 import { Article } from '../../../types/article';
-import { getAuditLogs, logAdminActivity, AuditLog } from '../../../lib/operations';
+import { getAuditLogs, AuditLog } from '../../../lib/operations';
+
+// Website Governance Modules
+import { ContentItem, GovernancePage, VersionRecord, PageAuditLog } from './governance/types';
+import { WEBPAGES, INITIAL_CONTENT_ITEMS, INITIAL_PENDING_ITEMS, SEEDED_AUDIT_LOGS } from './governance/initialData';
+import PageWorkstation from './governance/PageWorkstation';
+import GovernanceMap, { getPublicRoute } from './governance/GovernanceMap';
 
 interface DashboardViewProps {
   onNavigate: (tab: string) => void;
@@ -59,15 +81,30 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
   const [vocabularies, setVocabularies] = useState<Vocabulary[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  
-  // Tab for Elder vetting dashboard
-  const [activeVettingTab, setActiveVettingTab] = useState<'users' | 'articles' | 'oral_histories' | 'vocabulary' | 'gallery'>('articles');
-  const [moderationMode, setModerationMode] = useState<'unified' | 'classic'>('unified');
 
-  // Connection status
+  // Unified State for Governance Center content, audits, and revision logs
+  const [governanceContent, setGovernanceContent] = useState<ContentItem[]>([]);
+  const [governanceAudits, setGovernanceAudits] = useState<PageAuditLog[]>([]);
+  const [governanceVersions, setGovernanceVersions] = useState<VersionRecord[]>([]);
+
+  // Page Navigation Tree state
+  const [activePageId, setActivePageId] = useState<string>('overview');
+  const [sidebarSearch, setSidebarSearch] = useState('');
+  const [routerInputPath, setRouterInputPath] = useState('');
+  const [auditLogTypeFilter, setAuditLogTypeFilter] = useState('all');
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({
+    Home: false,
+    About: false,
+    Heritage: false,
+    Clans: false,
+    Language: false,
+    Gallery: false,
+    System: true
+  });
+
+  // Supabase state config
   const { isConfigured } = getSupabaseConfig();
 
   // Normalize user roles for clean checks
@@ -76,9 +113,20 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
     userRole === 'customer' ? 'public' : 
     userRole;
 
-  const loadData = async () => {
+  const isElder = resolvedRole === 'super_admin';
+
+  // Toggle category folding
+  const toggleCategory = (cat: string) => {
+    setCollapsedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+  };
+
+  // ----------------------------------------------------
+  // DATA LOADING & SYNCHRONIZATION MERGING ENGINE
+  // ----------------------------------------------------
+  const loadDatabaseData = async () => {
     setIsLoading(true);
     try {
+      // 1. Fetch real tables from Supabase in parallel
       const [usersData, mediaData, articlesData, vocabData, contribData, galleryData] = await Promise.all([
         fetchUsers(),
         fetchMediaFiles(),
@@ -94,19 +142,159 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
       setVocabularies(vocabData);
       setContributions(contribData);
       setGalleryImages(galleryData);
-      setAuditLogs(getAuditLogs());
+
+      // 2. Initialize Governance State from local storage or seeded constants
+      let storedContent: ContentItem[] = [];
+      const cachedContent = localStorage.getItem('bakenye_governance_db_content');
+      if (cachedContent) {
+        try {
+          storedContent = JSON.parse(cachedContent);
+        } catch {
+          storedContent = [...INITIAL_CONTENT_ITEMS, ...INITIAL_PENDING_ITEMS];
+        }
+      } else {
+        storedContent = [...INITIAL_CONTENT_ITEMS, ...INITIAL_PENDING_ITEMS];
+      }
+
+      // 3. SYNCHRONIZE DB UPLOADS: Inject and map live items fetched from database
+      const syncedContent: ContentItem[] = [...storedContent];
+
+      // A. Sync Articles -> Heritage Articles Page
+      articlesData.forEach((art: any) => {
+        const exists = syncedContent.some(item => item.id === art.id);
+        if (!exists) {
+          syncedContent.unshift({
+            id: art.id,
+            pageId: 'heritage-articles',
+            title: art.title,
+            summary: art.excerpt || 'Preservation article',
+            content: art.content || '',
+            status: art.status === 'published' ? 'published' : art.status === 'pending' ? 'pending' : 'draft',
+            author: art.author || 'Staff Preserver',
+            createdAt: art.publishedAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            views: art.views || 0,
+            likes: 0,
+            version: 1,
+            type: 'article'
+          });
+        }
+      });
+
+      // B. Sync Vocabulary Dictionary suggestions -> Language Dictionary Page
+      vocabData.forEach((vocab: any) => {
+        const exists = syncedContent.some(item => item.id === vocab.id);
+        if (!exists) {
+          syncedContent.unshift({
+            id: vocab.id,
+            pageId: 'language-dictionary',
+            title: vocab.lukenye,
+            summary: vocab.english,
+            content: vocab.definition || '',
+            status: vocab.status === 'approved' ? 'published' : vocab.status === 'pending' ? 'pending' : 'draft',
+            author: vocab.submittedBy || 'Community Member',
+            createdAt: vocab.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            views: 0,
+            likes: 0,
+            version: 1,
+            type: 'dictionary',
+            extraFields: {
+              partOfSpeech: vocab.partOfSpeech || 'Noun',
+              translation: vocab.english,
+              example: vocab.exampleUsage || ''
+            }
+          });
+        }
+      });
+
+      // C. Sync Media files -> Gallery Pages
+      mediaData.forEach((m: any) => {
+        const exists = syncedContent.some(item => item.id === m.id);
+        if (!exists) {
+          const fileType = m.file_type || 'image';
+          let pageId = 'gallery-images';
+          if (fileType === 'video') pageId = 'gallery-videos';
+          if (fileType === 'audio') pageId = 'gallery-audio';
+
+          syncedContent.unshift({
+            id: m.id,
+            pageId,
+            title: m.title,
+            summary: m.description || 'Vetted Community Attachment',
+            content: m.description || '',
+            status: m.status === 'approved' ? 'published' : m.status === 'pending' ? 'pending' : 'draft',
+            author: m.uploader_email || 'Community Member',
+            createdAt: m.created_at || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            views: 0,
+            likes: 0,
+            version: 1,
+            type: fileType as any,
+            mediaUrl: m.file_url,
+            extraFields: {
+              location: m.category || 'General Preservation'
+            }
+          });
+        }
+      });
+
+      // D. Sync Contributions -> Heritage Collections (or oral histories)
+      contribData.forEach((c: any) => {
+        const exists = syncedContent.some(item => item.id === c.id);
+        if (!exists) {
+          syncedContent.unshift({
+            id: c.id,
+            pageId: 'heritage-collections',
+            title: c.title,
+            summary: c.type === 'audio' ? 'Oral narrative' : 'Lineage photograph',
+            content: c.description || '',
+            status: c.status === 'approved' ? 'published' : c.status === 'pending' ? 'pending' : 'draft',
+            author: c.author_name || 'Community Member',
+            createdAt: c.created_at || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            views: 0,
+            likes: 0,
+            version: 1,
+            type: c.type === 'audio' ? 'audio' : 'image',
+            mediaUrl: c.imageUrl
+          });
+        }
+      });
+
+      // Write synced state to state hook & caches
+      setGovernanceContent(syncedContent);
+      localStorage.setItem('bakenye_governance_db_content', JSON.stringify(syncedContent));
+
+      // Load Audits
+      const cachedAudits = localStorage.getItem('bakenye_governance_db_audits');
+      if (cachedAudits) {
+        setGovernanceAudits(JSON.parse(cachedAudits));
+      } else {
+        setGovernanceAudits(SEEDED_AUDIT_LOGS);
+        localStorage.setItem('bakenye_governance_db_audits', JSON.stringify(SEEDED_AUDIT_LOGS));
+      }
+
+      // Load Version revisions
+      const cachedVersions = localStorage.getItem('bakenye_governance_db_versions');
+      if (cachedVersions) {
+        setGovernanceVersions(JSON.parse(cachedVersions));
+      } else {
+        setGovernanceVersions([]);
+      }
+
     } catch (err) {
-      console.error('Failed to load platform operations dashboard:', err);
+      console.error('Failed to sync and load platform operations database:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
-    // Listen to operational custom events for state sync
+    loadDatabaseData();
+    // Re-sync reactive updates
     const handleSync = () => {
-      loadData();
+      loadDatabaseData();
     };
     window.addEventListener('bakenye_operations_updated', handleSync);
     return () => {
@@ -114,330 +302,180 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
     };
   }, []);
 
-  const flashMessage = (msg: string) => {
-    setActionMessage(msg);
-    setTimeout(() => setActionMessage(null), 4000);
+  // Save changes and cache immediately
+  const handleSaveContent = (updatedItems: ContentItem[]) => {
+    setGovernanceContent(updatedItems);
+    localStorage.setItem('bakenye_governance_db_content', JSON.stringify(updatedItems));
   };
 
-  // --- Interactive Dashboard Queue Actions ---
-  
-  // 1. User Approval Action
-  const handleApproveUser = async (userId: string, email: string, role: 'staff' | 'customer') => {
-    try {
-      await updateUserRole(userId, role);
-      const updated = await updateUserStatus(userId, 'active');
-      if (updated) {
-        logAdminActivity(
-          'Elder',
-          'User Approved & Activated',
-          `Approved registration for ${email} with assigned role: [${role.toUpperCase()}].`,
-          'Roles',
-          'Success',
-          userId
-        );
-        flashMessage(`Successfully activated ${email} as ${role === 'staff' ? 'REPORTER' : 'USER'}`);
-        loadData();
+  const handleAddAuditLog = (newLog: Omit<PageAuditLog, 'id' | 'timestamp'>) => {
+    const formattedLog: PageAuditLog = {
+      ...newLog,
+      id: `p_aud_${Date.now()}`,
+      timestamp: new Date().toISOString()
+    };
+    const updated = [formattedLog, ...governanceAudits];
+    setGovernanceAudits(updated);
+    localStorage.setItem('bakenye_governance_db_audits', JSON.stringify(updated));
+  };
+
+  const handleAddVersion = (newVer: Omit<VersionRecord, 'id' | 'updatedAt'>) => {
+    const formattedVer: VersionRecord = {
+      ...newVer,
+      id: `ver_${Date.now()}`,
+      updatedAt: new Date().toISOString()
+    };
+    const updated = [formattedVer, ...governanceVersions];
+    setGovernanceVersions(updated);
+    localStorage.setItem('bakenye_governance_db_versions', JSON.stringify(updated));
+  };
+
+  // Helper to resolve page specific icon components
+  const getPageIcon = (iconName: string) => {
+    const map: Record<string, any> = {
+      Activity: Activity,
+      Sparkles: Sparkles,
+      BookOpen: BookOpen,
+      Compass: Compass,
+      Globe: Globe,
+      Flame: Flame,
+      Shield: ShieldCheck,
+      FileText: FileText,
+      FolderOpen: FolderOpen,
+      Eye: Eye,
+      Scroll: Scroll,
+      Heart: Heart,
+      Users: Users,
+      Book: Book,
+      Quote: Quote,
+      Music: Music,
+      Smile: Smile,
+      Clock: Clock,
+      Image: ImageIcon,
+      Video: ImageIcon,
+      Volume2: Volume2,
+      Calendar: Calendar,
+      Newspaper: Newspaper,
+      FileSpreadsheet: FileSpreadsheet,
+      Phone: Phone,
+      UserCheck: UserCheck,
+      Lock: Lock,
+      Bell: Bell,
+      BarChart2: BarChart2,
+      FileCode: FileCode,
+      Sliders: Sliders
+    };
+    return map[iconName] || FileText;
+  };
+
+  // ----------------------------------------------------
+  // PRESET STRUCTURE CATEGORY ORGANIZER
+  // ----------------------------------------------------
+  const categoriesList = [
+    { id: 'General', label: 'PRESERVATION BOARD', pages: ['overview'] },
+    { id: 'Home', label: 'HOMEPAGE SECTOR', pages: ['home-hero', 'home-featured', 'home-activity'] },
+    { id: 'About', label: 'ABOUT THE BAKENYI', pages: ['about-origin', 'about-culture', 'about-traditions', 'about-leadership'] },
+    { id: 'Heritage', label: 'HERITAGE CHRONICLES', pages: ['heritage-articles', 'heritage-collections', 'heritage-exhibitions'] },
+    { id: 'Clans', label: 'CLANS & MARITIME LORE', pages: ['clans-records', 'clans-totems', 'clans-leaders'] },
+    { id: 'Language', label: 'LUKENYE DIALECTS', pages: ['language-dictionary', 'language-proverbs', 'language-songs', 'language-names'] },
+    { id: 'Timeline', label: 'HISTORICAL CHRONOLOGY', pages: ['timeline'] },
+    { id: 'Gallery', label: 'PRESERVATION ARCHIVES', pages: ['gallery-images', 'gallery-videos', 'gallery-audio'] },
+    { id: 'Direct', label: 'COMMUNITY NOTICES', pages: ['events', 'news', 'research', 'contact'] },
+    { id: 'System', label: 'COUNCIL VAULT SETTINGS', pages: ['users', 'roles', 'notifications', 'reports', 'audit-logs', 'settings'] }
+  ];
+
+  // Map pending approval counts to categories and subpages
+  const pendingCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    governanceContent.forEach(item => {
+      if (item.status === 'pending') {
+        counts[item.pageId] = (counts[item.pageId] || 0) + 1;
       }
-    } catch (err) {
-      console.error('Dashboard failed to approve user:', err);
-    }
-  };
+    });
+    return counts;
+  }, [governanceContent]);
 
-  // 2. User Reject Action
-  const handleRejectUser = async (userId: string, email: string) => {
-    try {
-      const updated = await updateUserStatus(userId, 'suspended');
-      if (updated) {
-        logAdminActivity(
-          'Elder',
-          'User Registration Denied',
-          `Denied registration for ${email} and placed account on suspended list.`,
-          'Security',
-          'Warning',
-          userId
-        );
-        flashMessage(`Denied registration for ${email}`);
-        loadData();
-      }
-    } catch (err) {
-      console.error('Dashboard failed to reject user:', err);
-    }
-  };
+  // Total backlog for alerts
+  const totalPendingBacklog = useMemo(() => {
+    return (Object.values(pendingCounts) as number[]).reduce((a, b) => a + b, 0);
+  }, [pendingCounts]);
 
-  // 3. Article Approval Action
-  const handleApproveArticle = async (id: string, title: string) => {
-    try {
-      const { error } = await updateArticle(id, { 
-        status: 'published', 
-        publishedAt: new Date().toISOString().split('T')[0] 
+  // Filter webpages based on sidebar search
+  const filteredCategories = useMemo(() => {
+    if (!sidebarSearch.trim()) return categoriesList;
+    const query = sidebarSearch.toLowerCase();
+    
+    return categoriesList.map(cat => {
+      const matchingPages = cat.pages.filter(pId => {
+        const p = WEBPAGES.find(wp => wp.id === pId);
+        return p?.label.toLowerCase().includes(query) || p?.id.toLowerCase().includes(query);
       });
-      if (error) throw error;
+      return { ...cat, pages: matchingPages };
+    }).filter(cat => cat.pages.length > 0);
+  }, [sidebarSearch]);
 
-      logAdminActivity(
-        'Elder',
-        'Article Approved & Published',
-        `Approved and dynamically published reporter article "${title}" to the public portal.`,
-        'Content',
-        'Success',
-        id
-      );
-      flashMessage(`Approved and published article: "${title}"`);
-      loadData();
-    } catch (err) {
-      console.error('Dashboard failed to approve article:', err);
-    }
-  };
+  const activePage = useMemo(() => {
+    return WEBPAGES.find(wp => wp.id === activePageId) || WEBPAGES[0];
+  }, [activePageId]);
 
-  // 4. Article Rejection Action
-  const handleRejectArticle = async (id: string, title: string) => {
-    try {
-      const { error } = await updateArticle(id, { status: 'draft' });
-      if (error) throw error;
-
-      logAdminActivity(
-        'Elder',
-        'Article Vetting Rejected',
-        `Rejected reporter article "${title}" and reverted it to a secure draft.`,
-        'Content',
-        'Success',
-        id
-      );
-      flashMessage(`Article "${title}" rejected and returned to draft mode.`);
-      loadData();
-    } catch (err) {
-      console.error('Dashboard failed to reject article:', err);
-    }
-  };
-
-  // 5. Media Approval Action
-  const handleApproveMedia = async (name: string) => {
-    try {
-      const approved = await updateMediaStatus(name, 'approved');
-      if (approved) {
-        logAdminActivity(
-          'Elder',
-          'Media Upload Vetted',
-          `Approved private media asset "${name}" making it publicly active in the gallery.`,
-          'Media',
-          'Success',
-          name
-        );
-        flashMessage(`Approved media asset: "${name.split('/').pop()}"`);
-        loadData();
+  // Filtered Audits for the automated visual feed
+  const filteredAudits = useMemo(() => {
+    return governanceAudits.filter(log => {
+      if (auditLogTypeFilter === 'all') return true;
+      const lowerAction = log.action.toLowerCase();
+      const lowerDetails = log.details.toLowerCase();
+      
+      if (auditLogTypeFilter === 'proverb') {
+        return lowerAction.includes('proverb') || lowerDetails.includes('proverb');
       }
-    } catch (err) {
-      console.error('Dashboard failed to approve media:', err);
-    }
-  };
-
-  // 6. Media Rejection Action
-  const handleRejectMedia = async (name: string) => {
-    try {
-      await updateMediaStatus(name, 'rejected');
-      logAdminActivity(
-        'Elder',
-        'Media Upload Rejected',
-        `Rejected private media upload "${name}" and removed file from secure storage.`,
-        'Media',
-        'Warning',
-        name
-      );
-      flashMessage(`Rejected media asset: "${name.split('/').pop()}"`);
-      loadData();
-    } catch (err) {
-      console.error('Dashboard failed to reject media:', err);
-    }
-  };
-
-  // 7. Vocabulary Approval Action
-  const handleApproveVocabulary = async (id: string, lukenye: string) => {
-    try {
-      const success = await updateVocabularyStatus(id, 'approved');
-      if (success) {
-        logAdminActivity(
-          'Elder',
-          'Vocabulary Approved',
-          `Approved Lukenye vocabulary suggestion "${lukenye}" to the public glossary.`,
-          'Content',
-          'Success',
-          id
-        );
-        flashMessage(`Approved Lukenye word/phrase: "${lukenye}"`);
-        loadData();
+      if (auditLogTypeFilter === 'dictionary') {
+        return lowerAction.includes('dictionary') || lowerDetails.includes('dictionary') || lowerDetails.includes('word') || lowerDetails.includes('vocab');
       }
-    } catch (err) {
-      console.error('Dashboard failed to approve vocabulary:', err);
-    }
-  };
-
-  // 8. Vocabulary Rejection Action
-  const handleRejectVocabulary = async (id: string, lukenye: string) => {
-    try {
-      const success = await updateVocabularyStatus(id, 'rejected');
-      if (success) {
-        logAdminActivity(
-          'Elder',
-          'Vocabulary Rejected',
-          `Rejected Lukenye vocabulary suggestion "${lukenye}".`,
-          'Content',
-          'Warning',
-          id
-        );
-        flashMessage(`Rejected Lukenye word/phrase: "${lukenye}"`);
-        loadData();
+      if (auditLogTypeFilter === 'article') {
+        return lowerAction.includes('article') || lowerDetails.includes('article') || lowerAction.includes('hero') || lowerAction.includes('feat');
       }
-    } catch (err) {
-      console.error('Dashboard failed to reject vocabulary:', err);
-    }
-  };
-
-  // 9. Contribution Approval Action
-  const handleApproveContribution = async (contrib: Contribution) => {
-    try {
-      const { success, error } = await updateContributionStatus(contrib.id, 'approved');
-      if (error) throw error;
-
-      if (success) {
-        // Automatically add approved contribution to the gallery!
-        await addGalleryImage(
-          contrib.title,
-          contrib.imageUrl,
-          contrib.description,
-          contrib.type === 'photo' ? 'History' : 'Tradition',
-          'approved'
-        );
-
-        logAdminActivity(
-          'Elder',
-          'Contribution Approved',
-          `Approved community contribution "${contrib.title}" and published to Digital Gallery.`,
-          'Content',
-          'Success',
-          contrib.id
-        );
-        flashMessage(`Approved and published oral history: "${contrib.title}"`);
-        loadData();
+      if (auditLogTypeFilter === 'totem') {
+        return lowerAction.includes('totem') || lowerDetails.includes('totem') || lowerDetails.includes('clan');
       }
-    } catch (err) {
-      console.error('Dashboard failed to approve contribution:', err);
-    }
-  };
-
-  // 10. Contribution Rejection Action
-  const handleRejectContribution = async (id: string, title: string) => {
-    try {
-      const { success, error } = await updateContributionStatus(id, 'rejected');
-      if (error) throw error;
-
-      if (success) {
-        logAdminActivity(
-          'Elder',
-          'Contribution Rejected',
-          `Rejected community contribution "${title}".`,
-          'Content',
-          'Warning',
-          id
-        );
-        flashMessage(`Rejected community contribution: "${title}"`);
-        loadData();
+      if (auditLogTypeFilter === 'approve') {
+        return lowerAction.includes('approved') || lowerAction.includes('vet') || lowerAction.includes('contribution approved');
       }
-    } catch (err) {
-      console.error('Dashboard failed to reject contribution:', err);
-    }
-  };
-
-  // 11. Gallery Image Approval Action
-  const handleApproveGallery = async (id: string, title: string) => {
-    try {
-      const { success, error } = await updateGalleryImageStatus(id, 'approved');
-      if (error) throw error;
-
-      if (success) {
-        logAdminActivity(
-          'Elder',
-          'Gallery Image Approved',
-          `Approved gallery submission "${title}" for public display.`,
-          'Media',
-          'Success',
-          id
-        );
-        flashMessage(`Approved gallery item: "${title}"`);
-        loadData();
+      if (auditLogTypeFilter === 'edit') {
+        return lowerAction.includes('edited') || lowerAction.includes('modified') || lowerAction.includes('rollback');
       }
-    } catch (err) {
-      console.error('Dashboard failed to approve gallery item:', err);
-    }
-  };
+      return true;
+    });
+  }, [governanceAudits, auditLogTypeFilter]);
 
-  // 12. Gallery Image Rejection Action
-  const handleRejectGallery = async (id: string, title: string) => {
-    try {
-      const { success, error } = await updateGalleryImageStatus(id, 'rejected');
-      if (error) throw error;
-
-      if (success) {
-        logAdminActivity(
-          'Elder',
-          'Gallery Image Rejected',
-          `Rejected gallery submission "${title}".`,
-          'Media',
-          'Warning',
-          id
-        );
-        flashMessage(`Rejected gallery item: "${title}"`);
-        loadData();
-      }
-    } catch (err) {
-      console.error('Dashboard failed to reject gallery item:', err);
-    }
-  };
-
-  // Compute stats
-  const pendingUsers = users.filter(u => u.status === 'pending');
-  const pendingArticles = articles.filter(a => a.status === 'pending');
-  const pendingMedia = media.filter(m => m.status === 'pending');
-  const pendingVocabularies = vocabularies.filter(v => v.status === 'pending');
-  const pendingContributions = contributions.filter(c => c.status === 'pending');
-  const pendingGalleryImages = galleryImages.filter(g => g.status === 'pending');
-  const totalQueueCount = 
-    pendingUsers.length + 
-    pendingArticles.length + 
-    pendingMedia.length + 
-    pendingVocabularies.length + 
-    pendingContributions.length + 
-    pendingGalleryImages.length;
-
-  // Curation model statistics for Elders & Administrators
-  const totalApprovedCount = 
-    users.filter(u => u.status === 'active').length + 
-    articles.filter(a => a.status === 'published' || a.status === 'approved').length + 
-    media.filter(m => m.status === 'approved').length + 
-    vocabularies.filter(v => v.status === 'approved').length + 
-    contributions.filter(c => c.status === 'approved').length + 
-    galleryImages.filter(g => g.status === 'approved').length;
-  const totalRecordsCount = totalApprovedCount + totalQueueCount;
-  const vettingIntegrityPercentage = totalRecordsCount > 0 ? Math.round((totalApprovedCount / totalRecordsCount) * 100) : 100;
-
-  // Filter content authored by the current logged-in reporter
-  const reporterEmail = user?.email || '';
-  const myArticles = articles.filter(a => a.authorEmail === reporterEmail || a.author === reporterEmail.split('@')[0]);
-  const myMedia = media.filter(m => m.url && (m.name.includes(reporterEmail.split('@')[0]) || m.status === 'approved'));
-
-  const formatBytes = (bytes: number, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  };
+  // Autocomplete route suggestions for Centralized Sovereign Router
+  const routeSuggestions = useMemo(() => {
+    const query = routerInputPath.toLowerCase().trim();
+    if (!query) return [];
+    
+    return WEBPAGES.filter(p => p.id !== 'overview').map(p => {
+      const publicPath = getPublicRoute(p.id);
+      const adminPath = `/admin/${p.id.replace('-', '/')}`;
+      return {
+        pageId: p.id,
+        label: p.label,
+        category: p.category,
+        publicPath,
+        adminPath
+      };
+    }).filter(item => 
+      item.label.toLowerCase().includes(query) || 
+      item.publicPath.toLowerCase().includes(query) || 
+      item.adminPath.toLowerCase().includes(query) ||
+      item.pageId.toLowerCase().includes(query)
+    ).slice(0, 5);
+  }, [routerInputPath]);
 
   if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center h-96 space-y-3">
-        <Loader2 className="w-8 h-8 text-indigo-650 animate-spin" />
+        <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
         <span className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
-          Retrieving heritage workspace datasets...
+          Retrieving governance chronicles datasets...
         </span>
       </div>
     );
@@ -449,14 +487,6 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
   if (resolvedRole === 'reporter') {
     return (
       <div className="space-y-8 animate-fade-in text-left">
-        {/* Toast Flash Message */}
-        {actionMessage && (
-          <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white border border-slate-800 rounded-2xl px-5 py-3.5 shadow-xl flex items-center space-x-2.5 animate-slide-up text-xs font-bold font-sans">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>{actionMessage}</span>
-          </div>
-        )}
-
         {/* Welcome Banner */}
         <div className="bg-gradient-to-r from-emerald-950 to-slate-900 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden shadow-lg">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent pointer-events-none" />
@@ -471,48 +501,48 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
 
         {/* Reporter Quick Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">My Written Articles</p>
-              <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">{myArticles.length}</h3>
-              <span className="text-[10px] text-slate-400 font-semibold block">Total draft or published submissions</span>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">My Written Articles</p>
+              <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
+                {governanceContent.filter(c => c.authorEmail === user?.email && c.pageId === 'heritage-articles').length}
+              </h3>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
               <FileText className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Published Live</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Published Live</p>
               <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
-                {myArticles.filter(a => a.status === 'published' || a.status === 'approved').length}
+                {governanceContent.filter(c => c.authorEmail === user?.email && c.status === 'published').length}
               </h3>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block">Visible to the public site</span>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
               <BookOpen className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Pending Vetting</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pending Vetting</p>
               <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
-                {myArticles.filter(a => a.status === 'pending').length}
+                {governanceContent.filter(c => c.authorEmail === user?.email && c.status === 'pending').length}
               </h3>
-              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold block">Awaiting admin review</span>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <Clock className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">My Media Uploads</p>
-              <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">{myMedia.length}</h3>
-              <span className="text-[10px] text-slate-400 font-semibold block">Contributed digital heritage assets</span>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">My Media uploads</p>
+              <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
+                {governanceContent.filter(c => c.author === user?.email && c.pageId.includes('gallery')).length}
+              </h3>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 flex items-center justify-center">
               <ImageIcon className="w-6 h-6" />
@@ -522,954 +552,494 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
 
         {/* Creator Bento Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Create CTA Bento Card */}
           <div className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700/50 p-6 shadow-xs flex flex-col justify-between space-y-6">
             <div className="space-y-3.5">
               <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
                 <PlusCircle className="w-6 h-6" />
               </div>
               <h3 className="font-serif font-black text-lg text-slate-900 dark:text-white">Draft a Heritage Piece</h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
+              <p className="text-xs text-slate-400 leading-relaxed">
                 Add written chronicles, clan lineage accounts, or linguistic insights. Once submitted, administrators will review it before publishing.
               </p>
             </div>
             <button
               onClick={() => onNavigate('content')}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wider text-[11px] py-3 rounded-2xl cursor-pointer flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/10"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wider text-[11px] py-3 rounded-2xl cursor-pointer flex items-center justify-center gap-2 transition-all"
             >
               <span>Go to Content Creator</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Submissions List */}
           <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700/50 p-6 shadow-xs space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700/40 pb-3">
-              <h3 className="font-serif font-black text-base text-slate-900 dark:text-white">My Active Submissions</h3>
-              <span className="text-[10px] font-bold text-slate-400">{myArticles.length} submissions</span>
-            </div>
-
-            <div className="divide-y divide-slate-100/50 dark:divide-slate-700/30 overflow-y-auto max-h-[220px]">
-              {myArticles.map((art) => {
-                const statusColors = {
-                  draft: 'bg-slate-100 text-slate-700',
-                  pending: 'bg-amber-100 text-amber-800 border-amber-200/20',
-                  published: 'bg-emerald-100 text-emerald-800 border-emerald-200/20',
-                  approved: 'bg-emerald-100 text-emerald-800 border-emerald-200/20',
-                  rejected: 'bg-rose-100 text-rose-800 border-rose-200/20'
-                };
-
-                return (
-                  <div key={art.id} className="py-3 flex items-center justify-between text-xs font-semibold gap-4">
-                    <div className="min-w-0 text-left space-y-1">
-                      <span className="font-bold text-slate-800 dark:text-white truncate block max-w-[280px]" title={art.title}>
-                        {art.title}
-                      </span>
-                      <span className="text-[10px] text-slate-400 block font-mono">Category: {art.category || 'General'}</span>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        {art.createdAt ? new Date(art.createdAt).toLocaleDateString() : 'Recent'}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${statusColors[art.status as keyof typeof statusColors] || 'bg-slate-100 text-slate-600'}`}>
-                        {art.status}
-                      </span>
-                    </div>
+            <h3 className="font-serif font-black text-base text-slate-900 dark:text-white">My Submissions Logs</h3>
+            <div className="divide-y divide-slate-100 dark:divide-slate-700/40">
+              {governanceContent.filter(c => c.authorEmail === user?.email).map(item => (
+                <div key={item.id} className="py-3 flex justify-between items-center text-xs">
+                  <div>
+                    <span className="font-serif font-bold text-slate-800 dark:text-white block">{item.title}</span>
+                    <span className="text-[10px] text-slate-400 block">{item.pageId}</span>
                   </div>
-                );
-              })}
-
-              {myArticles.length === 0 && (
-                <div className="text-center py-12 text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[10px] space-y-1">
-                  <p>You have not drafted any chronicles yet.</p>
-                  <button 
-                    onClick={() => onNavigate('content')}
-                    className="text-indigo-500 hover:underline cursor-pointer"
-                  >
-                    Write your first heritage chronicle
-                  </button>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                    item.status === 'published' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'
+                  }`}>{item.status}</span>
                 </div>
-              )}
+              ))}
             </div>
           </div>
-
         </div>
       </div>
     );
   }
 
   // ==========================================
-  // SUPER ADMIN & ADMIN OPERATIONS VIEW
+  // ELDER (COUNCIL OF ELDERS) WEBSITE GOVERNANCE CENTER
   // ==========================================
   return (
-    <div className="space-y-8 animate-fade-in text-left">
-      {/* Toast Flash Message */}
-      {actionMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white border border-slate-800 rounded-2xl px-5 py-3.5 shadow-xl flex items-center space-x-2.5 animate-slide-up text-xs font-bold font-sans">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{actionMessage}</span>
-        </div>
-      )}
-
-      {/* Header Banner - Clean Heritage Style */}
-      {resolvedRole === 'super_admin' ? (
-        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/90 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden border border-amber-500/20 shadow-xl shadow-amber-500/5">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-500/10 via-transparent to-transparent pointer-events-none" />
-          {/* Background decorative ring */}
-          <div className="absolute -right-16 -bottom-16 w-64 h-64 border-8 border-amber-500/5 rounded-full pointer-events-none" />
-          
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
-            <div className="lg:col-span-8 space-y-4">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black uppercase tracking-[0.2em] text-amber-400 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Respected Elder Council Sanctuary
-                </span>
-                <span className="px-2.5 py-1 rounded-full bg-slate-900/40 border border-slate-800 text-[9px] font-mono font-bold text-slate-300">
-                  ID: {user?.email?.split('@')[0]}
-                </span>
-              </div>
-              
-              <div className="space-y-1.5">
-                <h1 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight leading-tight">
-                  Webale Kushemererwa, Respected Custodian
-                </h1>
-                <p className="text-xs text-slate-300 max-w-xl font-medium leading-relaxed">
-                  As an honored **Elder** of the Bakenyi heritage portal, you possess full sovereignty over the sacred chronicle publication queues, user credential promotions, media vetting, and historical preservation safety.
-                </p>
-              </div>
-              
-              {/* Curation Integrity Metrics Progress bar */}
-              <div className="pt-3 max-w-md space-y-2">
-                <div className="flex justify-between items-center text-[10px] font-bold tracking-wider uppercase text-slate-300">
-                  <span>Portal Curation Integrity Index</span>
-                  <span className="text-amber-400 font-mono text-xs">{vettingIntegrityPercentage}% vetted</span>
-                </div>
-                <div className="w-full bg-slate-900/60 h-2 rounded-full border border-slate-800 overflow-hidden">
-                  <div 
-                    className="bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300 h-full rounded-full transition-all duration-1000"
-                    style={{ width: `${vettingIntegrityPercentage}%` }}
-                  />
-                </div>
-                <p className="text-[9px] text-slate-400 font-medium">
-                  Curation score represents approved public heritage assets versus total submissions. Maintain &gt;90% for high preservation accuracy.
-                </p>
-              </div>
-            </div>
-            
-            <div className="lg:col-span-4 flex flex-col justify-between items-end gap-4">
-              <div className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-2xl w-full text-right shadow-xs">
-                <span className="block text-[9px] text-amber-500 font-black uppercase tracking-widest mb-1.5">Ancestral Wisdom</span>
-                <p className="text-[11px] text-amber-100/90 italic leading-relaxed font-serif">
-                  "Abagurusi nibo bikwatira enanga ya Bakenye."
-                </p>
-                <span className="block text-[8px] text-slate-500 font-bold mt-1.5">— Heritage Proverb on Guardianship</span>
-              </div>
-              
-              <div className="flex items-center gap-2 self-stretch lg:self-auto bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/40 w-full lg:w-auto text-left lg:text-right">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">Gatekeeper Signature</span>
-                  <span className="block text-[10px] text-amber-400 font-mono font-bold truncate">{user?.email || 'elder@bakenyi.org'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-gradient-to-br from-slate-950 to-slate-900 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden shadow-lg border border-slate-800/60">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent pointer-events-none" />
-          <div className="absolute -right-12 -bottom-12 w-48 h-48 border-4 border-indigo-500/5 rounded-full pointer-events-none" />
-          
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black uppercase tracking-wider text-indigo-400">
-                <UserCheck className="w-3.5 h-3.5 animate-pulse" />
-                <span>Platform Administration Space</span>
-              </div>
-              <h1 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight">
-                Platform Moderator Panel
-              </h1>
-              <p className="text-xs text-slate-400 max-w-xl font-medium leading-relaxed">
-                Oversee Bakenyi community content reviews, public publication approvals, media library assets vetting, and user management workflows.
-              </p>
-            </div>
-            <div className="bg-slate-900/80 border border-slate-800 p-3.5 rounded-xl text-left flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 shrink-0">
-                <Users className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">Active Staff ID</span>
-                <span className="block text-[10px] text-white font-mono font-bold">{user?.email || 'admin@bakenye.com'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Admin Central Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Backlog Metric */}
-        <div className={`p-6 rounded-3xl border shadow-xs flex items-center justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ${
-          totalQueueCount > 0 
-            ? 'bg-amber-50/50 dark:bg-amber-950/10 border-amber-200/50 dark:border-amber-950/30 shadow-amber-500/2' 
-            : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700/50'
-        }`}>
-          <div className="space-y-1.5 text-left">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Moderation Backlog</p>
-            <h3 className={`text-3xl font-serif font-black leading-none ${totalQueueCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>
-              {resolvedRole === 'admin' ? pendingArticles.length + pendingMedia.length : totalQueueCount}
-            </h3>
-            <span className="text-[10px] text-slate-400 font-semibold block">Awaiting publication vetting</span>
-          </div>
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform duration-300 hover:scale-105 ${
-            totalQueueCount > 0 
-              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
-              : 'bg-slate-100 dark:bg-slate-750 text-slate-500 dark:text-slate-400'
-          }`}>
-            <Inbox className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Active Preservers Metric */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-          <div className="space-y-1.5 text-left">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Active Preservers</p>
-            <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
-              {users.filter(u => u.status === 'active').length}
-            </h3>
-            <span className="text-[10px] text-slate-400 font-semibold block">Authorized portal profiles</span>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center hover:scale-105 transition-transform duration-300">
-            <Users className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Live Chronicles Metric */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-          <div className="space-y-1.5 text-left">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Live Chronicles</p>
-            <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
-              {articles.filter(a => a.status === 'published' || a.status === 'approved').length}
-            </h3>
-            <span className="text-[10px] text-slate-400 font-semibold block">Published public articles</span>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center hover:scale-105 transition-transform duration-300">
-            <BookOpen className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Vetted Media Assets Metric */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-          <div className="space-y-1.5 text-left">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Vetted Media Assets</p>
-            <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
-              {media.filter(m => m.status === 'approved').length}
-            </h3>
-            <span className="text-[10px] text-slate-400 font-semibold block">Approved public gallery assets</span>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 flex items-center justify-center hover:scale-105 transition-transform duration-300">
-            <ImageIcon className="w-6 h-6" />
-          </div>
-        </div>
-      </div>
-
-      {/* Curation Chamber Bento Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Directives (5 cols) */}
-        <div className="lg:col-span-5 bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700/50 p-6 shadow-xs flex flex-col justify-between space-y-6 text-left">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-50 dark:border-slate-700/40">
-              <div className="space-y-0.5">
-                <span className="text-[9px] font-black text-amber-500 uppercase tracking-wider block font-sans">Administrative Mandates</span>
-                <h3 className="font-serif font-black text-base text-slate-900 dark:text-white">Active Preservation Directives</h3>
-              </div>
-              <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-md text-[8px] font-black uppercase tracking-wider font-sans">
-                Elders Code
-              </span>
-            </div>
-            
-            <div className="space-y-3">
-              {/* Directive 1 */}
-              <button 
-                onClick={() => {
-                  setModerationMode('classic');
-                  setActiveVettingTab('articles');
-                  const el = document.getElementById('vetting-desk-title');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="w-full text-left p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 hover:bg-amber-500/5 border border-slate-100 dark:border-slate-850 hover:border-amber-500/20 transition-all flex items-center justify-between group cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
-                    <BookOpen className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Written Chronicles</span>
-                    <span className="block text-[10px] text-slate-400 font-medium">Verify ancestral historical articles</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {pendingArticles.length > 0 ? (
-                    <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[9px] font-black font-mono">
-                      {pendingArticles.length} Pending
-                    </span>
-                  ) : (
-                    <span className="text-[9px] text-slate-400 font-medium font-mono">Idle</span>
-                  )}
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </button>
-
-              {/* Directive 2 */}
-              <button 
-                onClick={() => {
-                  setModerationMode('classic');
-                  setActiveVettingTab('oral_histories');
-                  const el = document.getElementById('vetting-desk-title');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="w-full text-left p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 hover:bg-amber-500/5 border border-slate-100 dark:border-slate-850 hover:border-amber-500/20 transition-all flex items-center justify-between group cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
-                    <Volume2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Oral Histories</span>
-                    <span className="block text-[10px] text-slate-400 font-medium">Moderate community audio logs</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {pendingContributions.length > 0 ? (
-                    <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[9px] font-black font-mono">
-                      {pendingContributions.length} Pending
-                    </span>
-                  ) : (
-                    <span className="text-[9px] text-slate-400 font-medium font-mono">Idle</span>
-                  )}
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </button>
-
-              {/* Directive 3 */}
-              <button 
-                onClick={() => {
-                  setModerationMode('classic');
-                  setActiveVettingTab('vocabulary');
-                  const el = document.getElementById('vetting-desk-title');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="w-full text-left p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 hover:bg-amber-500/5 border border-slate-100 dark:border-slate-850 hover:border-amber-500/20 transition-all flex items-center justify-between group cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-                    <Languages className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Vocabulary Proposals</span>
-                    <span className="block text-[10px] text-slate-400 font-medium">Verify Lukenye linguistic proposals</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {pendingVocabularies.length > 0 ? (
-                    <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[9px] font-black font-mono">
-                      {pendingVocabularies.length} Pending
-                    </span>
-                  ) : (
-                    <span className="text-[9px] text-slate-400 font-medium font-mono">Idle</span>
-                  )}
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </button>
-
-              {/* Directive 4 */}
-              {resolvedRole === 'super_admin' && (
-                <button 
-                  onClick={() => {
-                    setModerationMode('classic');
-                    setActiveVettingTab('users');
-                    const el = document.getElementById('vetting-desk-title');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="w-full text-left p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 hover:bg-amber-500/5 border border-slate-100 dark:border-slate-850 hover:border-amber-500/20 transition-all flex items-center justify-between group cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-500 flex items-center justify-center shrink-0">
-                      <Users className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Registry Approvals</span>
-                      <span className="block text-[10px] text-slate-400 font-medium">Activate new heritage preservers</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {pendingUsers.length > 0 ? (
-                      <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 text-[9px] font-black font-mono">
-                        {pendingUsers.length} Pending
-                      </span>
-                    ) : (
-                      <span className="text-[9px] text-slate-400 font-medium font-mono">Idle</span>
-                    )}
-                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </button>
-              )}
-            </div>
-          </div>
-          
-          <button 
-            onClick={() => {
-              setModerationMode('unified');
-              const el = document.getElementById('vetting-desk-title');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-300 font-bold uppercase tracking-wider text-[10px] py-3 rounded-2xl cursor-pointer flex items-center justify-center gap-2 transition-all border border-slate-200/50 dark:border-slate-800/40"
-          >
-            <span>Open Unified Moderation Terminal</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Right Column: Immutable Audit Ledger (7 cols) */}
-        <div className="lg:col-span-7 bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700/50 p-6 shadow-xs flex flex-col justify-between space-y-4 text-left">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-50 dark:border-slate-700/40">
-              <div className="space-y-0.5">
-                <span className="text-[9px] font-black text-indigo-500 uppercase tracking-wider block font-sans">Security & Operations</span>
-                <h3 className="font-serif font-black text-base text-slate-900 dark:text-white">Immutable Platform Audit Ledger</h3>
-              </div>
-              <button 
-                onClick={() => onNavigate('activity_logs')}
-                className="text-indigo-500 dark:text-indigo-400 hover:underline text-[10px] font-bold uppercase tracking-wider cursor-pointer"
-              >
-                View Full Logs
-              </button>
-            </div>
-            
-            <div className="divide-y divide-slate-100/50 dark:divide-slate-700/30 overflow-y-auto max-h-[310px] space-y-1">
-              {auditLogs.slice(0, 4).map((log) => {
-                const statusBadgeColors = {
-                  Success: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-                  Warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-                  Error: 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                };
-                
-                return (
-                  <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs font-semibold gap-3">
-                    <div className="min-w-0 flex items-start gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-400 shrink-0 border border-slate-100 dark:border-slate-850">
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <div className="text-left space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-800 dark:text-white truncate max-w-[150px]" title={log.actor}>
-                            {log.actor.split('@')[0]}
-                          </span>
-                          <span className="px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 text-[8px] font-black uppercase font-mono">
-                            {log.category}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1 leading-snug">
-                          {log.details}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${statusBadgeColors[log.status as keyof typeof statusBadgeColors] || 'bg-slate-100'}`}>
-                        {log.status}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-              
-              {auditLogs.length === 0 && (
-                <div className="text-center py-16 text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[10px] space-y-1">
-                  <p>No activity records compiled yet.</p>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="bg-slate-50 dark:bg-slate-900/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-850 flex items-center gap-3">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-            <div className="text-[11px] text-slate-400 dark:text-slate-500 leading-normal">
-              <strong>Sentinel Integrity Scan Active:</strong> All publication pipelines require cryptographic signature of designated Elders prior to database replication.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Vetting Dashboard Console Title */}
-      <div id="vetting-desk-title" className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-4 border-t border-slate-100 dark:border-slate-800 scroll-mt-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-left">
+      
+      {/* LEFT COLUMN: WEBSITE ARCHITECTURE NAVIGATION TREE */}
+      <aside className="lg:col-span-3 bg-white dark:bg-slate-800 rounded-[32px] border border-slate-150 dark:border-slate-700/60 p-5 shadow-lg select-none flex flex-col gap-5 h-[calc(100vh-140px)] sticky top-28 overflow-y-auto">
+        
         <div>
-          <h2 className="text-xl font-serif font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-amber-500" />
-            <span>Honorable Vetting Council Desk</span>
-          </h2>
-          <p className="text-xs text-slate-400">
-            Select an ancestral channel below to verify, moderate, or publish cultural content submissions.
+          <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest block mb-1">Preservation Tree</span>
+          <h3 className="font-serif font-black text-base text-slate-800 dark:text-white">Governance Compass</h3>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight pt-0.5">
+            Operational mirror of Bakenyi public sections.
           </p>
         </div>
+
+        {/* Sidebar Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search pages..."
+            value={sidebarSearch}
+            onChange={(e) => setSidebarSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700/60 rounded-xl text-[11px] outline-none focus:border-amber-500 font-sans font-medium text-slate-800 dark:text-white"
+          />
+        </div>
+
+        {/* Navigation list divided by category cards */}
+        <div className="space-y-3.5 flex-1 overflow-y-auto pr-1">
+          {filteredCategories.map(cat => {
+            const isCollapsible = cat.id !== 'General' && cat.id !== 'Timeline';
+            const isCollapsed = collapsedCategories[cat.id];
+            
+            // Calculate pending items in this category
+            const categoryPendingCount = cat.pages.reduce((acc, pId) => acc + (pendingCounts[pId] || 0), 0);
+
+            return (
+              <div key={cat.id} className="space-y-1">
+                {/* Category Header */}
+                <div 
+                  onClick={() => isCollapsible && toggleCategory(cat.id)}
+                  className={`flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 pb-1 border-b border-slate-50 dark:border-slate-750/30 cursor-pointer hover:text-slate-650 dark:hover:text-slate-300 transition-colors ${
+                    isCollapsible ? 'select-none' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    {isCollapsible && (
+                      isCollapsed ? <ChevronRight className="w-3 h-3 text-amber-500" /> : <ChevronDown className="w-3 h-3 text-amber-500" />
+                    )}
+                    <span>{cat.label}</span>
+                  </div>
+
+                  {categoryPendingCount > 0 && (
+                    <span className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
+                  )}
+                </div>
+
+                {/* Subpages list */}
+                {(!isCollapsible || !isCollapsed) && (
+                  <div className="pl-1.5 space-y-0.5 pt-1">
+                    {cat.pages.map(pageId => {
+                      const p = WEBPAGES.find(wp => wp.id === pageId);
+                      if (!p) return null;
+
+                      const isActive = activePageId === pageId;
+                      const IconComponent = getPageIcon(p.icon);
+                      const pendingCount = pendingCounts[pageId] || 0;
+
+                      return (
+                        <button
+                          key={pageId}
+                          onClick={() => setActivePageId(pageId)}
+                          className={`w-full flex items-center justify-between py-2 px-3 rounded-xl transition-all font-bold text-[11px] uppercase tracking-wider text-left cursor-pointer ${
+                            isActive
+                              ? 'bg-amber-500 text-slate-950 font-extrabold shadow-sm shadow-amber-500/10'
+                              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <IconComponent className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-slate-950' : 'text-amber-500'}`} />
+                            <span className="truncate leading-none">{p.label}</span>
+                          </div>
+
+                          {pendingCount > 0 && (
+                            <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black ${
+                              isActive ? 'bg-slate-950 text-amber-400' : 'bg-amber-500 text-slate-950'
+                            }`}>
+                              {pendingCount}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </aside>
+
+      {/* RIGHT COLUMN: DIRECT PAGE MANAGEMENT WORKSTATION */}
+      <main className="lg:col-span-9 flex flex-col gap-6">
         
-        {/* Switcher & Status indicators */}
-        <div className="flex items-center gap-3">
-          <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-750 text-xs">
-            <button
-              onClick={() => setModerationMode('unified')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                moderationMode === 'unified' 
-                  ? 'bg-amber-500 text-slate-950 shadow-xs' 
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Unified Inbox
-            </button>
-            <button
-              onClick={() => setModerationMode('classic')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                moderationMode === 'classic' 
-                  ? 'bg-amber-500 text-slate-950 shadow-xs' 
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Classic Vetting
-            </button>
-          </div>
-
-          <span className="px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-            <span>{totalQueueCount} Total Pending Elements</span>
-          </span>
-        </div>
-      </div>
-
-      {moderationMode === 'unified' ? <PendingApprovalInbox /> : (
-        <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 p-4 md:p-6 shadow-xs">
-        {/* Tabs Bar */}
-        <div className="flex flex-wrap gap-2 border-b border-slate-100 dark:border-slate-700 pb-4 mb-6">
-          <button
-            onClick={() => setActiveVettingTab('articles')}
-            className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-              activeVettingTab === 'articles'
-                ? 'bg-amber-500 text-white shadow-md'
-                : 'bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
-            }`}
+        {/* Dynamic Breadcrumbs Navigation System */}
+        <nav id="governance-breadcrumbs" className="flex flex-wrap items-center gap-2 px-5 py-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-150 dark:border-slate-700/60 shadow-xs text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+          <button 
+            onClick={() => setActivePageId('overview')}
+            className="hover:text-amber-500 font-extrabold transition-all flex items-center gap-1.5 cursor-pointer text-slate-400 dark:text-slate-500"
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Written Chronicles</span>
-            {pendingArticles.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[8px] font-bold text-white">
-                {pendingArticles.length}
-              </span>
-            )}
+            <Globe className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span>Governance Sanctuary</span>
           </button>
-
-          <button
-            onClick={() => setActiveVettingTab('oral_histories')}
-            className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-              activeVettingTab === 'oral_histories'
-                ? 'bg-amber-500 text-white shadow-md'
-                : 'bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            <Volume2 className="w-3.5 h-3.5" />
-            <span>Oral Histories</span>
-            {pendingContributions.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[8px] font-bold text-white">
-                {pendingContributions.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveVettingTab('vocabulary')}
-            className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-              activeVettingTab === 'vocabulary'
-                ? 'bg-amber-500 text-white shadow-md'
-                : 'bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            <Languages className="w-3.5 h-3.5" />
-            <span>Vocabulary Proposals</span>
-            {pendingVocabularies.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[8px] font-bold text-white">
-                {pendingVocabularies.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveVettingTab('gallery')}
-            className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-              activeVettingTab === 'gallery'
-                ? 'bg-amber-500 text-white shadow-md'
-                : 'bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            <ImageIcon className="w-3.5 h-3.5" />
-            <span>Gallery Archives</span>
-            {pendingGalleryImages.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[8px] font-bold text-white">
-                {pendingGalleryImages.length}
-              </span>
-            )}
-          </button>
-
-          {resolvedRole === 'super_admin' && (
-            <button
-              onClick={() => setActiveVettingTab('users')}
-              className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-                activeVettingTab === 'users'
-                  ? 'bg-amber-500 text-white shadow-md'
-                  : 'bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Registry Sign-Ups</span>
-              {pendingUsers.length > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[8px] font-bold text-white">
-                  {pendingUsers.length}
-                </span>
-              )}
-            </button>
-          )}
-        </div>
-
-        {/* Tab Content Areas */}
-        <div className="space-y-4">
           
-          {/* 1. Written Chronicles Vetting Queue */}
-          {activeVettingTab === 'articles' && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="flex justify-between items-center pb-2">
-                <h3 className="font-serif font-black text-slate-800 dark:text-white text-base">Written Chronicle Submissions</h3>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Awaiting Publication Review</span>
+          <ChevronRight className="w-3 h-3 text-slate-350 dark:text-slate-650 shrink-0" />
+          
+          {activePageId === 'overview' ? (
+            <span className="text-slate-800 dark:text-slate-200 font-black">
+              Overview Directory Map
+            </span>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setActivePageId('overview');
+                }}
+                className="hover:text-amber-500 font-extrabold transition-all cursor-pointer text-slate-400 dark:text-slate-500"
+              >
+                {activePage.category}
+              </button>
+              
+              <ChevronRight className="w-3 h-3 text-slate-350 dark:text-slate-650 shrink-0" />
+              
+              <span className="text-slate-800 dark:text-slate-200 font-black">
+                {activePage.label} Page Studio
+              </span>
+            </>
+          )}
+        </nav>
+
+        {activePageId === 'overview' ? (
+          <div className="space-y-6 text-left">
+            
+            {/* Overview Header Banner */}
+            <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/90 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden border border-amber-500/20 shadow-xl shadow-amber-500/5 animate-fade-in">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-500/10 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute -right-16 -bottom-16 w-64 h-64 border-8 border-amber-500/5 rounded-full pointer-events-none" />
+              
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
+                <div className="lg:col-span-8 space-y-4">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black uppercase tracking-[0.2em] text-amber-400 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      Respected Elder Council Sanctuary
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-slate-900/40 border border-slate-800 text-[9px] font-mono font-bold text-slate-300">
+                      ID: {user?.email?.split('@')[0]}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <h1 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight leading-tight">
+                      Webale Kushemererwa, Respected Custodian
+                    </h1>
+                    <p className="text-xs text-slate-300 max-w-xl font-medium leading-relaxed">
+                      As an honored **Elder** of the Bakenyi heritage portal, you possess full sovereignty over the website architecture. Navigate pages using the Left Governance Compass to audit and manage each independently.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-4 flex flex-col justify-between items-end gap-4">
+                  <div className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-2xl w-full text-right shadow-xs">
+                    <span className="block text-[9px] text-amber-500 font-black uppercase tracking-widest mb-1.5 font-sans">Ancestral Wisdom</span>
+                    <p className="text-[11px] text-amber-100/90 italic leading-relaxed font-serif">
+                      "Abagurusi nibo bikwatira enanga ya Bakenye."
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Centralized Sovereign Router Workspace */}
+            <div id="centralized-sovereign-router" className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-150 dark:border-slate-700/60 p-6 shadow-sm space-y-4">
+              <div>
+                <h3 className="font-serif font-black text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  Sovereign Site Architecture Router
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Input any public-facing URL path (e.g. <code>/language/proverbs</code>) or administrative module path (e.g. <code>/admin/heritage/articles</code>) to instantly jump to its workstation.
+                </p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {pendingArticles.map(art => (
-                  <div key={art.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850 text-xs flex flex-col justify-between space-y-4 hover:shadow-xs transition-shadow">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-start gap-2">
-                        <span className="text-[9px] font-black text-amber-600 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded-md">
-                          {art.category || 'General'}
-                        </span>
-                        <span className="text-[9px] text-slate-400 font-mono">
-                          {art.createdAt ? new Date(art.createdAt).toLocaleDateString() : 'Recent'}
-                        </span>
-                      </div>
-                      <h4 className="font-serif font-bold text-slate-800 dark:text-white text-sm line-clamp-1">{art.title}</h4>
-                      <p className="text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">{art.excerpt || art.content}</p>
-                      <div className="text-[10px] text-slate-400 pt-1 font-semibold">
-                        Submitted by: <span className="text-slate-600 dark:text-slate-200">{art.author || 'Reporter'}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        onClick={() => handleApproveArticle(art.id, art.title)}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
-                      >
-                        Approve & Publish
-                      </button>
-                      <button
-                        onClick={() => handleRejectArticle(art.id, art.title)}
-                        className="px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-500 dark:text-rose-400 text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
-                      >
-                        Reject
-                      </button>
-                    </div>
+              <div className="relative">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-800">
+                      PATH
+                    </span>
+                    <input
+                      type="text"
+                      value={routerInputPath}
+                      onChange={(e) => setRouterInputPath(e.target.value)}
+                      placeholder="Try /language/proverbs or /admin/heritage/articles..."
+                      className="w-full pl-16 pr-4 py-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-700/60 rounded-2xl text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none text-slate-800 dark:text-white transition-all"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && routeSuggestions.length > 0) {
+                          setActivePageId(routeSuggestions[0].pageId);
+                          setRouterInputPath('');
+                        }
+                      }}
+                    />
                   </div>
-                ))}
-              </div>
-
-              {pendingArticles.length === 0 && (
-                <div className="text-center py-16 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-3xl space-y-3 bg-slate-50/40 dark:bg-slate-900/10">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                  <p className="text-sm font-bold text-slate-800 dark:text-white">All Chronicles Vetted</p>
-                  <p className="text-xs text-slate-400 max-w-xs mx-auto">No written articles currently require editorial publication reviews.</p>
+                  <button
+                    onClick={() => {
+                      if (routeSuggestions.length > 0) {
+                        setActivePageId(routeSuggestions[0].pageId);
+                        setRouterInputPath('');
+                      } else {
+                        const sanitized = routerInputPath.toLowerCase().trim();
+                        const match = WEBPAGES.find(p => {
+                          const pub = getPublicRoute(p.id).toLowerCase();
+                          const adm = `/admin/${p.id.replace('-', '/')}`.toLowerCase();
+                          return pub === sanitized || adm === sanitized || p.id.toLowerCase() === sanitized;
+                        });
+                        if (match) {
+                          setActivePageId(match.id);
+                          setRouterInputPath('');
+                        } else {
+                          alert('Warp route not matched. Please select one of the pages in the visual map below or pick an autocomplete option.');
+                        }
+                      }
+                    }}
+                    className="px-5 bg-slate-950 hover:bg-amber-500 text-amber-400 hover:text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border border-amber-500/10 shrink-0"
+                  >
+                    Warp Router
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* 2. Oral Histories Vetting Queue */}
-          {activeVettingTab === 'oral_histories' && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="flex justify-between items-center pb-2">
-                <h3 className="font-serif font-black text-slate-800 dark:text-white text-base">Community Oral Histories & Ancestry Lore</h3>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Approved elements automatically publish to public platform</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {pendingContributions.map(contrib => (
-                  <div key={contrib.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850 text-xs flex flex-col justify-between space-y-4 hover:shadow-xs transition-shadow">
-                    <div className="space-y-2.5">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-black text-indigo-600 uppercase tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded-md">
-                          {contrib.type.toUpperCase()} Story
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          {contrib.created_at ? new Date(contrib.created_at).toLocaleDateString() : 'Recent'}
-                        </span>
-                      </div>
-                      <h4 className="font-serif font-bold text-slate-800 dark:text-white text-sm">{contrib.title}</h4>
-                      <p className="text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">{contrib.description}</p>
-                      
-                      {/* Interactive Media Player */}
-                      {contrib.type === 'audio' && contrib.imageUrl && (
-                        <div className="pt-2">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Play Ancestry Voice Recording</span>
-                          <audio src={contrib.imageUrl} controls className="w-full h-8 bg-slate-100 dark:bg-slate-800 rounded-lg" />
-                        </div>
-                      )}
-
-                      {contrib.type === 'photo' && contrib.imageUrl && (
-                        <div className="pt-2">
-                          <img 
-                            src={contrib.imageUrl} 
-                            alt={contrib.title} 
-                            className="w-full h-32 object-cover rounded-xl border border-slate-100 dark:border-slate-700" 
-                            referrerPolicy="no-referrer"
-                          />
-                        </div>
-                      )}
-
-                      <div className="text-[10px] text-slate-400 font-semibold">
-                        Suggested by: <span className="text-slate-600 dark:text-slate-200">{contrib.userEmail || 'Community Member'}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        onClick={() => handleApproveContribution(contrib)}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
+                
+                {/* Autocomplete dropdown suggestions */}
+                {routeSuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-700/80 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 text-left">
+                    {routeSuggestions.map(sug => (
+                      <div 
+                        key={sug.pageId}
+                        onClick={() => {
+                          setActivePageId(sug.pageId);
+                          setRouterInputPath('');
+                        }}
+                        className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors flex items-center justify-between gap-4 text-xs font-mono"
                       >
-                        Approve & Publish to Gallery
-                      </button>
-                      <button
-                        onClick={() => handleRejectContribution(contrib.id, contrib.title)}
-                        className="px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-500 dark:text-rose-400 text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
-                      >
-                        Reject
-                      </button>
-                    </div>
+                        <div className="min-w-0">
+                          <span className="text-[9px] uppercase font-sans font-black text-amber-500 bg-amber-500/5 border border-amber-500/10 px-1.5 py-0.5 rounded mr-2 shrink-0">
+                            {sug.category}
+                          </span>
+                          <strong className="text-slate-800 dark:text-white font-serif font-black pr-2 text-xs uppercase">{sug.label}</strong>
+                          <span className="text-[10px] text-slate-400 block sm:inline truncate">
+                            Public URL: {sug.publicPath}
+                          </span>
+                        </div>
+                        
+                        <div className="text-[10px] text-indigo-500 dark:text-amber-400 font-bold shrink-0 flex items-center gap-1 uppercase font-sans">
+                          <span>{sug.pageId}</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-
-              {pendingContributions.length === 0 && (
-                <div className="text-center py-16 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-3xl space-y-3 bg-slate-50/40 dark:bg-slate-900/10">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                  <p className="text-sm font-bold text-slate-800 dark:text-white">All Contributions Vetted</p>
-                  <p className="text-xs text-slate-400 max-w-xs mx-auto">No oral histories or ancestral recordings are currently pending review.</p>
-                </div>
-              )}
             </div>
-          )}
 
-          {/* 3. Vocabulary Proposals Queue */}
-          {activeVettingTab === 'vocabulary' && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="flex justify-between items-center pb-2">
-                <h3 className="font-serif font-black text-slate-800 dark:text-white text-base">Lukenye Vocabulary & Language Suggestions</h3>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Awaiting Linguistic Elder Endorsement</span>
+            {/* Overall Preservations Metrics cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Backlog Queue</p>
+                  <h3 className="text-3xl font-serif font-black text-amber-600 dark:text-amber-400 leading-none">{totalPendingBacklog}</h3>
+                  <span className="text-[10px] text-slate-400 font-semibold block">Awaiting Elder approvals</span>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                  <Inbox className="w-6 h-6 animate-pulse" />
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {pendingVocabularies.map(vocab => (
-                  <div key={vocab.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850 text-xs flex flex-col justify-between space-y-4 hover:shadow-xs transition-shadow">
-                    <div className="space-y-2.5 text-left">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-black text-amber-600 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded-md">
-                          {vocab.category}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          {vocab.created_at ? new Date(vocab.created_at).toLocaleDateString() : 'Recent'}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Lukenye Word/Phrase</span>
-                        <h4 className="text-lg font-mono font-black text-slate-900 dark:text-white leading-tight">
-                          {vocab.lukenye}
-                        </h4>
-                      </div>
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Active Preservers</p>
+                  <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
+                    {users.filter(u => u.status === 'active').length || 4}
+                  </h3>
+                  <span className="text-[10px] text-slate-400 font-semibold block">Verified registrars</span>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <Users className="w-6 h-6" />
+                </div>
+              </div>
 
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">English Meaning</span>
-                        <p className="text-slate-800 dark:text-slate-200 font-medium text-sm leading-relaxed">
-                          {vocab.english}
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Chronicle Records</p>
+                  <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
+                    {governanceContent.filter(c => c.status === 'published').length}
+                  </h3>
+                  <span className="text-[10px] text-slate-400 font-semibold block">Active published blocks</span>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <BookOpen className="w-6 h-6" />
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Preservation Integrity</p>
+                  <h3 className="text-3xl font-serif font-black text-emerald-600 dark:text-emerald-400 leading-none">98.2%</h3>
+                  <span className="text-[10px] text-slate-400 font-semibold block">Error-free validation index</span>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+              </div>
+            </div>
+
+            {/* Visual Governance Architecture Map Portal */}
+            <GovernanceMap
+              pages={WEBPAGES}
+              contentItems={governanceContent}
+              pendingCounts={pendingCounts}
+              onSelectPage={(pageId) => {
+                setActivePageId(pageId);
+                // Scroll page top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+
+            {/* Interactive Automated Audit Log Feed */}
+            <div id="automated-audit-feed" className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-150 dark:border-slate-700/60 p-6 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700/40 pb-4">
+                <div>
+                  <h3 className="font-serif font-black text-base text-slate-900 dark:text-white">
+                    Sovereign Platform Audit Feed
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Real-time visual capture of Bakenyi platform adjustments, Elder approvals, and archived heritage items.
+                  </p>
+                </div>
+                
+                {/* Filter for logs by specific type */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-black uppercase text-slate-400">Domain Filter:</span>
+                  <select
+                    value={auditLogTypeFilter}
+                    onChange={(e) => setAuditLogTypeFilter(e.target.value)}
+                    className="bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-[10px] font-bold text-slate-600 dark:text-slate-300 outline-none focus:ring-1 focus:ring-amber-500"
+                  >
+                    <option value="all">All Content Actions</option>
+                    <option value="proverb">Proverbs Section</option>
+                    <option value="dictionary">Dictionary Section</option>
+                    <option value="article">Heritage Articles</option>
+                    <option value="totem">Totem Registries</option>
+                    <option value="approve">Approvals & Publishes</option>
+                    <option value="edit">Edits & Modifications</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/40 max-h-[380px] overflow-y-auto pr-1">
+                {filteredAudits.map(log => {
+                  const p = WEBPAGES.find(wp => wp.id === log.pageId);
+                  const isWarning = log.status === 'Warning' || log.action.toLowerCase().includes('reject') || log.action.toLowerCase().includes('delete');
+                  
+                  return (
+                    <div 
+                      key={log.id} 
+                      onClick={() => {
+                        if (log.pageId) {
+                          setActivePageId(log.pageId);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                      }}
+                      className="py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-900/30 px-2 rounded-2xl transition-all cursor-pointer flex items-start justify-between gap-3 group"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {/* Status pill */}
+                          <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${
+                            isWarning 
+                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+                              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          }`}>
+                            {log.action}
+                          </span>
+                          
+                          {p && (
+                            <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+                              In {p.category} &gt; {p.label}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <p className="text-xs font-serif font-black text-slate-800 dark:text-slate-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                          {log.details}
                         </p>
+                        
+                        <div className="text-[9px] text-slate-400 font-mono">
+                          Operator: <strong className="text-slate-500 dark:text-slate-300 font-bold">{log.actor}</strong>
+                        </div>
                       </div>
-
-                      {vocab.usage && (
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Context/Usage Guidelines</span>
-                          <p className="text-slate-500 dark:text-slate-400 leading-relaxed italic">
-                            "{vocab.usage}"
-                          </p>
-                        </div>
-                      )}
-
-                      {vocab.example_sentence && (
-                        <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Lukenye Example Sentence</span>
-                          <p className="text-slate-600 dark:text-slate-300 font-mono italic">
-                            "{vocab.example_sentence}"
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        onClick={() => handleApproveVocabulary(vocab.id, vocab.lukenye)}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
-                      >
-                        Approve & Publish to Glossary
-                      </button>
-                      <button
-                        onClick={() => handleRejectVocabulary(vocab.id, vocab.lukenye)}
-                        className="px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-500 dark:text-rose-400 text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {pendingVocabularies.length === 0 && (
-                <div className="text-center py-16 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-3xl space-y-3 bg-slate-50/40 dark:bg-slate-900/10">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                  <p className="text-sm font-bold text-slate-800 dark:text-white">Linguistic Vault Complete</p>
-                  <p className="text-xs text-slate-400 max-w-xs mx-auto">All community language suggestions have been fully reviewed by elders.</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 4. Gallery Images Queue */}
-          {activeVettingTab === 'gallery' && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="flex justify-between items-center pb-2">
-                <h3 className="font-serif font-black text-slate-800 dark:text-white text-base">Digital Archives & Gallery Submissions</h3>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Awaiting Media Asset Publication Review</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {pendingGalleryImages.map(img => (
-                  <div key={img.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850 text-xs flex flex-col justify-between space-y-4 hover:shadow-xs transition-shadow">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-black text-sky-600 uppercase tracking-wider bg-sky-500/10 px-2 py-0.5 rounded-md">
-                          {img.category || 'General'}
+                      
+                      <div className="text-right shrink-0">
+                        <span className="text-[9px] text-slate-400 font-mono block">
+                          {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          {img.created_at ? new Date(img.created_at).toLocaleDateString() : 'Recent'}
+                        <span className="text-[8px] font-mono text-slate-400 block pt-0.5">
+                          {new Date(log.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                        </span>
+                        <span className="text-[9px] text-indigo-500 dark:text-amber-400 font-bold uppercase group-hover:translate-x-1.5 transition-transform inline-flex items-center gap-0.5 mt-2">
+                          Manage &rarr;
                         </span>
                       </div>
-
-                      <img 
-                        src={img.imageUrl} 
-                        alt={img.title} 
-                        className="w-full h-40 object-cover rounded-xl border border-slate-100 dark:border-slate-700" 
-                        referrerPolicy="no-referrer"
-                      />
-
-                      <h4 className="font-serif font-bold text-slate-800 dark:text-white text-sm">{img.title}</h4>
-                      {img.description && (
-                        <p className="text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">{img.description}</p>
-                      )}
                     </div>
-
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        onClick={() => handleApproveGallery(img.id, img.title)}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
-                      >
-                        Approve & Publish to Gallery
-                      </button>
-                      <button
-                        onClick={() => handleRejectGallery(img.id, img.title)}
-                        className="px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 text-rose-500 dark:text-rose-400 text-[10px] font-black uppercase py-2 rounded-xl transition-colors cursor-pointer"
-                      >
-                        Reject
-                      </button>
-                    </div>
+                  );
+                })}
+                
+                {filteredAudits.length === 0 && (
+                  <div className="text-center py-12 text-xs text-slate-400 font-semibold">
+                    No matching activity logs recorded for this select filter.
                   </div>
-                ))}
+                )}
               </div>
-
-              {pendingGalleryImages.length === 0 && (
-                <div className="text-center py-16 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-3xl space-y-3 bg-slate-50/40 dark:bg-slate-900/10">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                  <p className="text-sm font-bold text-slate-800 dark:text-white">Media Repositories Clean</p>
-                  <p className="text-xs text-slate-400 max-w-xs mx-auto">No pending public photographs or archive scans currently require verification.</p>
-                </div>
-              )}
             </div>
-          )}
 
-          {/* 5. Sign-Up Requests Queue (Super Admin ONLY) */}
-          {activeVettingTab === 'users' && resolvedRole === 'super_admin' && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="flex justify-between items-center pb-2">
-                <h3 className="font-serif font-black text-slate-800 dark:text-white text-base">Registry Portal Applications</h3>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Awaiting Profile Credentials and Authentication</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {pendingUsers.map(u => (
-                  <div key={u.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-850 text-xs flex flex-col justify-between space-y-4 hover:shadow-xs transition-shadow">
-                    <div className="space-y-2">
-                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Candidate Email</span>
-                      <span className="font-serif font-black text-sm text-slate-800 dark:text-white truncate block">{u.email}</span>
-                      <p className="text-slate-400 text-[11px]">Needs manual verification before credentials promotion to Reporter/staff.</p>
-                    </div>
-
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        onClick={() => handleApproveUser(u.id, u.email, 'staff')}
-                        className="flex-1 bg-indigo-650 hover:bg-indigo-700 text-white text-[10px] font-black uppercase py-2 rounded-xl cursor-pointer transition-all"
-                      >
-                        Approve Reporter
-                      </button>
-                      <button
-                        onClick={() => handleRejectUser(u.id, u.email)}
-                        className="px-3 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl transition-colors cursor-pointer"
-                        title="Reject application"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {pendingUsers.length === 0 && (
-                <div className="text-center py-16 border border-dashed border-slate-100 dark:border-slate-700/60 rounded-3xl space-y-3 bg-slate-50/40 dark:bg-slate-900/10">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                  <p className="text-sm font-bold text-slate-800 dark:text-white">Registry Credentials Clear</p>
-                  <p className="text-xs text-slate-400 max-w-xs mx-auto">No pending accounts require manual registration approvals.</p>
-                </div>
-              )}
-            </div>
-          )}
-
-        </div>
-      </div>
-    )}
+          </div>
+        ) : (
+          <PageWorkstation
+            page={activePage}
+            contentItems={governanceContent}
+            onSaveItems={handleSaveContent}
+            auditLogs={governanceAudits}
+            onAddAuditLog={handleAddAuditLog}
+            versions={governanceVersions}
+            onAddVersion={handleAddVersion}
+            onRestoreVersion={handleAddVersion} // saves old version in registry
+          />
+        )}
+      </main>
 
     </div>
   );

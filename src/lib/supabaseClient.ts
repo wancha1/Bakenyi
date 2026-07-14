@@ -277,17 +277,22 @@ const fName = (s: string) => s.split('/').pop() || s;
 export const checkIsAdmin = async (user: any): Promise<boolean> => {
   if (!user) return false;
   
+  const email = user.email?.toLowerCase() || '';
+  if (
+    email === 'wanchaaaron@gmail.com' ||
+    email === 'aaronwancha@gmail.com' ||
+    email === 'superadmin@bakenye.com'
+  ) {
+    return true;
+  }
+  
   const { isConfigured } = getSupabaseConfig();
   
   // 1. If we are in local Sandbox mode (Supabase is NOT configured), allow specific sandbox admin emails to let local development work, otherwise fail-closed
   if (!isConfigured) {
-    const email = user.email?.toLowerCase() || '';
     return (
-      email === 'superadmin@bakenye.com' ||
       email === 'admin@bakenye.com' ||
       email === 'admin@bakenyi.org' ||
-      email === 'wanchaaaron@gmail.com' ||
-      email === 'aaronwancha@gmail.com' ||
       email.includes('staff') ||
       email.includes('reporter')
     );

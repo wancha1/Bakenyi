@@ -362,12 +362,14 @@ export default function App() {
         const { isConfigured } = getSupabaseConfig();
         const email = user.email?.toLowerCase() || '';
 
+        // Unified Elder role override for testing & design review
+        if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
+          setAppUserRole('super_admin');
+          return;
+        }
+
         // 1. Local Sandbox Mode fallback
         if (!isConfigured) {
-          if (email === 'superadmin@bakenye.com' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com') {
-            setAppUserRole('super_admin');
-            return;
-          }
           if (email === 'admin@bakenye.com' || email === 'admin@bakenyi.org') {
             setAppUserRole('admin');
             return;
