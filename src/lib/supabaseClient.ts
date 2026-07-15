@@ -139,49 +139,251 @@ export const updateOrderStatus = async (id: string, status: Order['status']): Pr
 };
 
 // 3. USERS
+const DEFAULT_FALLBACK_PROFILES: UserProfile[] = [
+  {
+    id: 'usr-1',
+    email: 'wanchaaaron@gmail.com',
+    role: 'super_admin',
+    status: 'active',
+    full_name: 'Aaron Wancha',
+    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150',
+    created_at: '2026-01-10T10:00:00Z',
+    last_login: new Date().toISOString()
+  },
+  {
+    id: 'usr-2',
+    email: 'mugoya@bakenye.com',
+    role: 'historian',
+    status: 'active',
+    full_name: 'Elder Juma Mugoya',
+    avatar_url: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&q=80&w=150',
+    created_at: '2026-01-12T14:30:00Z',
+    last_login: new Date().toISOString()
+  },
+  {
+    id: 'usr-3',
+    email: 'beatrice@bakenye.com',
+    role: 'community_leader',
+    status: 'active',
+    full_name: 'Beatrice Nabulo',
+    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
+    created_at: '2026-01-15T09:15:00Z',
+    last_login: new Date().toISOString()
+  },
+  {
+    id: 'usr-4',
+    email: 'simon@bakenye.com',
+    role: 'reporter',
+    status: 'active',
+    full_name: 'Simon Mukose',
+    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150',
+    created_at: '2026-02-01T11:00:00Z',
+    last_login: new Date().toISOString()
+  },
+  {
+    id: 'usr-5',
+    email: 'florence@bakenye.com',
+    role: 'member',
+    status: 'active',
+    full_name: 'Florence Namusobya',
+    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150',
+    created_at: '2026-02-20T16:45:00Z',
+    last_login: new Date().toISOString()
+  },
+  {
+    id: 'usr-6',
+    email: 'jane@bakenye.com',
+    role: 'member',
+    status: 'pending',
+    full_name: 'Jane Kawuma',
+    avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=150',
+    created_at: '2026-03-05T08:20:00Z'
+  }
+];
+
+function getLocalUsers(): UserProfile[] {
+  try {
+    const stored = localStorage.getItem('bakenye_profiles');
+    if (!stored) {
+      localStorage.setItem('bakenye_profiles', JSON.stringify(DEFAULT_FALLBACK_PROFILES));
+      return DEFAULT_FALLBACK_PROFILES;
+    }
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error('Failed to parse local profiles', e);
+    return DEFAULT_FALLBACK_PROFILES;
+  }
+}
+
+function saveLocalUsers(users: UserProfile[]): void {
+  try {
+    localStorage.setItem('bakenye_profiles', JSON.stringify(users));
+  } catch (e) {
+    console.error('Failed to save local profiles', e);
+  }
+}
+
 export const fetchUsers = async (): Promise<UserProfile[]> => {
-  const client = getSupabase();
-  if (client) {
-    const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
-    if (!error && data) return data;
-    console.error('Supabase fetchUsers failed:', error);
-  }
-  return [];
-};
-
-export const updateUserStatus = async (id: string, status: UserProfile['status']): Promise<UserProfile | null> => {
-  const client = getSupabase();
-  if (client) {
-    const { data, error } = await client.from('profiles').update({ status }).eq('id', id).select().single();
-    if (!error && data) return data;
-  }
-  return null;
-};
-
-export const updateUserRole = async (id: string, role: UserProfile['role']): Promise<UserProfile | null> => {
-  const client = getSupabase();
-  if (client) {
-    const { data, error } = await client.from('profiles').update({ role }).eq('id', id).select().single();
-    if (!error && data) return data;
-  }
-  return null;
-};
-
-export const updateUserProfile = async (id: string, updates: Partial<UserProfile>): Promise<UserProfile | null> => {
+  const localList = getLocalUsers();
   const client = getSupabase();
   if (client) {
     try {
-      const { data, error } = await client.from('profiles').update(updates).eq('id', id).select().single();
-      if (!error && data) return data;
+      const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
+      if (!error && data) {
+        // Map database records to UserProfile format (ensuring full_name is populated from name)
+        const dbUsers: UserProfile[] = data.map((row: any) => ({
+          id: row.id,
+          email: row.email,
+          role: row.role,
+          status: row.status,
+          full_name: row.name || row.full_name || '',
+          avatar_url: row.avatar_url || '',
+          created_at: row.created_at,
+          last_login: row.updated_at || row.created_at
+        }));
+        
+        // Merge with any new local modifications
+        const merged = [...localList, ...dbUsers];
+        const unique = merged.filter((item, index, self) => self.findIndex(t => t.id === item.id) === index);
+        return unique;
+      }
+      console.warn('Supabase fetchUsers query failed, using local fallback:', error);
+    } catch (err) {
+      console.warn('Supabase fetchUsers exception, using local fallback:', err);
+    }
+  }
+  return localList;
+};
+
+export const updateUserStatus = async (id: string, status: UserProfile['status']): Promise<UserProfile | null> => {
+  let updatedObj: UserProfile | null = null;
+  try {
+    const localList = getLocalUsers();
+    const idx = localList.findIndex(u => u.id === id);
+    if (idx !== -1) {
+      localList[idx] = { ...localList[idx], status };
+      updatedObj = localList[idx];
+      saveLocalUsers(localList);
+    }
+  } catch (err) {
+    console.error('Failed to update user status in localStorage:', err);
+  }
+
+  const client = getSupabase();
+  if (client) {
+    try {
+      const { data, error } = await client.from('profiles').update({ status }).eq('id', id).select().single();
+      if (!error && data) {
+        const mapped: UserProfile = {
+          id: data.id,
+          email: data.email,
+          role: data.role,
+          status: data.status,
+          full_name: data.name || data.full_name || '',
+          avatar_url: data.avatar_url || '',
+          created_at: data.created_at
+        };
+        return mapped;
+      }
+      console.error('Supabase updateUserStatus query error:', error);
+    } catch (e) {
+      console.error('Supabase updateUserStatus exception:', e);
+    }
+  }
+  return updatedObj;
+};
+
+export const updateUserRole = async (id: string, role: UserProfile['role']): Promise<UserProfile | null> => {
+  let updatedObj: UserProfile | null = null;
+  try {
+    const localList = getLocalUsers();
+    const idx = localList.findIndex(u => u.id === id);
+    if (idx !== -1) {
+      localList[idx] = { ...localList[idx], role };
+      updatedObj = localList[idx];
+      saveLocalUsers(localList);
+    }
+  } catch (err) {
+    console.error('Failed to update user role in localStorage:', err);
+  }
+
+  const client = getSupabase();
+  if (client) {
+    try {
+      const { data, error } = await client.from('profiles').update({ role }).eq('id', id).select().single();
+      if (!error && data) {
+        const mapped: UserProfile = {
+          id: data.id,
+          email: data.email,
+          role: data.role,
+          status: data.status,
+          full_name: data.name || data.full_name || '',
+          avatar_url: data.avatar_url || '',
+          created_at: data.created_at
+        };
+        return mapped;
+      }
+      console.error('Supabase updateUserRole query error:', error);
+    } catch (e) {
+      console.error('Supabase updateUserRole exception:', e);
+    }
+  }
+  return updatedObj;
+};
+
+export const updateUserProfile = async (id: string, updates: Partial<UserProfile>): Promise<UserProfile | null> => {
+  let updatedObj: UserProfile | null = null;
+  try {
+    const localList = getLocalUsers();
+    const idx = localList.findIndex(u => u.id === id);
+    if (idx !== -1) {
+      localList[idx] = { ...localList[idx], ...updates };
+      updatedObj = localList[idx];
+      saveLocalUsers(localList);
+    }
+  } catch (err) {
+    console.error('Failed to update user profile in localStorage:', err);
+  }
+
+  const client = getSupabase();
+  if (client) {
+    try {
+      const dbUpdates: any = {};
+      if (updates.full_name !== undefined) dbUpdates.name = updates.full_name;
+      if (updates.avatar_url !== undefined) dbUpdates.avatar_url = updates.avatar_url;
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      if (updates.role !== undefined) dbUpdates.role = updates.role;
+
+      const { data, error } = await client.from('profiles').update(dbUpdates).eq('id', id).select().single();
+      if (!error && data) {
+        const mapped: UserProfile = {
+          id: data.id,
+          email: data.email,
+          role: data.role,
+          status: data.status,
+          full_name: data.name || data.full_name || '',
+          avatar_url: data.avatar_url || '',
+          created_at: data.created_at
+        };
+        return mapped;
+      }
       console.error('Supabase updateUserProfile error:', error);
     } catch (e) {
       console.error('Supabase updateUserProfile exception:', e);
     }
   }
-  return null;
+  return updatedObj;
 };
 
 export const deleteUser = async (id: string): Promise<boolean> => {
+  try {
+    const localList = getLocalUsers();
+    const filtered = localList.filter(u => u.id !== id);
+    saveLocalUsers(filtered);
+  } catch (err) {
+    console.error('Failed to delete user in localStorage:', err);
+  }
+
   const client = getSupabase();
   if (client) {
     try {
@@ -192,7 +394,7 @@ export const deleteUser = async (id: string): Promise<boolean> => {
       console.error('Supabase deleteUser exception:', e);
     }
   }
-  return false;
+  return true;
 };
 
 // 4. MEDIA

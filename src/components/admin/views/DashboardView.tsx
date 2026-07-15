@@ -41,7 +41,8 @@ import {
   Newspaper,
   FileSpreadsheet,
   Phone,
-  Sparkles
+  Sparkles,
+  ArrowLeft
 } from 'lucide-react';
 import { 
   fetchUsers, 
@@ -91,6 +92,7 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
 
   // Page Navigation Tree state
   const [activePageId, setActivePageId] = useState<string>('overview');
+  const [activeCategoryTab, setActiveCategoryTab] = useState<string>('Home');
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [routerInputPath, setRouterInputPath] = useState('');
   const [auditLogTypeFilter, setAuditLogTypeFilter] = useState('all');
@@ -596,111 +598,137 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
   // ==========================================
   // ELDER (COUNCIL OF ELDERS) WEBSITE GOVERNANCE CENTER
   // ==========================================
+  const isOverview = activePageId === 'overview';
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-left">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-10 animate-fade-in text-left">
       
-      {/* LEFT COLUMN: WEBSITE ARCHITECTURE NAVIGATION TREE */}
-      <aside className="lg:col-span-3 bg-white dark:bg-slate-800 rounded-[32px] border border-slate-150 dark:border-slate-700/60 p-5 shadow-lg select-none flex flex-col gap-5 h-[calc(100vh-140px)] sticky top-28 overflow-y-auto">
-        
-        <div>
-          <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest block mb-1">Preservation Tree</span>
-          <h3 className="font-serif font-black text-base text-slate-800 dark:text-white">Governance Compass</h3>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight pt-0.5">
-            Operational mirror of Bakenyi public sections.
-          </p>
-        </div>
-
-        {/* Sidebar Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search pages..."
-            value={sidebarSearch}
-            onChange={(e) => setSidebarSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700/60 rounded-xl text-[11px] outline-none focus:border-amber-500 font-sans font-medium text-slate-800 dark:text-white"
-          />
-        </div>
-
-        {/* Navigation list divided by category cards */}
-        <div className="space-y-3.5 flex-1 overflow-y-auto pr-1">
-          {filteredCategories.map(cat => {
-            const isCollapsible = cat.id !== 'General' && cat.id !== 'Timeline';
-            const isCollapsed = collapsedCategories[cat.id];
-            
-            // Calculate pending items in this category
-            const categoryPendingCount = cat.pages.reduce((acc, pId) => acc + (pendingCounts[pId] || 0), 0);
-
-            return (
-              <div key={cat.id} className="space-y-1">
-                {/* Category Header */}
-                <div 
-                  onClick={() => isCollapsible && toggleCategory(cat.id)}
-                  className={`flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 pb-1 border-b border-slate-50 dark:border-slate-750/30 cursor-pointer hover:text-slate-650 dark:hover:text-slate-300 transition-colors ${
-                    isCollapsible ? 'select-none' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-1">
-                    {isCollapsible && (
-                      isCollapsed ? <ChevronRight className="w-3 h-3 text-amber-500" /> : <ChevronDown className="w-3 h-3 text-amber-500" />
-                    )}
-                    <span>{cat.label}</span>
-                  </div>
-
-                  {categoryPendingCount > 0 && (
-                    <span className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
+      {/* REDESIGNED HORIZONTAL WEBSITE ARCHITECTURE GOVERNANCE BAR / NAVIGATION RIBBON */}
+      {isOverview && (
+        <div className="lg:col-span-12 bg-linear-to-r from-stone-50 via-white to-stone-50/50 dark:from-slate-850 dark:via-slate-800 dark:to-slate-900 rounded-[32px] border border-stone-200/80 dark:border-slate-700/60 p-6 shadow-xl shadow-stone-100/50 dark:shadow-slate-950/20 select-none flex flex-col gap-5 relative overflow-hidden group">
+          
+          {/* Top Decorative Amber Ribbon */}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-terracotta-500 rounded-t-full" />
+          
+          {/* Header Controls */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-stone-100 dark:border-slate-850 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-amber-500/10 dark:bg-amber-500/15 rounded-2xl border border-amber-500/20 text-amber-600 dark:text-amber-400">
+                <Compass className="w-5 h-5 animate-spin-slow" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-[0.2em] block leading-none">Preservation Tree</span>
+                  {totalPendingBacklog > 0 && (
+                    <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded text-[8px] font-bold animate-pulse leading-none">
+                      {totalPendingBacklog} Audits
+                    </span>
                   )}
                 </div>
-
-                {/* Subpages list */}
-                {(!isCollapsible || !isCollapsed) && (
-                  <div className="pl-1.5 space-y-0.5 pt-1">
-                    {cat.pages.map(pageId => {
-                      const p = WEBPAGES.find(wp => wp.id === pageId);
-                      if (!p) return null;
-
-                      const isActive = activePageId === pageId;
-                      const IconComponent = getPageIcon(p.icon);
-                      const pendingCount = pendingCounts[pageId] || 0;
-
-                      return (
-                        <button
-                          key={pageId}
-                          onClick={() => setActivePageId(pageId)}
-                          className={`w-full flex items-center justify-between py-2 px-3 rounded-xl transition-all font-bold text-[11px] uppercase tracking-wider text-left cursor-pointer ${
-                            isActive
-                              ? 'bg-amber-500 text-slate-950 font-extrabold shadow-sm shadow-amber-500/10'
-                              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900/40'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <IconComponent className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-slate-950' : 'text-amber-500'}`} />
-                            <span className="truncate leading-none">{p.label}</span>
-                          </div>
-
-                          {pendingCount > 0 && (
-                            <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black ${
-                              isActive ? 'bg-slate-950 text-amber-400' : 'bg-amber-500 text-slate-950'
-                            }`}>
-                              {pendingCount}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <h3 className="font-serif font-black text-base text-stone-900 dark:text-white leading-tight mt-1">Governance Compass Ribbon</h3>
               </div>
-            );
-          })}
+            </div>
+
+            {/* Compact Search */}
+            <div className="relative w-full md:w-72">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 dark:text-slate-500" />
+              <input
+                type="text"
+                placeholder="Search sectors, dialects & settings..."
+                value={sidebarSearch}
+                onChange={(e) => setSidebarSearch(e.target.value)}
+                className="w-full pl-10 pr-3.5 py-2.5 bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-700/85 rounded-2xl text-[11px] font-sans font-bold text-stone-800 dark:text-white placeholder-stone-400 dark:placeholder-slate-500 outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all shadow-xs"
+              />
+            </div>
+          </div>
+
+          {/* Categories Ribbon Row */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none scroll-smooth">
+            {filteredCategories.map(cat => {
+              const isSelected = activeCategoryTab === cat.id;
+              const categoryPendingCount = cat.pages.reduce((acc, pId) => acc + (pendingCounts[pId] || 0), 0);
+
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategoryTab(cat.id)}
+                  className={`px-4.5 py-2.5 rounded-2xl text-[10px] font-extrabold uppercase tracking-widest transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 border ${
+                    isSelected
+                      ? 'bg-amber-500 border-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20'
+                      : 'bg-white dark:bg-slate-800 border-stone-200 dark:border-slate-700/80 text-stone-500 hover:text-stone-900 dark:text-slate-400 dark:hover:text-white hover:bg-stone-50 dark:hover:bg-slate-900/40'
+                  }`}
+                >
+                  <span>{cat.label}</span>
+                  {categoryPendingCount > 0 && (
+                    <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-slate-950' : 'bg-rose-500'} animate-pulse`} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Subpages / Sectors Pills */}
+          <div className="bg-stone-50/50 dark:bg-slate-900/20 border border-stone-150 dark:border-slate-800 p-4 rounded-2xl">
+            <div className="flex flex-wrap gap-2.5 items-center">
+              {(() => {
+                const currentCategory = filteredCategories.find(c => c.id === activeCategoryTab) || filteredCategories[0];
+                if (!currentCategory || currentCategory.pages.length === 0) {
+                  return <span className="text-[10px] text-stone-400 italic">No preservation sectors match search query in this category.</span>;
+                }
+                
+                return currentCategory.pages.map(pageId => {
+                  const p = WEBPAGES.find(wp => wp.id === pageId);
+                  if (!p) return null;
+
+                  const isActive = activePageId === pageId;
+                  const IconComponent = getPageIcon(p.icon);
+                  const pendingCount = pendingCounts[pageId] || 0;
+
+                  return (
+                    <button
+                      key={pageId}
+                      onClick={() => {
+                        setActivePageId(pageId);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className={`flex items-center gap-2 py-2 px-4 rounded-xl transition-all font-bold text-[10px] uppercase tracking-wider cursor-pointer border group/btn ${
+                        isActive
+                          ? 'bg-slate-950 dark:bg-amber-500 border-slate-950 dark:border-amber-500 text-white dark:text-slate-950 font-black shadow-sm'
+                          : 'bg-white dark:bg-slate-800 border-stone-200 dark:border-slate-700/85 text-stone-600 hover:text-stone-900 dark:text-slate-400 dark:hover:text-white hover:bg-stone-50'
+                      }`}
+                    >
+                      <IconComponent className={`w-3.5 h-3.5 transition-transform group-hover/btn:scale-110 ${isActive ? 'text-amber-400 dark:text-slate-950' : 'text-amber-500'}`} />
+                      <span>{p.label}</span>
+                      {pendingCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[8px] font-black bg-rose-500 text-white animate-pulse">
+                          {pendingCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+
         </div>
-      </aside>
+      )}
 
       {/* RIGHT COLUMN: DIRECT PAGE MANAGEMENT WORKSTATION */}
-      <main className="lg:col-span-9 flex flex-col gap-6">
+      <main className="lg:col-span-12 flex flex-col gap-6">
         
         {/* Dynamic Breadcrumbs Navigation System */}
         <nav id="governance-breadcrumbs" className="flex flex-wrap items-center gap-2 px-5 py-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-150 dark:border-slate-700/60 shadow-xs text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+          {!isOverview && (
+            <button
+              onClick={() => setActivePageId('overview')}
+              className="mr-3 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-amber-500/10 hover:scale-102 active:scale-98"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Directory</span>
+            </button>
+          )}
+
           <button 
             onClick={() => setActivePageId('overview')}
             className="hover:text-amber-500 font-extrabold transition-all flex items-center gap-1.5 cursor-pointer text-slate-400 dark:text-slate-500"
