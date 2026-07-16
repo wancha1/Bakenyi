@@ -1,62 +1,158 @@
-const CACHE_NAME = 'bakenye-heritage-v1';
-const ASSETS = [
+const CACHE_NAME = 'bakenye-heritage-v2';
+const PRECACHE_ASSETS = [
   '/',
   '/index.html',
-  '/src/main.tsx',
-  '/src/index.css'
+  '/manifest.json'
 ];
 
-// Install Event
-self.addEventListener('install', (e) => {
-  e.waitUntil(
+// Install Event - Pre-cache core guaranteed files
+self.addEventListener('install', (event) => {
+  event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    }).then(() => self.skipWaiting())
+      console.log('[Service Worker] Pre-caching core shell...');
+      return cache.addAll(PRECACHE_ASSETS);
+    })
+    .then(() => self.skipWaiting())
+    .catch((err) => {
+      console.error('[Service Worker] Pre-caching failed during install:', err);
+    })
   );
 });
 
-// Activate Event
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
+// Activate Event - Clean up stale caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
+            console.log('[Service Worker] Removing deprecated cache storage:', key);
             return caches.delete(key);
           }
         })
       );
-    }).then(() => self.clients.claim())
+    })
+    .then(() => self.clients.claim())
   );
 });
 
-// Fetch Event
-self.addEventListener('fetch', (e) => {
-  // Only handle GET requests and ignore chrome-extension / external schemes
-  if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) {
+// Fetch Event - Dynamic routing & multi-strategy caching
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // 1. Only handle GET requests
+  if (request.method !== 'GET') {
     return;
   }
-  
-  e.respondWith(
-    caches.match(e.request).then((cachedResponse) => {
+
+  // 2. Ignore Chrome extensions, internal schemes, and live development HMR web sockets
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // 3. Bypass third-party Auth, Supabase APIs, or backend API mutations
+  if (url.pathname.includes('/api/') || url.pathname.includes('/auth/v1/')) {
+    return;
+  }
+
+  // Strategy A: SPA Navigation requests (e.g., browsing pages like /clans, /about while offline)
+  // Pattern: Network-First with Cache Fallback to index.html
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          // Keep a copy in cache for offline fallback
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put('/', responseClone);
+          });
+          return networkResponse;
+        })
+        .catch(() => {
+          console.log('[Service Worker] Offline detected. Serving SPA root shell...');
+          return caches.match('/').then((cachedResponse) => {
+            return cachedResponse || caches.match('/index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // Strategy B: Compiled immutable static assets (Vite hashed CSS, JS, etc.)
+  // Pattern: Cache-First with Network Fallback
+  if (url.origin === self.location.origin && url.pathname.includes('/assets/')) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
+        return fetch(request).then((networkResponse) => {
+          if (!networkResponse || networkResponse.status !== 200) {
+            return networkResponse;
+          }
+
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
+          return networkResponse;
+        });
+      })
+    );
+    return;
+  }
+
+  // Strategy C: Static images, web fonts, or public icons (Google Fonts, Unsplash portraits, local assets)
+  // Pattern: Stale-While-Revalidate (renders instantly from cache, updates in background)
+  const isWebFont = url.hostname.includes('fonts.googleapis.com') || url.hostname.includes('fonts.gstatic.com');
+  const isImage = request.destination === 'image' || url.pathname.endsWith('.png') || url.pathname.endsWith('.jpg') || url.pathname.endsWith('.svg') || url.pathname.endsWith('.webp');
+
+  if (isWebFont || isImage) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(request).then((cachedResponse) => {
+          const fetchPromise = fetch(request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(request, networkResponse.clone());
+            }
+            return networkResponse;
+          }).catch(() => {
+            // Fallback gracefully on network failures
+            return null;
+          });
+
+          return cachedResponse || fetchPromise;
+        });
+      })
+    );
+    return;
+  }
+
+  // Strategy D: General app shell assets
+  // Pattern: Cache with Network Fallback
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      return fetch(e.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-          return networkResponse;
+
+      return fetch(request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
         }
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(e.request, responseToCache);
-        });
         return networkResponse;
       }).catch(() => {
-        // Return index.html for navigation requests when offline (SPA support)
-        if (e.request.mode === 'navigate') {
-          return caches.match('/index.html');
+        // Return cached root index for generic HTML navigation requests
+        if (request.headers.get('accept')?.includes('text/html')) {
+          return caches.match('/');
         }
       });
     })
   );
 });
+
