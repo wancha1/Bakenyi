@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Menu, X, Globe, Search, Shield, User, Clock, BookOpen, Volume2, 
   ArrowRight, Sun, Moon, SlidersHorizontal, ChevronDown, LogOut, 
-  LayoutDashboard, LogIn, FileText, Users, PenTool 
+  LayoutDashboard, LogIn, FileText, Users, PenTool, Smartphone, Download 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getSupabase, checkIsAdmin } from '../../lib/supabaseClient';
@@ -78,6 +78,25 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchDatabase, setSearchDatabase] = useState<any[]>([]);
+  
+  // PWA Install Banner states
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [isInsideIframe, setIsInsideIframe] = useState(false);
+
+  useEffect(() => {
+    const inIframe = window.self !== window.top;
+    setIsInsideIframe(inIframe);
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+    const isDismissed = sessionStorage.getItem('bakenye_install_banner_dismissed') === 'true';
+
+    if (!isStandalone && !isDismissed) {
+      const timer = setTimeout(() => {
+        setShowInstallBanner(true);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, []);
   
   // Hover & Dropdown states
   const [activeMenu, setActiveMenu] = useState<'heritage' | 'community' | null>(null);
@@ -303,10 +322,72 @@ export default function Navbar() {
     <>
       <nav 
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled ? 'bg-heritage-cream/95 backdrop-blur-md shadow-md py-3 border-b border-heritage-brown/5' : 'bg-transparent py-6'
+          scrolled || showInstallBanner ? 'bg-heritage-cream/95 backdrop-blur-md shadow-md border-b border-heritage-brown/5' : 'bg-transparent'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <AnimatePresence>
+          {showInstallBanner && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-heritage-brown text-heritage-cream text-xs py-2.5 px-4 border-b border-heritage-cream/10 overflow-hidden"
+            >
+              <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-1.5 bg-heritage-terracotta text-white rounded-lg shrink-0 flex items-center justify-center">
+                    <Smartphone className="w-3.5 h-3.5" />
+                  </span>
+                  {isInsideIframe ? (
+                    <span className="font-sans font-medium text-heritage-cream/90 leading-tight">
+                      📱 <strong>Bakenyi Web App</strong>: Running inside a preview frame. Open in a new tab to profile and install!
+                    </span>
+                  ) : (
+                    <span className="font-sans font-medium text-heritage-cream/90 leading-tight">
+                      📱 <strong>Install Bakenyi Heritage Portal</strong> on your device for immediate, high-fidelity offline archives.
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-3 shrink-0">
+                  {isInsideIframe ? (
+                    <button
+                      onClick={() => window.open(window.location.href, '_blank')}
+                      className="px-3 py-1.5 bg-heritage-terracotta hover:bg-heritage-terracotta/90 text-white rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer shadow-sm"
+                    >
+                      <span>Open in New Tab</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => window.dispatchEvent(new CustomEvent('trigger-app-install'))}
+                      className="px-3 py-1.5 bg-heritage-terracotta hover:bg-heritage-terracotta/90 text-white rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Install App</span>
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={() => {
+                      sessionStorage.setItem('bakenye_install_banner_dismissed', 'true');
+                      setShowInstallBanner(false);
+                    }}
+                    className="p-1 hover:bg-white/10 rounded-full transition-all text-heritage-cream/60 hover:text-white cursor-pointer"
+                    aria-label="Dismiss banner"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-300 ${
+          scrolled || showInstallBanner ? 'py-3' : 'py-6'
+        }`}>
           <div className="flex justify-between items-center">
             {/* Branding Logo */}
             <Link to="/" className="flex items-center space-x-2 shrink-0">

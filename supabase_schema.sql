@@ -1093,6 +1093,490 @@ CREATE INDEX IF NOT EXISTS idx_likes_content ON public.likes(content_id, content
 CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON public.bookmarks(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_unread ON public.notifications(user_id) WHERE NOT is_read;
 
+
+-- ==========================================
+-- 9B. SEPARATE COMMUNITY TABLES & STRUCTURES
+-- ==========================================
+
+-- 1. COMMUNITY HIGHLIGHTS TABLE
+CREATE TABLE IF NOT EXISTS public.community_highlights (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    summary TEXT,
+    content TEXT NOT NULL,
+    cover_image TEXT,
+    author_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'submitted', 'under_review', 'needs_revision', 'approved', 'published', 'archived')),
+    approved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    approved_at TIMESTAMPTZ,
+    published_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.community_highlights ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view approved community highlights" 
+    ON public.community_highlights FOR SELECT USING (status = 'approved' OR status = 'published');
+
+CREATE POLICY "Community leaders and Elders can manage highlights" 
+    ON public.community_highlights FOR ALL 
+    USING (public.is_super_admin() OR public.get_user_role() = 'community_leader')
+    WITH CHECK (public.is_super_admin() OR public.get_user_role() = 'community_leader');
+
+
+-- 2. NOTICES TABLE
+CREATE TABLE IF NOT EXISTS public.notices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'emergency')),
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'submitted', 'under_review', 'needs_revision', 'approved', 'published', 'archived')),
+    created_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    approved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    approved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.notices ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view approved notices" 
+    ON public.notices FOR SELECT USING (status = 'approved' OR status = 'published');
+
+CREATE POLICY "Community leaders and Elders can manage notices" 
+    ON public.notices FOR ALL 
+    USING (public.is_super_admin() OR public.get_user_role() = 'community_leader')
+    WITH CHECK (public.is_super_admin() OR public.get_user_role() = 'community_leader');
+
+
+-- ==========================================
+-- 9C. UNIFIED CONTENT REGISTRY
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.content_registry (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    content_type TEXT NOT NULL, -- 'article', 'news', 'announcement', 'event', 'notice', 'highlight', 'clan', 'leader', 'vocabulary', 'oral_history', 'timeline_event'
+    table_name TEXT NOT NULL,
+    record_id UUID NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'submitted', 'under_review', 'needs_revision', 'approved', 'published', 'archived')),
+    author_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    submitted_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+    approved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    approved_at TIMESTAMPTZ,
+    published_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.content_registry ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read approved/published registry items" 
+    ON public.content_registry FOR SELECT 
+    USING (status = 'approved' OR status = 'published' OR auth.uid() = author_id OR public.is_super_admin() OR public.get_user_role() IN ('community_leader', 'historian', 'staff'));
+
+CREATE POLICY "Only system triggers and super admins can write to registry" 
+    ON public.content_registry FOR ALL 
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+
+-- TRIGGER FUNCTION FOR AUTOMATIC REGISTRY SYNC
+CREATE OR REPLACE FUNCTION public.sync_to_content_registry()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_title TEXT;
+    v_author_id UUID;
+    v_status TEXT;
+    v_approved_by UUID;
+    v_approved_at TIMESTAMPTZ;
+    v_published_at TIMESTAMPTZ;
+    v_submitted_at TIMESTAMPTZ;
+BEGIN
+    IF TG_TABLE_NAME = 'heritage_articles' THEN
+        v_title := NEW.title;
+        v_author_id := NEW.created_by;
+        v_status := NEW.status;
+        v_approved_by := NEW.approved_by;
+        v_approved_at := NEW.approved_at;
+        v_published_at := NEW.published_at;
+        v_submitted_at := NEW.created_at;
+    ELSIF TG_TABLE_NAME = 'news' THEN
+        v_title := NEW.title;
+        v_author_id := NEW.author_id;
+        v_status := NEW.status;
+        v_approved_by := NEW.approved_by;
+        v_approved_at := NEW.approved_at;
+        v_published_at := NEW.published_at;
+        v_submitted_at := NEW.created_at;
+    ELSIF TG_TABLE_NAME = 'events' THEN
+        v_title := NEW.title;
+        v_author_id := NEW.created_by;
+        v_status := NEW.status;
+        v_approved_by := NEW.approved_by;
+        v_approved_at := CASE WHEN NEW.status = 'approved' THEN NEW.updated_at ELSE NULL END;
+        v_published_at := CASE WHEN NEW.status = 'approved' THEN NEW.updated_at ELSE NULL END;
+        v_submitted_at := NEW.created_at;
+    ELSIF TG_TABLE_NAME = 'announcements' THEN
+        v_title := NEW.title;
+        v_author_id := NEW.created_by;
+        v_status := NEW.status;
+        v_approved_by := NEW.approved_by;
+        v_approved_at := CASE WHEN NEW.status = 'approved' THEN NEW.updated_at ELSE NULL END;
+        v_published_at := CASE WHEN NEW.status = 'approved' THEN NEW.updated_at ELSE NULL END;
+        v_submitted_at := NEW.created_at;
+    ELSIF TG_TABLE_NAME = 'community_highlights' THEN
+        v_title := NEW.title;
+        v_author_id := NEW.author_id;
+        v_status := NEW.status;
+        v_approved_by := NEW.approved_by;
+        v_approved_at := NEW.approved_at;
+        v_published_at := NEW.published_at;
+        v_submitted_at := NEW.created_at;
+    ELSIF TG_TABLE_NAME = 'notices' THEN
+        v_title := NEW.title;
+        v_author_id := NEW.created_by;
+        v_status := NEW.status;
+        v_approved_by := NEW.approved_by;
+        v_approved_at := NEW.approved_at;
+        v_published_at := CASE WHEN NEW.status = 'approved' THEN NEW.updated_at ELSE NULL END;
+        v_submitted_at := NEW.created_at;
+    ELSIF TG_TABLE_NAME = 'clans' THEN
+        v_title := NEW.name;
+        v_author_id := NULL;
+        v_status := NEW.status;
+        v_approved_by := NULL;
+        v_approved_at := NULL;
+        v_published_at := CASE WHEN NEW.status = 'approved' THEN NEW.created_at ELSE NULL END;
+        v_submitted_at := NEW.created_at;
+    ELSIF TG_TABLE_NAME = 'leaders' THEN
+        v_title := NEW.name;
+        v_author_id := NULL;
+        v_status := NEW.status;
+        v_approved_by := NULL;
+        v_approved_at := NULL;
+        v_published_at := CASE WHEN NEW.status = 'approved' THEN NEW.created_at ELSE NULL END;
+        v_submitted_at := NEW.created_at;
+    ELSIF TG_TABLE_NAME = 'vocabulary' THEN
+        v_title := NEW.lukenye || ' (' || NEW.english || ')';
+        v_author_id := NULL;
+        v_status := NEW.status;
+        v_approved_by := NULL;
+        v_approved_at := NULL;
+        v_published_at := CASE WHEN NEW.status = 'approved' THEN NEW.created_at ELSE NULL END;
+        v_submitted_at := NEW.created_at;
+    ELSIF TG_TABLE_NAME = 'oral_history' THEN
+        v_title := NEW.title;
+        v_author_id := NULL;
+        v_status := 'approved';
+        v_approved_by := NULL;
+        v_approved_at := NULL;
+        v_published_at := NEW.created_at;
+        v_submitted_at := NEW.created_at;
+    ELSIF TG_TABLE_NAME = 'timeline_events' THEN
+        v_title := NEW.title;
+        v_author_id := NULL;
+        v_status := 'approved';
+        v_approved_by := NULL;
+        v_approved_at := NULL;
+        v_published_at := NEW.created_at;
+        v_submitted_at := NEW.created_at;
+    END IF;
+
+    IF TG_OP = 'INSERT' THEN
+        INSERT INTO public.content_registry (content_type, table_name, record_id, title, status, author_id, submitted_at, approved_by, approved_at, published_at)
+        VALUES (
+            CASE 
+                WHEN TG_TABLE_NAME = 'heritage_articles' THEN 'article'
+                WHEN TG_TABLE_NAME = 'news' THEN 'news'
+                WHEN TG_TABLE_NAME = 'events' THEN 'event'
+                WHEN TG_TABLE_NAME = 'announcements' THEN 'announcement'
+                WHEN TG_TABLE_NAME = 'community_highlights' THEN 'highlight'
+                WHEN TG_TABLE_NAME = 'notices' THEN 'notice'
+                WHEN TG_TABLE_NAME = 'clans' THEN 'clan'
+                WHEN TG_TABLE_NAME = 'leaders' THEN 'leader'
+                WHEN TG_TABLE_NAME = 'vocabulary' THEN 'vocabulary'
+                WHEN TG_TABLE_NAME = 'oral_history' THEN 'oral_history'
+                WHEN TG_TABLE_NAME = 'timeline_events' THEN 'timeline_event'
+                ELSE TG_TABLE_NAME
+            END,
+            TG_TABLE_NAME,
+            NEW.id,
+            v_title,
+            v_status,
+            v_author_id,
+            v_submitted_at,
+            v_approved_by,
+            v_approved_at,
+            v_published_at
+        ) ON CONFLICT (record_id) DO UPDATE
+        SET 
+            title = EXCLUDED.title,
+            status = EXCLUDED.status,
+            approved_by = EXCLUDED.approved_by,
+            approved_at = EXCLUDED.approved_at,
+            published_at = EXCLUDED.published_at,
+            updated_at = NOW();
+    ELSIF TG_OP = 'UPDATE' THEN
+        UPDATE public.content_registry
+        SET 
+            title = v_title,
+            status = v_status,
+            approved_by = v_approved_by,
+            approved_at = v_approved_at,
+            published_at = v_published_at,
+            updated_at = NOW()
+        WHERE record_id = NEW.id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- GENERIC DELETE SYNC FUNCTION
+CREATE OR REPLACE FUNCTION public.sync_delete_to_content_registry()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM public.content_registry WHERE record_id = OLD.id;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- CREATE SYNC TRIGGERS
+CREATE TRIGGER trigger_sync_registry_articles
+    AFTER INSERT OR UPDATE ON public.heritage_articles
+    FOR EACH ROW EXECUTE FUNCTION public.sync_to_content_registry();
+
+CREATE TRIGGER trigger_delete_registry_articles
+    AFTER DELETE ON public.heritage_articles
+    FOR EACH ROW EXECUTE FUNCTION public.sync_delete_to_content_registry();
+
+CREATE TRIGGER trigger_sync_registry_news
+    AFTER INSERT OR UPDATE ON public.news
+    FOR EACH ROW EXECUTE FUNCTION public.sync_to_content_registry();
+
+CREATE TRIGGER trigger_delete_registry_news
+    AFTER DELETE ON public.news
+    FOR EACH ROW EXECUTE FUNCTION public.sync_delete_to_content_registry();
+
+CREATE TRIGGER trigger_sync_registry_events
+    AFTER INSERT OR UPDATE ON public.events
+    FOR EACH ROW EXECUTE FUNCTION public.sync_to_content_registry();
+
+CREATE TRIGGER trigger_delete_registry_events
+    AFTER DELETE ON public.events
+    FOR EACH ROW EXECUTE FUNCTION public.sync_delete_to_content_registry();
+
+CREATE TRIGGER trigger_sync_registry_announcements
+    AFTER INSERT OR UPDATE ON public.announcements
+    FOR EACH ROW EXECUTE FUNCTION public.sync_to_content_registry();
+
+CREATE TRIGGER trigger_delete_registry_announcements
+    AFTER DELETE ON public.announcements
+    FOR EACH ROW EXECUTE FUNCTION public.sync_delete_to_content_registry();
+
+CREATE TRIGGER trigger_sync_registry_highlights
+    AFTER INSERT OR UPDATE ON public.community_highlights
+    FOR EACH ROW EXECUTE FUNCTION public.sync_to_content_registry();
+
+CREATE TRIGGER trigger_delete_registry_highlights
+    AFTER DELETE ON public.community_highlights
+    FOR EACH ROW EXECUTE FUNCTION public.sync_delete_to_content_registry();
+
+CREATE TRIGGER trigger_sync_registry_notices
+    AFTER INSERT OR UPDATE ON public.notices
+    FOR EACH ROW EXECUTE FUNCTION public.sync_to_content_registry();
+
+CREATE TRIGGER trigger_delete_registry_notices
+    AFTER DELETE ON public.notices
+    FOR EACH ROW EXECUTE FUNCTION public.sync_delete_to_content_registry();
+
+CREATE TRIGGER trigger_sync_registry_clans
+    AFTER INSERT OR UPDATE ON public.clans
+    FOR EACH ROW EXECUTE FUNCTION public.sync_to_content_registry();
+
+CREATE TRIGGER trigger_delete_registry_clans
+    AFTER DELETE ON public.clans
+    FOR EACH ROW EXECUTE FUNCTION public.sync_delete_to_content_registry();
+
+CREATE TRIGGER trigger_sync_registry_leaders
+    AFTER INSERT OR UPDATE ON public.leaders
+    FOR EACH ROW EXECUTE FUNCTION public.sync_to_content_registry();
+
+CREATE TRIGGER trigger_delete_registry_leaders
+    AFTER DELETE ON public.leaders
+    FOR EACH ROW EXECUTE FUNCTION public.sync_delete_to_content_registry();
+
+CREATE TRIGGER trigger_sync_registry_vocabulary
+    AFTER INSERT OR UPDATE ON public.vocabulary
+    FOR EACH ROW EXECUTE FUNCTION public.sync_to_content_registry();
+
+CREATE TRIGGER trigger_delete_registry_vocabulary
+    AFTER DELETE ON public.vocabulary
+    FOR EACH ROW EXECUTE FUNCTION public.sync_delete_to_content_registry();
+
+CREATE TRIGGER trigger_sync_registry_oral
+    AFTER INSERT OR UPDATE ON public.oral_history
+    FOR EACH ROW EXECUTE FUNCTION public.sync_to_content_registry();
+
+CREATE TRIGGER trigger_delete_registry_oral
+    AFTER DELETE ON public.oral_history
+    FOR EACH ROW EXECUTE FUNCTION public.sync_delete_to_content_registry();
+
+CREATE TRIGGER trigger_sync_registry_timeline
+    AFTER INSERT OR UPDATE ON public.timeline_events
+    FOR EACH ROW EXECUTE FUNCTION public.sync_to_content_registry();
+
+CREATE TRIGGER trigger_delete_registry_timeline
+    AFTER DELETE ON public.timeline_events
+    FOR EACH ROW EXECUTE FUNCTION public.sync_delete_to_content_registry();
+
+
+-- ==========================================
+-- 9D. REVISION HISTORY (IMMUTABLE SNAPSHOTS)
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.content_revisions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    content_type TEXT NOT NULL,
+    record_id UUID NOT NULL,
+    editor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    previous_version JSONB,
+    current_version JSONB,
+    revision_notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.content_revisions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Elders, historians, and editors can read revisions" 
+    ON public.content_revisions FOR SELECT 
+    USING (public.is_super_admin() OR public.get_user_role() IN ('community_leader', 'historian', 'staff') OR auth.uid() = editor_id);
+
+CREATE POLICY "System triggers can append revisions" 
+    ON public.content_revisions FOR INSERT 
+    WITH CHECK (auth.uid() IS NOT NULL);
+
+
+-- REVISION SYSTEM TRIGGER FUNCTION
+CREATE OR REPLACE FUNCTION public.record_content_revision()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_editor_id UUID;
+BEGIN
+    v_editor_id := auth.uid();
+    IF v_editor_id IS NULL THEN
+        v_editor_id := COALESCE(
+            CASE WHEN TG_TABLE_NAME = 'heritage_articles' THEN NEW.created_by ELSE NULL END,
+            CASE WHEN TG_TABLE_NAME = 'news' THEN NEW.author_id ELSE NULL END,
+            CASE WHEN TG_TABLE_NAME = 'events' THEN NEW.created_by ELSE NULL END,
+            CASE WHEN TG_TABLE_NAME = 'announcements' THEN NEW.created_by ELSE NULL END,
+            CASE WHEN TG_TABLE_NAME = 'community_highlights' THEN NEW.author_id ELSE NULL END,
+            CASE WHEN TG_TABLE_NAME = 'notices' THEN NEW.created_by ELSE NULL END,
+            NULL
+        );
+    END IF;
+
+    -- Only record changes if there's an actual state update
+    IF OLD IS DISTINCT FROM NEW THEN
+        INSERT INTO public.content_revisions (content_type, record_id, editor_id, previous_version, current_version, revision_notes)
+        VALUES (
+            TG_TABLE_NAME,
+            NEW.id,
+            v_editor_id,
+            to_jsonb(OLD),
+            to_jsonb(NEW),
+            'Automated system revision snapshot'
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- CREATE REVISION TRIGGERS ON ALL PUBLISHABLE ENTITIES
+CREATE TRIGGER trigger_revision_articles
+    AFTER UPDATE ON public.heritage_articles
+    FOR EACH ROW EXECUTE FUNCTION public.record_content_revision();
+
+CREATE TRIGGER trigger_revision_news
+    AFTER UPDATE ON public.news
+    FOR EACH ROW EXECUTE FUNCTION public.record_content_revision();
+
+CREATE TRIGGER trigger_revision_events
+    AFTER UPDATE ON public.events
+    FOR EACH ROW EXECUTE FUNCTION public.record_content_revision();
+
+CREATE TRIGGER trigger_revision_announcements
+    AFTER UPDATE ON public.announcements
+    FOR EACH ROW EXECUTE FUNCTION public.record_content_revision();
+
+CREATE TRIGGER trigger_revision_highlights
+    AFTER UPDATE ON public.community_highlights
+    FOR EACH ROW EXECUTE FUNCTION public.record_content_revision();
+
+CREATE TRIGGER trigger_revision_notices
+    AFTER UPDATE ON public.notices
+    FOR EACH ROW EXECUTE FUNCTION public.record_content_revision();
+
+
+-- ==========================================
+-- 9E. PERFORMANCE-SAFE ANALYTICS ENGINE
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.analytics_metrics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    metric_type TEXT NOT NULL, -- 'view', 'search', 'download'
+    content_type TEXT, -- 'article', 'clan', 'word', 'event', 'media'
+    content_id TEXT, -- UUID or text key
+    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    meta_data JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.analytics_metrics ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Elders can read analytics metrics" 
+    ON public.analytics_metrics FOR SELECT 
+    USING (public.is_super_admin());
+
+CREATE POLICY "Public tracking can log analytics metrics" 
+    ON public.analytics_metrics FOR INSERT 
+    WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_metrics_type_id 
+    ON public.analytics_metrics(metric_type, content_type, content_id);
+
+
+-- ==========================================
+-- 9F. IMMUTABLE AUTOMATED AUDIT LOGGING FOR STATE TRANSITIONS
+-- ==========================================
+
+CREATE OR REPLACE FUNCTION public.log_registry_status_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.status IS DISTINCT FROM NEW.status THEN
+        INSERT INTO public.audit_logs (actor_id, event_type, target_type, target_id, old_values, new_values)
+        VALUES (
+            auth.uid(),
+            'STATUS_CHANGE',
+            NEW.content_type,
+            NEW.record_id::text,
+            jsonb_build_object('status', OLD.status),
+            jsonb_build_object('status', NEW.status, 'approved_by', NEW.approved_by, 'approved_at', NEW.approved_at)
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trigger_audit_status_change
+    AFTER UPDATE ON public.content_registry
+    FOR EACH ROW EXECUTE FUNCTION public.log_registry_status_change();
+
+
 -- ==========================================
 -- 10. SUCCESS BROADCAST
 -- ==========================================

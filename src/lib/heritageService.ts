@@ -1,6 +1,31 @@
 import { getSupabase } from './supabaseClient';
 import { generateUUID } from './supabase';
-import { Status, News, Announcement, Event } from '../types/heritage';
+import { Status, News, Announcement, Event, CommunityHighlight, Notice, ContentRegistryItem, ContentRevision, AnalyticsMetric } from '../types/heritage';
+
+const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
+
+async function resolveUserUUID(client: any, userId?: string): Promise<string> {
+  if (userId && isUUID(userId)) {
+    return userId;
+  }
+  try {
+    const userRes = await client.auth.getUser();
+    if (userRes.data?.user?.id) {
+      return userRes.data.user.id;
+    }
+  } catch (e) {
+    // ignore
+  }
+  try {
+    const { data } = await client.from('profiles').select('id').limit(1);
+    if (data && data.length > 0) {
+      return data[0].id;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return '00000000-0000-0000-0000-000000000000'; // fallback
+}
 
 // ==========================================
 // PRE-POPULATED SANDBOX/MOCK DATA
@@ -151,8 +176,18 @@ initializeLocalStorage();
 
 export async function getStatuses(onlyApproved = true): Promise<Status[]> {
   const client = getSupabase();
+  initializeLocalStorage();
+
+  const getLocalData = (): Status[] => {
+    const localList = JSON.parse(localStorage.getItem('bakenye_statuses') || '[]');
+    const now = new Date();
+    return onlyApproved
+      ? localList.filter((s: any) => s.status === 'approved' && !s.is_archived && (!s.expires_at || new Date(s.expires_at) > now))
+      : localList;
+  };
+
   if (!client) {
-    throw new Error('Supabase client is not configured.');
+    return getLocalData();
   }
 
   try {
@@ -183,11 +218,11 @@ export async function getStatuses(onlyApproved = true): Promise<Status[]> {
 
     const now = new Date();
     return onlyApproved
-      ? mapped.filter(s => s.status === 'approved' && !s.is_archived && new Date(s.expires_at) > now)
+      ? mapped.filter(s => s.status === 'approved' && !s.is_archived && (!s.expires_at || new Date(s.expires_at) > now))
       : mapped;
   } catch (err: any) {
-    console.error('Supabase fetch statuses failed:', err);
-    throw err;
+    console.warn('Supabase fetch statuses failed, falling back to local storage:', err);
+    return getLocalData();
   }
 }
 
@@ -211,7 +246,7 @@ export async function createStatus(status: Omit<Status, 'id'>): Promise<{ data: 
       text: status.text,
       media_items: status.media_items || [],
       link: status.link,
-      author_id: status.author_id,
+      author_id: await resolveUserUUID(client, status.author_id),
       view_count: status.view_count,
       visibility: status.visibility,
       status: status.status,
@@ -249,8 +284,6 @@ export async function updateStatus(id: string, updates: Partial<Status>): Promis
   }
 
   try {
-    const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
-
     // Filter and map fields to ensure we don't send extra/unsupported columns to Supabase
     const dbRecord: any = {};
     if (updates.text !== undefined) dbRecord.text = updates.text;
@@ -312,8 +345,15 @@ export async function deleteStatus(id: string): Promise<boolean> {
 
 export async function getNews(onlyPublished = true): Promise<News[]> {
   const client = getSupabase();
+  initializeLocalStorage();
+
+  const getLocalData = (): News[] => {
+    const localList = JSON.parse(localStorage.getItem('bakenye_news') || '[]');
+    return onlyPublished ? localList.filter((n: any) => n.status === 'published') : localList;
+  };
+
   if (!client) {
-    throw new Error('Supabase client is not configured.');
+    return getLocalData();
   }
 
   try {
@@ -345,8 +385,8 @@ export async function getNews(onlyPublished = true): Promise<News[]> {
 
     return onlyPublished ? mapped.filter(n => n.status === 'published') : mapped;
   } catch (err: any) {
-    console.error('Supabase fetch news failed:', err);
-    throw err;
+    console.warn('Supabase fetch news failed, falling back to local storage:', err);
+    return getLocalData();
   }
 }
 
@@ -372,7 +412,7 @@ export async function createNews(news: Omit<News, 'id'>): Promise<{ data: News |
       summary: news.summary,
       content: news.content,
       cover_image: news.cover_image,
-      author_id: news.author_id,
+      author_id: await resolveUserUUID(client, news.author_id),
       category: news.category,
       tags: news.tags,
       featured: news.featured,
@@ -409,8 +449,6 @@ export async function updateNews(id: string, updates: Partial<News>): Promise<{ 
   }
 
   try {
-    const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
-
     // Filter and map fields to ensure we don't send extra/unsupported columns to Supabase
     const dbRecord: any = {};
     if (updates.title !== undefined) dbRecord.title = updates.title;
@@ -474,8 +512,18 @@ export async function deleteNews(id: string): Promise<boolean> {
 
 export async function getAnnouncements(onlyApproved = true): Promise<Announcement[]> {
   const client = getSupabase();
+  initializeLocalStorage();
+
+  const getLocalData = (): Announcement[] => {
+    const localList = JSON.parse(localStorage.getItem('bakenye_announcements') || '[]');
+    const now = new Date();
+    return onlyApproved
+      ? localList.filter((a: any) => a.status === 'approved' && (!a.start_date || new Date(a.start_date) <= now) && (!a.end_date || new Date(a.end_date) >= now))
+      : localList;
+  };
+
   if (!client) {
-    throw new Error('Supabase client is not configured.');
+    return getLocalData();
   }
 
   try {
@@ -504,11 +552,11 @@ export async function getAnnouncements(onlyApproved = true): Promise<Announcemen
 
     const now = new Date();
     return onlyApproved
-      ? mapped.filter(a => a.status === 'approved' && new Date(a.start_date) <= now && (!a.end_date || new Date(a.end_date) >= now))
+      ? mapped.filter(a => a.status === 'approved' && (!a.start_date || new Date(a.start_date) <= now) && (!a.end_date || new Date(a.end_date) >= now))
       : mapped;
   } catch (err: any) {
-    console.error('Supabase fetch announcements failed:', err);
-    throw err;
+    console.warn('Supabase fetch announcements failed, falling back to local storage:', err);
+    return getLocalData();
   }
 }
 
@@ -536,7 +584,7 @@ export async function createAnnouncement(announcement: Omit<Announcement, 'id'>)
       start_date: announcement.start_date,
       end_date: announcement.end_date,
       pinned: announcement.pinned,
-      created_by: announcement.created_by,
+      created_by: await resolveUserUUID(client, announcement.created_by),
       status: announcement.status,
       created_at: announcement.created_at,
       updated_at: announcement.updated_at
@@ -569,8 +617,6 @@ export async function updateAnnouncement(id: string, updates: Partial<Announceme
   }
 
   try {
-    const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
-
     // Filter and map fields to ensure we don't send extra/unsupported columns to Supabase
     const dbRecord: any = {};
     if (updates.title !== undefined) dbRecord.title = updates.title;
@@ -630,15 +676,22 @@ export async function deleteAnnouncement(id: string): Promise<boolean> {
 
 export async function getEvents(onlyApproved = true): Promise<Event[]> {
   const client = getSupabase();
+  initializeLocalStorage();
+
+  const getLocalData = (): Event[] => {
+    const localList = JSON.parse(localStorage.getItem('bakenye_events') || '[]');
+    return onlyApproved ? localList.filter((e: any) => e.status === 'approved') : localList;
+  };
+
   if (!client) {
-    throw new Error('Supabase client is not configured.');
+    return getLocalData();
   }
 
   try {
     const { data, error } = await client
       .from('events')
-      .select('id, title, description, location, starts_at, ends_at, image_url, organizer, status, created_at, updated_at')
-      .order('starts_at', { ascending: true });
+      .select('id, title, description, location, start_datetime, end_datetime, cover_image, organizer, status, created_at, updated_at')
+      .order('start_datetime', { ascending: true });
 
     if (error) throw error;
 
@@ -647,9 +700,9 @@ export async function getEvents(onlyApproved = true): Promise<Event[]> {
       title: row.title,
       description: row.description,
       location: row.location,
-      start_datetime: row.starts_at || '',
-      end_datetime: row.ends_at || '',
-      cover_image: row.image_url || '',
+      start_datetime: row.start_datetime || '',
+      end_datetime: row.end_datetime || '',
+      cover_image: row.cover_image || '',
       organizer: row.organizer,
       contact: '',
       rsvp_settings: { enabled: false, limit: null },
@@ -663,8 +716,8 @@ export async function getEvents(onlyApproved = true): Promise<Event[]> {
 
     return onlyApproved ? mapped.filter(e => e.status === 'approved') : mapped;
   } catch (err: any) {
-    console.error('Supabase fetch events failed:', err);
-    throw err;
+    console.warn('Supabase fetch events failed, falling back to local storage:', err);
+    return getLocalData();
   }
 }
 
@@ -688,10 +741,11 @@ export async function createEvent(event: Omit<Event, 'id'>): Promise<{ data: Eve
       title: event.title,
       description: event.description,
       location: event.location,
-      starts_at: event.start_datetime,
-      ends_at: event.end_datetime,
-      image_url: event.cover_image,
+      start_datetime: event.start_datetime,
+      end_datetime: event.end_datetime,
+      cover_image: event.cover_image,
       organizer: event.organizer,
+      created_by: await resolveUserUUID(client, event.created_by),
       status: event.status,
       created_at: event.created_at,
       updated_at: event.updated_at
@@ -724,16 +778,14 @@ export async function updateEvent(id: string, updates: Partial<Event>): Promise<
   }
 
   try {
-    const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
-
     // Filter and map fields to ensure we don't send extra/unsupported columns to Supabase
     const dbRecord: any = {};
     if (updates.title !== undefined) dbRecord.title = updates.title;
     if (updates.description !== undefined) dbRecord.description = updates.description;
     if (updates.location !== undefined) dbRecord.location = updates.location;
-    if (updates.start_datetime !== undefined) dbRecord.starts_at = updates.start_datetime;
-    if (updates.end_datetime !== undefined) dbRecord.ends_at = updates.end_datetime;
-    if (updates.cover_image !== undefined) dbRecord.image_url = updates.cover_image;
+    if (updates.start_datetime !== undefined) dbRecord.start_datetime = updates.start_datetime;
+    if (updates.end_datetime !== undefined) dbRecord.end_datetime = updates.end_datetime;
+    if (updates.cover_image !== undefined) dbRecord.cover_image = updates.cover_image;
     if (updates.organizer !== undefined) dbRecord.organizer = updates.organizer;
     if (updates.status !== undefined) dbRecord.status = updates.status;
     if (updates.created_at !== undefined) dbRecord.created_at = updates.created_at;
@@ -776,3 +828,240 @@ export async function deleteEvent(id: string): Promise<boolean> {
     return false;
   }
 }
+
+// ==========================================
+// COMMUNITY HIGHLIGHTS SERVICE
+// ==========================================
+
+export async function getCommunityHighlights(onlyPublished = true): Promise<CommunityHighlight[]> {
+  const client = getSupabase();
+  if (!client) {
+    return [];
+  }
+  try {
+    let query = client.from('community_highlights').select('*').order('created_at', { ascending: false });
+    if (onlyPublished) {
+      query = query.or('status.eq.published,status.eq.approved');
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Supabase fetch community highlights failed:', err);
+    return [];
+  }
+}
+
+export async function createCommunityHighlight(highlight: Omit<CommunityHighlight, 'id'>): Promise<{ data: CommunityHighlight | null; error: Error | null }> {
+  const client = getSupabase();
+  const id = generateUUID();
+  const newHighlight: CommunityHighlight = { ...highlight, id } as CommunityHighlight;
+  if (!client) return { data: newHighlight, error: null };
+  try {
+    const { error } = await client.from('community_highlights').insert({ ...highlight, id });
+    if (error) throw error;
+    return { data: newHighlight, error: null };
+  } catch (err: any) {
+    console.error('Failed to save community highlight to Supabase:', err);
+    return { data: newHighlight, error: err };
+  }
+}
+
+export async function updateCommunityHighlight(id: string, updates: Partial<CommunityHighlight>): Promise<{ data: CommunityHighlight | null; error: Error | null }> {
+  const client = getSupabase();
+  if (!client) return { data: null, error: new Error('Supabase client is not configured.') };
+  try {
+    const { data, error } = await client.from('community_highlights').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err: any) {
+    console.error('Failed to update community highlight on Supabase:', err);
+    return { data: null, error: err };
+  }
+}
+
+export async function deleteCommunityHighlight(id: string): Promise<boolean> {
+  const client = getSupabase();
+  if (!client) return false;
+  try {
+    const { error } = await client.from('community_highlights').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Failed to delete community highlight on Supabase:', err);
+    return false;
+  }
+}
+
+// ==========================================
+// NOTICES SERVICE
+// ==========================================
+
+export async function getNotices(onlyApproved = true): Promise<Notice[]> {
+  const client = getSupabase();
+  if (!client) return [];
+  try {
+    let query = client.from('notices').select('*').order('created_at', { ascending: false });
+    if (onlyApproved) {
+      query = query.or('status.eq.published,status.eq.approved');
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Supabase fetch notices failed:', err);
+    return [];
+  }
+}
+
+export async function createNotice(notice: Omit<Notice, 'id'>): Promise<{ data: Notice | null; error: Error | null }> {
+  const client = getSupabase();
+  const id = generateUUID();
+  const newNotice: Notice = { ...notice, id } as Notice;
+  if (!client) return { data: newNotice, error: null };
+  try {
+    const { error } = await client.from('notices').insert({ ...notice, id });
+    if (error) throw error;
+    return { data: newNotice, error: null };
+  } catch (err: any) {
+    console.error('Failed to save notice to Supabase:', err);
+    return { data: newNotice, error: err };
+  }
+}
+
+export async function updateNotice(id: string, updates: Partial<Notice>): Promise<{ data: Notice | null; error: Error | null }> {
+  const client = getSupabase();
+  if (!client) return { data: null, error: new Error('Supabase client is not configured.') };
+  try {
+    const { data, error } = await client.from('notices').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+    if (error) throw error;
+    return { data, error: null };
+  } catch (err: any) {
+    console.error('Failed to update notice on Supabase:', err);
+    return { data: null, error: err };
+  }
+}
+
+export async function deleteNotice(id: string): Promise<boolean> {
+  const client = getSupabase();
+  if (!client) return false;
+  try {
+    const { error } = await client.from('notices').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Failed to delete notice on Supabase:', err);
+    return false;
+  }
+}
+
+// ==========================================
+// UNIFIED CONTENT REGISTRY SERVICE
+// ==========================================
+
+export async function getContentRegistry(statusFilter?: string): Promise<ContentRegistryItem[]> {
+  const client = getSupabase();
+  if (!client) return [];
+  try {
+    let query = client.from('content_registry').select('*').order('created_at', { ascending: false });
+    if (statusFilter && statusFilter !== 'All') {
+      query = query.eq('status', statusFilter);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Supabase fetch content registry failed:', err);
+    return [];
+  }
+}
+
+export async function updateRegistryItemStatus(recordId: string, status: string, approvedBy?: string): Promise<boolean> {
+  const client = getSupabase();
+  if (!client) return false;
+  try {
+    const { data: registryItem, error: fetchErr } = await client
+      .from('content_registry')
+      .select('table_name')
+      .eq('record_id', recordId)
+      .single();
+    
+    if (fetchErr || !registryItem) {
+      console.error('Failed to locate table name for registry item update:', fetchErr);
+      return false;
+    }
+
+    const updatePayload: any = { status };
+    if (approvedBy) {
+      updatePayload.approved_by = approvedBy;
+      updatePayload.approved_at = new Date().toISOString();
+      if (status === 'published' || status === 'approved') {
+        updatePayload.published_at = new Date().toISOString();
+      }
+    }
+
+    const { error: updateErr } = await client
+      .from(registryItem.table_name)
+      .update(updatePayload)
+      .eq('id', recordId);
+
+    if (updateErr) throw updateErr;
+    return true;
+  } catch (err) {
+    console.error('Failed to update registry item status on Supabase:', err);
+    return false;
+  }
+}
+
+// ==========================================
+// REVISIONS HISTORY SERVICE
+// ==========================================
+
+export async function getContentRevisions(recordId: string): Promise<ContentRevision[]> {
+  const client = getSupabase();
+  if (!client) return [];
+  try {
+    const { data, error } = await client
+      .from('content_revisions')
+      .select('*')
+      .eq('record_id', recordId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Supabase fetch revisions failed:', err);
+    return [];
+  }
+}
+
+// ==========================================
+// PERFORMANCE-SAFE ANALYTICS SERVICE
+// ==========================================
+
+export async function logAnalyticsMetric(
+  metricType: 'view' | 'search' | 'download',
+  contentType?: string,
+  contentId?: string,
+  metaData: any = {}
+): Promise<boolean> {
+  const client = getSupabase();
+  if (!client) return false;
+  try {
+    const userRes = await client.auth.getUser();
+    const userId = userRes.data?.user?.id || null;
+
+    const { error } = await client.from('analytics_metrics').insert({
+      metric_type: metricType,
+      content_type: contentType,
+      content_id: contentId,
+      user_id: userId,
+      meta_data: metaData
+    });
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.warn('Logging analytics metric failed:', err);
+    return false;
+  }
+}
+

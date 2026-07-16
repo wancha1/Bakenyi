@@ -87,3 +87,69 @@ export interface Event {
   created_at: string;
   updated_at: string;
 }
+
+export interface CommunityHighlight {
+  id: string;
+  title: string;
+  summary?: string;
+  content: string;
+  cover_image?: string;
+  author_id?: string;
+  status: 'draft' | 'submitted' | 'under_review' | 'needs_revision' | 'approved' | 'published' | 'archived';
+  approved_by?: string;
+  approved_at?: string;
+  published_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Notice {
+  id: string;
+  title: string;
+  message: string;
+  priority: 'low' | 'normal' | 'high' | 'emergency';
+  status: 'draft' | 'submitted' | 'under_review' | 'needs_revision' | 'approved' | 'published' | 'archived';
+  created_by: string;
+  approved_by?: string;
+  approved_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentRegistryItem {
+  id: string;
+  content_type: string;
+  table_name: string;
+  record_id: string;
+  title: string;
+  status: 'draft' | 'submitted' | 'under_review' | 'needs_revision' | 'approved' | 'published' | 'archived';
+  author_id?: string;
+  submitted_at?: string;
+  approved_by?: string;
+  approved_at?: string;
+  published_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentRevision {
+  id: string;
+  content_type: string;
+  record_id: string;
+  editor_id?: string;
+  previous_version?: any;
+  current_version?: any;
+  revision_notes?: string;
+  created_at: string;
+}
+
+export interface AnalyticsMetric {
+  id: string;
+  metric_type: 'view' | 'search' | 'download';
+  content_type?: string;
+  content_id?: string;
+  user_id?: string;
+  meta_data?: any;
+  created_at: string;
+}
+

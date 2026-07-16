@@ -42,7 +42,8 @@ import {
   FileSpreadsheet,
   Phone,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  Megaphone
 } from 'lucide-react';
 import { 
   fetchUsers, 
@@ -68,6 +69,7 @@ import { ContentItem, GovernancePage, VersionRecord, PageAuditLog } from './gove
 import { WEBPAGES, INITIAL_CONTENT_ITEMS, INITIAL_PENDING_ITEMS, SEEDED_AUDIT_LOGS } from './governance/initialData';
 import PageWorkstation from './governance/PageWorkstation';
 import GovernanceMap, { getPublicRoute } from './governance/GovernanceMap';
+import PendingApprovalInbox from './PendingApprovalInbox';
 
 interface DashboardViewProps {
   onNavigate: (tab: string) => void;
@@ -402,6 +404,13 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
   const totalPendingBacklog = useMemo(() => {
     return (Object.values(pendingCounts) as number[]).reduce((a, b) => a + b, 0);
   }, [pendingCounts]);
+
+  // Today's Uploads (real-time + simulated default)
+  const todayUploadsCount = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const fromContent = governanceContent.filter(item => item.createdAt && item.createdAt.startsWith(todayStr)).length;
+    return fromContent || 3;
+  }, [governanceContent]);
 
   // Filter webpages based on sidebar search
   const filteredCategories = useMemo(() => {
@@ -895,164 +904,399 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
               </div>
             </div>
 
-            {/* Overall Preservations Metrics cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
+            {/* Redesigned Overview Cards (6 Columns) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+              
+              {/* 1. Pending Approvals */}
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Backlog Queue</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pending Approvals</p>
                   <h3 className="text-3xl font-serif font-black text-amber-600 dark:text-amber-400 leading-none">{totalPendingBacklog}</h3>
-                  <span className="text-[10px] text-slate-400 font-semibold block">Awaiting Elder approvals</span>
+                  <span className="text-[10px] text-slate-400 font-semibold block">Awaiting Elder oversight</span>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                  <Inbox className="w-6 h-6 animate-pulse" />
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Active Preservers</p>
-                  <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
-                    {users.filter(u => u.status === 'active').length || 4}
-                  </h3>
-                  <span className="text-[10px] text-slate-400 font-semibold block">Verified registrars</span>
-                </div>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                  <Users className="w-6 h-6" />
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                  <Inbox className="w-5.5 h-5.5 animate-pulse" />
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
+              {/* 2. Today's Uploads */}
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Chronicle Records</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Today's Uploads</p>
+                  <h3 className="text-3xl font-serif font-black text-indigo-600 dark:text-indigo-400 leading-none">{todayUploadsCount}</h3>
+                  <span className="text-[10px] text-slate-400 font-semibold block">New community feeds</span>
+                </div>
+                <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <PlusCircle className="w-5.5 h-5.5" />
+                </div>
+              </div>
+
+              {/* 3. Published Content */}
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Published Content</p>
                   <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
                     {governanceContent.filter(c => c.status === 'published').length}
                   </h3>
-                  <span className="text-[10px] text-slate-400 font-semibold block">Active published blocks</span>
+                  <span className="text-[10px] text-slate-400 font-semibold block">Active records online</span>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                  <BookOpen className="w-6 h-6" />
+                <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <BookOpen className="w-5.5 h-5.5" />
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
+              {/* 4. Registered Members */}
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Preservation Integrity</p>
-                  <h3 className="text-3xl font-serif font-black text-emerald-600 dark:text-emerald-400 leading-none">98.2%</h3>
-                  <span className="text-[10px] text-slate-400 font-semibold block">Error-free validation index</span>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Registered Members</p>
+                  <h3 className="text-3xl font-serif font-black text-slate-900 dark:text-white leading-none">
+                    {users.length || 18}
+                  </h3>
+                  <span className="text-[10px] text-slate-400 font-semibold block">Verified Bakenyi profiles</span>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6" />
+                <div className="w-11 h-11 rounded-2xl bg-slate-500/10 text-slate-600 dark:text-slate-450 flex items-center justify-center">
+                  <Users className="w-5.5 h-5.5" />
                 </div>
               </div>
+
+              {/* 5. Active Guardians */}
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Active Guardians</p>
+                  <h3 className="text-3xl font-serif font-black text-purple-600 dark:text-purple-400 leading-none">
+                    {users.filter(u => u.role === 'community_leader' || u.role === 'historian' || u.role === 'admin' || u.role === 'super_admin').length || 6}
+                  </h3>
+                  <span className="text-[10px] text-slate-400 font-semibold block">Council & experts active</span>
+                </div>
+                <div className="w-11 h-11 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                  <UserCheck className="w-5.5 h-5.5" />
+                </div>
+              </div>
+
+              {/* 6. System Health */}
+              <button 
+                onClick={() => onNavigate('system_health')}
+                className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700/60 shadow-xs flex items-center justify-between text-left hover:border-rose-300 dark:hover:border-rose-900/50 transition-colors group cursor-pointer"
+              >
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">System Heartbeat</p>
+                  <h3 className="text-3xl font-serif font-black text-rose-600 dark:text-rose-400 leading-none">98.2%</h3>
+                  <span className="text-[10px] text-slate-400 font-semibold block group-hover:text-rose-500 transition-colors">Vetted liveness index</span>
+                </div>
+                <div className="w-11 h-11 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                  <Heart className="w-5.5 h-5.5 text-rose-500 animate-pulse" />
+                </div>
+              </button>
+
             </div>
 
-            {/* Visual Governance Architecture Map Portal */}
-            <GovernanceMap
-              pages={WEBPAGES}
-              contentItems={governanceContent}
-              pendingCounts={pendingCounts}
-              onSelectPage={(pageId) => {
-                setActivePageId(pageId);
-                // Scroll page top
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
-
-            {/* Interactive Automated Audit Log Feed */}
-            <div id="automated-audit-feed" className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-150 dark:border-slate-700/60 p-6 shadow-sm space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700/40 pb-4">
-                <div>
-                  <h3 className="font-serif font-black text-base text-slate-900 dark:text-white">
-                    Sovereign Platform Audit Feed
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Real-time visual capture of Bakenyi platform adjustments, Elder approvals, and archived heritage items.
-                  </p>
-                </div>
-                
-                {/* Filter for logs by specific type */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-black uppercase text-slate-400">Domain Filter:</span>
-                  <select
-                    value={auditLogTypeFilter}
-                    onChange={(e) => setAuditLogTypeFilter(e.target.value)}
-                    className="bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700/60 rounded-xl px-2.5 py-1.5 text-[10px] font-bold text-slate-600 dark:text-slate-300 outline-none focus:ring-1 focus:ring-amber-500"
-                  >
-                    <option value="all">All Content Actions</option>
-                    <option value="proverb">Proverbs Section</option>
-                    <option value="dictionary">Dictionary Section</option>
-                    <option value="article">Heritage Articles</option>
-                    <option value="totem">Totem Registries</option>
-                    <option value="approve">Approvals & Publishes</option>
-                    <option value="edit">Edits & Modifications</option>
-                  </select>
-                </div>
-              </div>
+            {/* Main Interactive Workstation Grid Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/40 max-h-[380px] overflow-y-auto pr-1">
-                {filteredAudits.map(log => {
-                  const p = WEBPAGES.find(wp => wp.id === log.pageId);
-                  const isWarning = log.status === 'Warning' || log.action.toLowerCase().includes('reject') || log.action.toLowerCase().includes('delete');
+              {/* Left Column: Mirrored Website Navigation (3 Cols) */}
+              <div className="lg:col-span-3 space-y-6">
+                <div className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-150 dark:border-slate-700/60 p-5 shadow-sm space-y-4">
+                  <div>
+                    <h4 className="font-serif font-black text-xs text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-amber-500 animate-spin-slow" />
+                      Website Sections
+                    </h4>
+                    <p className="text-[10px] text-slate-400">Mirrored navigation of the public website. Select any section to manage its content.</p>
+                  </div>
                   
-                  return (
-                    <div 
-                      key={log.id} 
-                      onClick={() => {
-                        if (log.pageId) {
-                          setActivePageId(log.pageId);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                      }}
-                      className="py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-900/30 px-2 rounded-2xl transition-all cursor-pointer flex items-start justify-between gap-3 group"
-                    >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {/* Status pill */}
-                          <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${
-                            isWarning 
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
-                              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                          }`}>
-                            {log.action}
-                          </span>
-                          
-                          {p && (
-                            <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">
-                              In {p.category} &gt; {p.label}
+                  {/* Search within Sections */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Filter sections..."
+                      value={sidebarSearch}
+                      onChange={(e) => setSidebarSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700 rounded-xl text-[10px] outline-none focus:ring-1 focus:ring-amber-500 font-bold"
+                    />
+                  </div>
+
+                  {/* Pages List grouped by categories */}
+                  <div className="space-y-3.5 max-h-[580px] overflow-y-auto pr-1">
+                    {filteredCategories.filter(cat => cat.id !== 'General' && cat.id !== 'System' && cat.id !== 'Analytics').map(cat => {
+                      const categoryPendingCount = cat.pages.reduce((acc, pId) => acc + (pendingCounts[pId] || 0), 0);
+                      const isCollapsed = collapsedCategories[cat.id];
+                      return (
+                        <div key={cat.id} className="space-y-1">
+                          <button 
+                            onClick={() => toggleCategory(cat.id)}
+                            className="w-full flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 py-1 cursor-pointer"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              {cat.label}
+                              {categoryPendingCount > 0 && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                              )}
                             </span>
+                            <ChevronDown className={`w-3 h-3 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                          </button>
+                          
+                          {!isCollapsed && (
+                            <div className="pl-2 border-l border-slate-100 dark:border-slate-800 space-y-1 mt-1">
+                              {cat.pages.map(pageId => {
+                                const p = WEBPAGES.find(wp => wp.id === pageId);
+                                if (!p) return null;
+                                const IconComponent = getPageIcon(p.icon);
+                                const pendingCount = pendingCounts[pageId] || 0;
+                                return (
+                                  <button
+                                    key={pageId}
+                                    onClick={() => {
+                                      setActivePageId(pageId);
+                                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    className="w-full flex items-center justify-between py-2 px-2.5 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-900/40 hover:text-amber-500 transition-all text-left cursor-pointer"
+                                  >
+                                    <span className="flex items-center gap-2 truncate">
+                                      <IconComponent className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                      <span className="truncate">{p.label}</span>
+                                    </span>
+                                    {pendingCount > 0 && (
+                                      <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black bg-rose-500 text-white shrink-0">
+                                        {pendingCount}
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
-                        
-                        <p className="text-xs font-serif font-black text-slate-800 dark:text-slate-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                          {log.details}
-                        </p>
-                        
-                        <div className="text-[9px] text-slate-400 font-mono">
-                          Operator: <strong className="text-slate-500 dark:text-slate-300 font-bold">{log.actor}</strong>
-                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Local Navigation Compass Map Hint */}
+                <div className="bg-gradient-to-br from-amber-500/5 to-orange-500/5 dark:from-amber-950/10 dark:to-orange-950/10 rounded-[28px] border border-amber-200/20 p-5 space-y-3 shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <Compass className="w-4 h-4 text-amber-500" />
+                    <h4 className="font-serif font-black text-xs text-amber-900 dark:text-amber-300 uppercase tracking-wider">Visual Map view</h4>
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    Want to visualize the entire node network of the website? Scroll to the bottom to interact with the comprehensive architectural map.
+                  </p>
+                  <button
+                    onClick={() => {
+                      const mapEl = document.getElementById('governance-architecture-map-section');
+                      if (mapEl) {
+                        mapEl.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                    className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>Locate Visual Map</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Center Stage: Priority Inbox (6 Cols) */}
+              <div className="lg:col-span-6 space-y-8">
+                <div className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-150 dark:border-slate-700/60 p-6 shadow-xs space-y-5">
+                  <div className="flex items-center justify-between border-b dark:border-slate-700 pb-4">
+                    <div>
+                      <h3 className="font-serif font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
+                        <Inbox className="w-5 h-5 text-amber-500" />
+                        Priority Moderation Inbox
+                      </h3>
+                      <p className="text-[11px] text-slate-400">
+                        Unified council approval deck. View, vet, request revisions, or reject pending submissions instantly.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Render the full high-fidelity PendingApprovalInbox here */}
+                  <div className="rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700/50 bg-slate-50/20 dark:bg-slate-900/10">
+                    <PendingApprovalInbox />
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Analytics, Quick Actions, and Activity Log (3 Cols) */}
+              <div className="lg:col-span-3 space-y-6">
+                
+                {/* Quick Actions Panel */}
+                <div className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-150 dark:border-slate-700/60 p-5 shadow-sm space-y-4">
+                  <h4 className="font-serif font-black text-xs text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    Elder Quick Actions
+                  </h4>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button
+                      onClick={() => {
+                        setActivePageId('events');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-amber-500/10 dark:bg-slate-900/40 hover:text-amber-500 border border-slate-150 dark:border-slate-700/60 rounded-xl text-[10px] font-bold text-slate-700 dark:text-slate-300 transition-all text-left group cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Megaphone className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span>Create Announcement</span>
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+                    </button>
+
+                    <button
+                      onClick={() => onNavigate('users')}
+                      className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-amber-500/10 dark:bg-slate-900/40 hover:text-amber-500 border border-slate-150 dark:border-slate-700/60 rounded-xl text-[10px] font-bold text-slate-700 dark:text-slate-300 transition-all text-left group cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Users className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span>Manage Guardians</span>
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+                    </button>
+
+                    <button
+                      onClick={() => onNavigate('roles')}
+                      className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-amber-500/10 dark:bg-slate-900/40 hover:text-amber-500 border border-slate-150 dark:border-slate-700/60 rounded-xl text-[10px] font-bold text-slate-700 dark:text-slate-300 transition-all text-left group cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                        <span>Assign Council Roles</span>
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+                    </button>
+
+                    <button
+                      onClick={() => onNavigate('reports')}
+                      className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-amber-500/10 dark:bg-slate-900/40 hover:text-amber-500 border border-slate-150 dark:border-slate-700/60 rounded-xl text-[10px] font-bold text-slate-700 dark:text-slate-300 transition-all text-left group cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <BarChart2 className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                        <span>Review Platform Reports</span>
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+                    </button>
+
+                    <button
+                      onClick={() => onNavigate('settings')}
+                      className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-amber-500/10 dark:bg-slate-900/40 hover:text-amber-500 border border-slate-150 dark:border-slate-700/60 rounded-xl text-[10px] font-bold text-slate-700 dark:text-slate-300 transition-all text-left group cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Sliders className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                        <span>Sanctuary Settings</span>
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* High-fidelity Analytics & Growth Panel */}
+                <div className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-150 dark:border-slate-700/60 p-5 shadow-sm space-y-4">
+                  <div>
+                    <h4 className="font-serif font-black text-xs text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                      <BarChart2 className="w-4 h-4 text-amber-500" />
+                      Heritage Analytics
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-medium">Content preservation growth, storage utilization, and activity stats.</p>
+                  </div>
+                  
+                  <div className="space-y-3.5">
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[9px] font-black text-slate-400">
+                        <span>ARCHIVE CAPTURE RATE</span>
+                        <span className="text-emerald-600 font-black">+14.2%</span>
                       </div>
-                      
-                      <div className="text-right shrink-0">
-                        <span className="text-[9px] text-slate-400 font-mono block">
-                          {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className="text-[8px] font-mono text-slate-400 block pt-0.5">
-                          {new Date(log.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                        </span>
-                        <span className="text-[9px] text-indigo-500 dark:text-amber-400 font-bold uppercase group-hover:translate-x-1.5 transition-transform inline-flex items-center gap-0.5 mt-2">
-                          Manage &rarr;
-                        </span>
+                      <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                        <div className="bg-amber-500 h-full rounded-full" style={{ width: '78%' }} />
                       </div>
                     </div>
-                  );
-                })}
-                
-                {filteredAudits.length === 0 && (
-                  <div className="text-center py-12 text-xs text-slate-400 font-semibold">
-                    No matching activity logs recorded for this select filter.
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[9px] font-black text-slate-400">
+                        <span>LUKENYE DICTIONARY COMPLETION</span>
+                        <span className="text-slate-500 font-bold">1,820 words logged</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: '64%' }} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[9px] font-black text-slate-400">
+                        <span>STORAGE PRESERVATION UTILIZATION</span>
+                        <span className="text-slate-500 font-mono">1.4 GB / 10 GB</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                        <div className="bg-indigo-500 h-full rounded-full" style={{ width: '14%' }} />
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t dark:border-slate-750 flex justify-between items-center text-[9px]">
+                      <span className="text-slate-400 font-bold">VETTING TRENDS:</span>
+                      <span className="font-black text-emerald-600 uppercase">99.1% Approval rate</span>
+                    </div>
                   </div>
-                )}
+                </div>
+
+                {/* Platform Activity logs feed */}
+                <div className="bg-white dark:bg-slate-800 rounded-[28px] border border-slate-150 dark:border-slate-700/60 p-5 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-1 border-b dark:border-slate-700/40">
+                    <h4 className="font-serif font-black text-xs text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-amber-500" />
+                      Recent Activity
+                    </h4>
+                    <button
+                      onClick={() => onNavigate('activity_logs')}
+                      className="text-[9px] font-black uppercase text-amber-500 hover:underline cursor-pointer"
+                    >
+                      View Logs
+                    </button>
+                  </div>
+
+                  <div className="divide-y divide-slate-100/60 dark:divide-slate-800/40 max-h-[220px] overflow-y-auto pr-1">
+                    {filteredAudits.slice(0, 4).map(log => {
+                      const isWarning = log.status === 'Warning' || log.action.toLowerCase().includes('reject');
+                      return (
+                        <div key={log.id} className="py-2.5 text-[10px] space-y-0.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider ${
+                              isWarning ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'
+                            }`}>{log.action}</span>
+                            <span className="text-[9px] text-slate-400 font-mono">
+                              {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="font-bold text-slate-750 dark:text-slate-250 truncate">{log.details}</p>
+                          <span className="text-slate-400 text-[9px]">By {log.actor}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
               </div>
+
+            </div>
+
+            {/* Visual Governance Architecture Map Section (Expanded at Bottom) */}
+            <div id="governance-architecture-map-section" className="pt-4 border-t dark:border-slate-750">
+              <div className="mb-4">
+                <h3 className="font-serif font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
+                  <Compass className="w-5 h-5 text-amber-500" />
+                  Sovereign Site Architecture Map Plan
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Interactive spatial map routing all webpages, content counts, and backlog approvals across the Bakenyi digital empire.
+                </p>
+              </div>
+              
+              <GovernanceMap
+                pages={WEBPAGES}
+                contentItems={governanceContent}
+                pendingCounts={pendingCounts}
+                onSelectPage={(pageId) => {
+                  setActivePageId(pageId);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
             </div>
 
           </div>
