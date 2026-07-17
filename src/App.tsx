@@ -29,6 +29,7 @@ const Contribute = lazy(() => import('./pages/Contribute'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Search = lazy(() => import('./pages/Search'));
 const MemberDashboard = lazy(() => import('./pages/MemberDashboard'));
+const ContentDetail = lazy(() => import('./pages/ContentDetail'));
 
 // Admin View Panels (Lazy loaded to optimize bundle size for general visitors)
 const DashboardView = lazy(() => import('./components/admin/views/DashboardView'));
@@ -474,6 +475,13 @@ export default function App() {
               <Route path="/gallery" element={<Gallery />} />
               <Route path="/language" element={<Language />} />
               <Route path="/articles" element={<Articles />} />
+              <Route path="/articles/:id" element={<Articles />} />
+              <Route path="/clans/:id" element={<ContentDetail defaultType="clan" />} />
+              <Route path="/leadership/:id" element={<ContentDetail defaultType="leader" />} />
+              <Route path="/oral-history/:id" element={<ContentDetail defaultType="oral-history" />} />
+              <Route path="/timeline/:id" element={<ContentDetail defaultType="timeline" />} />
+              <Route path="/news/:id" element={<ContentDetail defaultType="news" />} />
+              <Route path="/events/:id" element={<ContentDetail defaultType="event" />} />
               <Route path="/contribute" element={<Contribute />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/search" element={<Search />} />

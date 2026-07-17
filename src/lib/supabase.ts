@@ -1708,4 +1708,175 @@ export async function saveStoryCategory(category: StoryCategory): Promise<boolea
   }
 }
 
+// ==========================================
+// NOTIFICATIONS SERVICES (SUPABASE)
+// ==========================================
+
+export interface DBNotification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: string; // 'system' | 'moderation' | 'social' | 'alert'
+  link?: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export async function getUserNotifications(
+  userId: string,
+  limit = 10,
+  offset = 0
+): Promise<{ data: DBNotification[]; count: number; error: Error | null }> {
+  const client = getSupabase();
+  if (!client) {
+    const stored = localStorage.getItem('bakenyi_notifications') || '[]';
+    try {
+      const all = JSON.parse(stored);
+      const sliced = all.slice(offset, offset + limit);
+      return { data: sliced, count: all.length, error: null };
+    } catch {
+      return { data: [], count: 0, error: null };
+    }
+  }
+
+  try {
+    const { data, error, count } = await client
+      .from('notifications')
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    return { data: data || [], count: count || 0, error: null };
+  } catch (err: any) {
+    console.error('getUserNotifications error:', err);
+    return { data: [], count: 0, error: err };
+  }
+}
+
+export async function markNotificationAsRead(notificationId: string): Promise<boolean> {
+  const client = getSupabase();
+  if (!client) {
+    const stored = localStorage.getItem('bakenyi_notifications') || '[]';
+    try {
+      const all = JSON.parse(stored);
+      const updated = all.map((n: any) => n.id === notificationId ? { ...n, isRead: true } : n);
+      localStorage.setItem('bakenyi_notifications', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+    return true;
+  }
+
+  try {
+    const { error } = await client
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('markNotificationAsRead error:', err);
+    return false;
+  }
+}
+
+export async function markAllNotificationsAsRead(userId: string): Promise<boolean> {
+  const client = getSupabase();
+  if (!client) {
+    const stored = localStorage.getItem('bakenyi_notifications') || '[]';
+    try {
+      const all = JSON.parse(stored);
+      const updated = all.map((n: any) => ({ ...n, isRead: true }));
+      localStorage.setItem('bakenyi_notifications', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+    return true;
+  }
+
+  try {
+    const { error } = await client
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('markAllNotificationsAsRead error:', err);
+    return false;
+  }
+}
+
+export async function getUnreadNotificationsCount(userId: string): Promise<number> {
+  const client = getSupabase();
+  if (!client) {
+    const stored = localStorage.getItem('bakenyi_notifications') || '[]';
+    try {
+      const all = JSON.parse(stored);
+      return all.filter((n: any) => !n.isRead).length;
+    } catch {
+      return 0;
+    }
+  }
+
+  try {
+    const { count, error } = await client
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    if (error) throw error;
+    return count || 0;
+  } catch (err) {
+    console.error('getUnreadNotificationsCount error:', err);
+    return 0;
+  }
+}
+
+// ==========================================
+// ANALYTICS SERVICE (READING METRICS)
+// ==========================================
+
+export interface DBAnalyticsMetric {
+  id: string;
+  metric_type: string;
+  content_type?: string;
+  content_id?: string;
+  user_id?: string;
+  meta_data: any;
+  created_at: string;
+}
+
+export async function fetchAnalyticsMetrics(
+  dateRangeDays = 30
+): Promise<{ data: DBAnalyticsMetric[]; error: Error | null }> {
+  const client = getSupabase();
+  if (!client) {
+    return { data: [], error: new Error('Supabase is not configured.') };
+  }
+
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - dateRangeDays);
+
+    const { data, error } = await client
+      .from('analytics_metrics')
+      .select('*')
+      .gte('created_at', cutoffDate.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return { data: data || [], error: null };
+  } catch (err: any) {
+    console.error('fetchAnalyticsMetrics error:', err);
+    return { data: [], error: err };
+  }
+}
+
+
 

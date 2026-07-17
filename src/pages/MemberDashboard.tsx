@@ -12,6 +12,13 @@ import { useTheme } from '../context/ThemeContext';
 import SEO from '../components/SEO';
 import { getSupabase } from '../lib/supabaseClient';
 import LeaderDashboardView from '../components/leader/LeaderDashboardView';
+import UserProfileModule from '../components/profile/UserProfileModule';
+import { 
+  getUserNotifications, 
+  markNotificationAsRead as apiMarkAsRead, 
+  markAllNotificationsAsRead as apiMarkAllAsRead,
+  getUnreadNotificationsCount as apiGetUnreadCount
+} from '../lib/supabase';
 
 // Types for the Member Dashboard Workspace
 interface SavedItem {
@@ -296,6 +303,11 @@ export default function MemberDashboard() {
   // Data States loaded from LocalStorage or Defaults
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifError, setNotifError] = useState<string | null>(null);
+  const [notifPage, setNotifPage] = useState(1);
+  const [notifTotalCount, setNotifTotalCount] = useState(0);
+  const notifPageSize = 5;
   const [communityUpdates, setCommunityUpdates] = useState<CommunityUpdateItem[]>([]);
   const [events, setEvents] = useState<HeritageEvent[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -466,6 +478,81 @@ export default function MemberDashboard() {
     if (storedNotifPrefs) setNotifPref(JSON.parse(storedNotifPrefs));
   }, []);
 
+  // Fetch dispatches/notifications directly from Supabase (or fallback safely)
+  const fetchDBNotifications = async (userId: string, pageNum: number) => {
+    setNotifLoading(true);
+    setNotifError(null);
+    try {
+      const offset = (pageNum - 1) * notifPageSize;
+      const { data, count, error } = await getUserNotifications(userId, notifPageSize, offset);
+      if (error) throw error;
+      
+      const mapped: NotificationItem[] = data.map((n) => {
+        let cat: 'article' | 'exhibition' | 'event' | 'announcement' | 'resource' | 'update' = 'announcement';
+        if (['article', 'exhibition', 'event', 'announcement', 'resource', 'update'].includes(n.type)) {
+          cat = n.type as any;
+        }
+        
+        let displayTime = 'Recent';
+        if (n.created_at) {
+          const date = new Date(n.created_at);
+          const diffMs = Date.now() - date.getTime();
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMins / 60);
+          const diffDays = Math.floor(diffHours / 24);
+          
+          if (diffMins < 60) {
+            displayTime = diffMins <= 1 ? 'Just now' : `${diffMins} mins ago`;
+          } else if (diffHours < 24) {
+            displayTime = diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+          } else {
+            displayTime = diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+          }
+        }
+
+        return {
+          id: n.id,
+          title: n.title,
+          body: n.message,
+          category: cat,
+          timestamp: displayTime,
+          isRead: n.is_read,
+          link: n.link
+        };
+      });
+
+      setNotifications(mapped);
+      setNotifTotalCount(count);
+    } catch (err: any) {
+      console.warn("Could not retrieve notifications from Supabase, using localStorage:", err);
+      setNotifError("Database connection is not fully configured. Using offline cached dispatches instead.");
+      
+      const storedNotifs = localStorage.getItem('bakenyi_notifications');
+      if (storedNotifs) {
+        try {
+          const parsed = JSON.parse(storedNotifs);
+          setNotifTotalCount(parsed.length);
+          const offset = (pageNum - 1) * notifPageSize;
+          setNotifications(parsed.slice(offset, offset + notifPageSize));
+        } catch {
+          setNotifications(DEFAULT_NOTIFICATIONS);
+          setNotifTotalCount(DEFAULT_NOTIFICATIONS.length);
+        }
+      } else {
+        setNotifications(DEFAULT_NOTIFICATIONS);
+        setNotifTotalCount(DEFAULT_NOTIFICATIONS.length);
+      }
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchDBNotifications(user.id, notifPage);
+    }
+  }, [user?.id, notifPage]);
+
   // Handle Search Input Suggested Results
   useEffect(() => {
     if (searchQuery.trim().length === 0) {
@@ -610,17 +697,52 @@ export default function MemberDashboard() {
   };
 
   // Notification management
-  const markNotificationRead = (id: string) => {
+  const markNotificationRead = async (id: string) => {
+    // Optimistic update
     const updated = notifications.map(n => n.id === id ? { ...n, isRead: true } : n);
     setNotifications(updated);
-    localStorage.setItem('bakenyi_notifications', JSON.stringify(updated));
+    
+    // Backup local state update
+    const storedNotifs = localStorage.getItem('bakenyi_notifications');
+    if (storedNotifs) {
+      try {
+        const parsed = JSON.parse(storedNotifs) as NotificationItem[];
+        const localUpdated = parsed.map(n => n.id === id ? { ...n, isRead: true } : n);
+        localStorage.setItem('bakenyi_notifications', JSON.stringify(localUpdated));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    if (user?.id) {
+      await apiMarkAsRead(id);
+    }
   };
 
-  const markAllNotificationsRead = () => {
+  const markAllNotificationsRead = async () => {
     const updated = notifications.map(n => ({ ...n, isRead: true }));
     setNotifications(updated);
-    localStorage.setItem('bakenyi_notifications', JSON.stringify(updated));
-    triggerToast('All dispatches marked as read.');
+
+    const storedNotifs = localStorage.getItem('bakenyi_notifications');
+    if (storedNotifs) {
+      try {
+        const parsed = JSON.parse(storedNotifs) as NotificationItem[];
+        const localUpdated = parsed.map(n => ({ ...n, isRead: true }));
+        localStorage.setItem('bakenyi_notifications', JSON.stringify(localUpdated));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    if (user?.id) {
+      const success = await apiMarkAllAsRead(user.id);
+      if (success) {
+        triggerToast('All dispatches marked as read.');
+        fetchDBNotifications(user.id, notifPage);
+      }
+    } else {
+      triggerToast('All dispatches marked as read.');
+    }
   };
 
   // Join / Subscribe to events
@@ -1801,7 +1923,7 @@ END:VCALENDAR`;
                   </p>
                 </div>
 
-                {notifications.some(n => !n.isRead) && (
+                {!notifLoading && notifications.some(n => !n.isRead) && (
                   <button
                     onClick={markAllNotificationsRead}
                     className="px-3 py-1.5 bg-heritage-terracotta/10 hover:bg-heritage-terracotta/20 text-heritage-terracotta text-xs font-bold rounded-lg transition-all cursor-pointer"
@@ -1811,19 +1933,39 @@ END:VCALENDAR`;
                 )}
               </div>
 
-              {notifications.length > 0 ? (
+              {notifError && (
+                <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center gap-2">
+                  <Info className="w-4 h-4 shrink-0" />
+                  <span>{notifError}</span>
+                </div>
+              )}
+
+              {notifLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="p-4 rounded-2xl border border-heritage-brown/5 dark:border-slate-800/60 bg-white dark:bg-slate-900 animate-pulse flex items-start gap-4">
+                      <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 shrink-0" />
+                      <div className="flex-1 space-y-2 py-1">
+                        <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-md w-1/4" />
+                        <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded-md w-3/4" />
+                        <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-md w-5/6" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : notifications.length > 0 ? (
                 <div className="space-y-4">
                   {notifications.map((notif) => (
                     <div 
                       key={notif.id}
-                      onClick={() => markNotificationRead(notif.id)}
+                      onClick={() => !notif.isRead && markNotificationRead(notif.id)}
                       className={`p-4 rounded-2xl border transition-all flex items-start gap-4 cursor-pointer relative ${
                         notif.isRead 
-                          ? 'bg-heritage-cream/10 border-heritage-brown/5 dark:bg-slate-900 dark:border-slate-800 opacity-70' 
-                          : 'bg-heritage-terracotta/5 border-heritage-terracotta/20 dark:bg-slate-950 dark:border-slate-800 shadow-sm'
+                          ? 'bg-heritage-cream/10 border-heritage-brown/5 dark:bg-slate-900 dark:border-slate-800/40 opacity-70' 
+                          : 'bg-heritage-terracotta/5 border-heritage-terracotta/25 dark:bg-slate-950 dark:border-slate-800/80 shadow-xs'
                       }`}
                     >
-                      <div className="p-2.5 bg-white dark:bg-slate-900 border border-heritage-brown/5 rounded-xl shrink-0">
+                      <div className="p-2.5 bg-white dark:bg-slate-900 border border-heritage-brown/5 dark:border-slate-800 rounded-xl shrink-0">
                         {notif.category === 'article' && <FileText className="w-4 h-4 text-heritage-terracotta" />}
                         {notif.category === 'event' && <Calendar className="w-4 h-4 text-heritage-olive" />}
                         {notif.category === 'announcement' && <Bell className="w-4 h-4 text-amber-500 animate-pulse" />}
@@ -1849,10 +1991,37 @@ END:VCALENDAR`;
                       </div>
 
                       {!notif.isRead && (
-                        <span className="w-2.5 h-2.5 bg-heritage-terracotta rounded-full shrink-0 mt-2.5 shadow-sm" title="Unread Dispatch" />
+                        <span className="w-2.5 h-2.5 bg-heritage-terracotta rounded-full shrink-0 mt-2.5 shadow-sm animate-ping" title="Unread Dispatch" />
                       )}
                     </div>
                   ))}
+
+                  {/* Pagination Controls */}
+                  {notifTotalCount > notifPageSize && (
+                    <div className="flex items-center justify-between border-t border-heritage-brown/10 dark:border-slate-800 pt-5 mt-6">
+                      <button
+                        onClick={() => setNotifPage(p => Math.max(p - 1, 1))}
+                        disabled={notifPage === 1 || notifLoading}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-heritage-cream/30 dark:bg-slate-800/80 hover:bg-heritage-cream/60 dark:hover:bg-slate-700/80 text-heritage-brown dark:text-white rounded-xl text-xs font-bold transition-all disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed border border-heritage-brown/5 dark:border-slate-750"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        <span>Previous</span>
+                      </button>
+                      
+                      <span className="text-xs text-heritage-brown/60 dark:text-slate-400 font-bold font-sans">
+                        Page {notifPage} of {Math.ceil(notifTotalCount / notifPageSize)}
+                      </span>
+                      
+                      <button
+                        onClick={() => setNotifPage(p => Math.min(p + 1, Math.ceil(notifTotalCount / notifPageSize)))}
+                        disabled={notifPage >= Math.ceil(notifTotalCount / notifPageSize) || notifLoading}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-heritage-cream/30 dark:bg-slate-800/80 hover:bg-heritage-cream/60 dark:hover:bg-slate-700/80 text-heritage-brown dark:text-white rounded-xl text-xs font-bold transition-all disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed border border-heritage-brown/5 dark:border-slate-750"
+                      >
+                        <span>Next</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-center py-12 text-xs text-heritage-brown/40 dark:text-slate-500 font-semibold italic">
@@ -1864,189 +2033,7 @@ END:VCALENDAR`;
 
           {/* TAB 5: Profile - Consumer Access Panel */}
           {activeTab === 'profile' && (
-            <div className="bg-white dark:bg-slate-900 border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-6 shadow-sm animate-fade-in">
-              <div className="border-b border-heritage-brown/10 dark:border-slate-800 pb-5 mb-8">
-                <h2 className="text-xl font-serif font-black text-heritage-brown dark:text-white">
-                  Manage Account profile
-                </h2>
-                <p className="text-xs text-heritage-brown/60 dark:text-slate-400 mt-1 font-semibold">
-                  Update your display metadata, dialect preferences, and notification channels.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-                
-                {/* Left profile picture preview */}
-                <div className="md:col-span-4 bg-heritage-brown/5 dark:bg-slate-950 p-6 rounded-2xl border border-heritage-brown/5 flex flex-col items-center text-center">
-                  <div className="relative">
-                    <img 
-                      src={profileAvatar} 
-                      alt={profileName}
-                      className="w-24 h-24 rounded-full object-cover border-4 border-heritage-terracotta shadow-md"
-                    />
-                    <div className="absolute bottom-0 right-0 bg-heritage-brown text-white p-1.5 rounded-full shadow-lg" title="Registered Role: Consumer">
-                      <Shield className="w-4 h-4 text-heritage-sand" />
-                    </div>
-                  </div>
-                  <h3 className="font-serif font-black text-base text-heritage-brown dark:text-white mt-4">
-                    {profileName}
-                  </h3>
-                  <span className="text-[10px] font-black uppercase text-heritage-terracotta tracking-widest mt-1">
-                    Registered Heritage Consumer
-                  </span>
-                  <p className="text-[11px] text-heritage-brown/50 dark:text-slate-400 mt-3 font-semibold max-w-xs leading-relaxed">
-                    Under standard security compliance, consumers cannot publish articles, alter database entries, or upload assets.
-                  </p>
-
-                  <div className="mt-5 pt-4 border-t border-heritage-brown/5 w-full">
-                    <span className="text-[9px] font-black uppercase text-heritage-brown/40 block mb-2 text-left">Select Avatar Preset:</span>
-                    <div className="flex gap-2 justify-center">
-                      {[
-                        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-                        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
-                        'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&q=80&w=200'
-                      ].map((preset, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            setProfileAvatar(preset);
-                            localStorage.setItem('bakenyi_profile_avatar', preset);
-                            triggerToast('Avatar preset updated.');
-                          }}
-                          className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all cursor-pointer ${
-                            profileAvatar === preset ? 'border-heritage-terracotta scale-105 shadow-md' : 'border-transparent'
-                          }`}
-                        >
-                          <img src={preset} className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right metadata profile input forms */}
-                <div className="md:col-span-8 space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-heritage-brown dark:text-slate-300 block mb-2">
-                        Display Nickname
-                      </label>
-                      <input 
-                        type="text"
-                        value={profileName}
-                        onChange={(e) => setProfileName(e.target.value)}
-                        className="w-full bg-heritage-cream dark:bg-slate-950 border border-heritage-brown/10 dark:border-slate-800 rounded-xl px-4 py-3 text-xs text-heritage-brown dark:text-white font-extrabold focus:outline-none focus:border-heritage-terracotta"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-heritage-brown dark:text-slate-300 block mb-2">
-                        Compliance Email
-                      </label>
-                      <input 
-                        type="text"
-                        value={user?.email || 'learner@bakenyi.org'}
-                        disabled
-                        className="w-full bg-heritage-brown/5 dark:bg-slate-950/40 border border-heritage-brown/10 dark:border-slate-800 rounded-xl px-4 py-3 text-xs text-heritage-brown/50 dark:text-slate-500 font-bold cursor-not-allowed"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-heritage-brown dark:text-slate-300 block mb-2">
-                        Preferred Dialect Branch
-                      </label>
-                      <select
-                        value={preferredDialect}
-                        onChange={(e) => setPreferredDialect(e.target.value)}
-                        className="w-full bg-heritage-cream dark:bg-slate-950 border border-heritage-brown/10 dark:border-slate-800 rounded-xl px-4 py-3 text-xs text-heritage-brown dark:text-white font-extrabold focus:outline-none focus:border-heritage-terracotta cursor-pointer"
-                      >
-                        <option value="Lukenye Standard">Lukenye Standard (Central Preserves)</option>
-                        <option value="Riverine Kyoga Dialect">Riverine Kyoga Dialect (Regional Branch)</option>
-                        <option value="Riparian Marshlands Dialect">Riparian Marshlands Dialect</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-heritage-brown dark:text-slate-300 block mb-2">
-                        Account Security Status
-                      </label>
-                      <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-xl text-[11px] text-emerald-800 dark:text-emerald-300 font-bold">
-                        <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                        <span>Secure (Supabase RLS active)</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Notification switches */}
-                  <div className="bg-heritage-brown/5 dark:bg-slate-950 p-5 rounded-2xl border border-heritage-brown/5">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-heritage-brown dark:text-heritage-sand mb-4">
-                      Direct Dispatch Alerts Preferences
-                    </h3>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {[
-                        { key: 'articles', label: 'New Heritage Articles' },
-                        { key: 'exhibitions', label: 'New Virtual Exhibitions' },
-                        { key: 'events', label: 'Upcoming Assembly Events' },
-                        { key: 'announcements', label: 'Council Announcements' }
-                      ].map((item) => (
-                        <label key={item.key} className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 border border-heritage-brown/5 dark:border-slate-800/60 rounded-xl cursor-pointer">
-                          <span className="text-[11px] font-bold text-heritage-brown dark:text-slate-300">{item.label}</span>
-                          <input 
-                            type="checkbox"
-                            checked={notifPref[item.key as keyof typeof notifPref] as boolean}
-                            onChange={(e) => updateNotifPref(item.key as keyof typeof notifPref, e.target.checked)}
-                            className="accent-heritage-terracotta cursor-pointer"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Privacy settings */}
-                  <div className="bg-heritage-brown/5 dark:bg-slate-950 p-5 rounded-2xl border border-heritage-brown/5">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-heritage-brown dark:text-heritage-sand mb-2">
-                      Governance & Privacy Settings
-                    </h3>
-                    <p className="text-[11px] text-heritage-brown/50 dark:text-slate-400 mb-4 leading-normal font-semibold">
-                      Your activity bookmarks and saved dictionary cards remain isolated in client-side secure sandbox profiles. Traditional boards do not log private searches.
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <button
-                        onClick={() => {
-                          const updated = {
-                            articles: true,
-                            exhibitions: true,
-                            events: true,
-                            announcements: true,
-                            resources: true,
-                            updates: false,
-                            email: true,
-                            push: false
-                          };
-                          setNotifPref(updated);
-                          localStorage.setItem('bakenyi_profile_notif_prefs', JSON.stringify(updated));
-                          triggerToast('Privacy preferences reset to defaults.');
-                        }}
-                        className="px-4 py-2 bg-heritage-brown/10 hover:bg-heritage-brown text-heritage-brown hover:text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                      >
-                        Reset Privacy Defaults
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-heritage-brown/15 dark:border-slate-800 flex justify-end">
-                    <button
-                      onClick={() => saveProfileSettings(profileName, preferredDialect)}
-                      className="px-6 py-3 bg-heritage-terracotta hover:bg-heritage-brown text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-md active:scale-95"
-                    >
-                      Save Profile & Preferences
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-            </div>
+            <UserProfileModule user={user} />
           )}
 
           {/* TAB 6: Settings & Accessibility Controls */}

@@ -1,13 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Menu, X, Globe, Search, Shield, User, Clock, BookOpen, Volume2, 
   ArrowRight, Sun, Moon, SlidersHorizontal, ChevronDown, LogOut, 
-  LayoutDashboard, LogIn, FileText, Users, PenTool, Smartphone, Download 
+  LayoutDashboard, LogIn, FileText, Users, PenTool, Smartphone, Download,
+  Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getSupabase, checkIsAdmin } from '../../lib/supabaseClient';
 import { useTheme } from '../../context/ThemeContext';
+import { searchGlobal, GlobalSearchResult } from '../../lib/globalSearch';
 
 const heritageItems = [
   { 
@@ -77,7 +79,10 @@ export default function Navbar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [searchDatabase, setSearchDatabase] = useState<any[]>([]);
+  const [searchDatabase, setSearchDatabase] = useState<GlobalSearchResult[]>([]);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   
   // PWA Install Banner states
   const [showInstallBanner, setShowInstallBanner] = useState(false);
@@ -207,67 +212,6 @@ export default function Navbar() {
   useEffect(() => {
     if (isSearchOpen) {
       document.body.style.overflow = 'hidden';
-      
-      // Load search database dynamically
-      async function loadSearchData() {
-        const client = getSupabase();
-        if (!client) return;
-        
-        const items: any[] = [];
-        try {
-          const { data } = await client.from('articles').select('id, title, summary, content');
-          if (data) {
-            data.forEach((row: any) => {
-              items.push({
-                id: `article-${row.id}`,
-                category: 'Article',
-                title: row.title,
-                subtitle: row.summary || 'Heritage Article',
-                description: row.content || '',
-                targetPath: `/articles/${row.id}`
-              });
-            });
-          }
-        } catch (e) {}
-
-        try {
-          const { data } = await client.from('clans').select('*');
-          if (data) {
-            data.forEach((row: any) => {
-              items.push({
-                id: `clan-${row.id || row.name}`,
-                category: 'Clan',
-                title: row.name,
-                subtitle: row.totem || '',
-                description: row.desc || row.motto || '',
-                targetPath: `/clans?q=${row.name}`
-              });
-            });
-          }
-        } catch (e) {}
-
-        try {
-          const { data } = await client.from('leaders').select('*');
-          if (data) {
-            data.forEach((row: any) => {
-              items.push({
-                id: `leader-${row.id || row.name}`,
-                category: 'Leader',
-                title: row.name,
-                subtitle: row.role || '',
-                description: row.bio || row.expertise || '',
-                targetPath: `/leadership?q=${row.name}`
-              });
-            });
-          }
-        } catch (e) {}
-
-        setSearchDatabase(items);
-      }
-      
-      if (searchDatabase.length === 0) {
-        loadSearchData();
-      }
     } else {
       document.body.style.overflow = 'unset';
       setSelectedCategory('All');
@@ -277,17 +221,39 @@ export default function Navbar() {
     };
   }, [isSearchOpen]);
 
-  const rawFilteredResults = searchQuery.trim() === '' 
-    ? [] 
-    : searchDatabase.filter(item => 
-        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
+  // Live query execution
+  useEffect(() => {
+    if (debouncedQuery.trim() === '') {
+      setSearchDatabase([]);
+      return;
+    }
+    let isMounted = true;
+    async function loadResults() {
+      setLoading(true);
+      const data = await searchGlobal(debouncedQuery);
+      if (isMounted) {
+        setSearchDatabase(data);
+        setLoading(false);
+      }
+    }
+    loadResults();
+    return () => {
+      isMounted = false;
+    };
+  }, [debouncedQuery]);
+
+  // Filter raw results in-memory if category filter pill is clicked
   const filteredResults = selectedCategory === 'All'
-    ? rawFilteredResults
-    : rawFilteredResults.filter(item => item.category === selectedCategory);
+    ? searchDatabase
+    : searchDatabase.filter(item => item.category === selectedCategory);
 
   const popularSearches = [
     { title: "BaiseMugosa Clan", path: "/clans?q=BaiseMugosa" },
@@ -299,16 +265,22 @@ export default function Navbar() {
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'Clan':
-        return <Shield className="w-5 h-5 text-heritage-terracotta" />;
-      case 'Leader':
-        return <User className="w-5 h-5 text-heritage-olive" />;
-      case 'History Timeline':
-        return <Clock className="w-5 h-5 text-amber-600" />;
+      case 'Clans':
+        return <Shield className="w-4 h-4 text-blue-600" />;
+      case 'Leaders':
+        return <User className="w-4 h-4 text-emerald-600" />;
+      case 'Timeline':
+        return <Clock className="w-4 h-4 text-amber-600" />;
       case 'Oral History':
-        return <Volume2 className="w-5 h-5 text-heritage-terracotta animate-pulse" />;
+        return <Volume2 className="w-4 h-4 text-purple-600 animate-pulse" />;
+      case 'News':
+        return <FileText className="w-4 h-4 text-sky-600" />;
+      case 'Events':
+        return <Calendar className="w-4 h-4 text-indigo-600" />;
+      case 'Vocabulary':
+        return <Globe className="w-4 h-4 text-teal-600" />;
       default:
-        return <BookOpen className="w-5 h-5 text-heritage-brown/60" />;
+        return <BookOpen className="w-4 h-4 text-rose-600" />;
     }
   };
 
@@ -316,6 +288,30 @@ export default function Navbar() {
     navigate(path);
     setIsSearchOpen(false);
     setSearchQuery('');
+  };
+
+  // Keyboard navigability in navbar search overlay
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [searchDatabase, selectedCategory]);
+
+  const handleModalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (filteredResults.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev + 1) % filteredResults.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev - 1 + filteredResults.length) % filteredResults.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < filteredResults.length) {
+        handleItemClick(filteredResults[activeIndex].targetPath);
+      } else if (filteredResults.length > 0) {
+        handleItemClick(filteredResults[0].targetPath);
+      }
+    }
   };
 
   return (
@@ -562,18 +558,22 @@ export default function Navbar() {
 
               {/* Action Utilities Group */}
               <div className="flex items-center space-x-2 pl-4 border-l border-heritage-brown/10">
-                {/* Desktop Search Trigger */}
-                <button 
-                  onClick={() => setIsSearchOpen(true)}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-heritage-brown/5 hover:bg-heritage-brown/10 rounded-full border border-heritage-brown/10 text-heritage-brown/50 hover:text-heritage-brown/80 transition-all text-xs font-semibold cursor-pointer shrink-0"
-                  title="Search (Cmd+K)"
-                >
-                  <Search className="w-3.5 h-3.5 text-heritage-brown/50" />
-                  <span className="hidden lg:inline">Search...</span>
-                  <kbd className="hidden lg:flex items-center gap-0.5 bg-heritage-brown/10 text-[9px] font-mono px-1.5 py-0.5 rounded text-heritage-brown/60 border border-heritage-brown/5 select-none leading-none">
-                    ⌘K
-                  </kbd>
-                </button>
+                {/* Desktop Search Bar in Header */}
+                <div className="relative hidden md:flex items-center shrink-0">
+                  <Search className="absolute left-3 w-3.5 h-3.5 text-heritage-brown/40" />
+                  <input
+                    type="text"
+                    placeholder="Search archives... (⌘K)"
+                    onClick={() => setIsSearchOpen(true)}
+                    className="pl-8.5 pr-4 py-1.5 bg-heritage-brown/5 hover:bg-heritage-brown/10 focus:bg-white rounded-full border border-heritage-brown/10 focus:border-heritage-terracotta focus:outline-none text-xs font-semibold text-heritage-brown placeholder-heritage-brown/40 transition-all w-36 lg:w-48 focus:w-56 cursor-pointer"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setIsSearchOpen(true);
+                    }}
+                    onFocus={() => setIsSearchOpen(true)}
+                  />
+                </div>
 
                 {/* Theme Switcher */}
                 <button
@@ -894,12 +894,14 @@ export default function Navbar() {
                   placeholder="Search clans, leaders, oral histories..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleModalKeyDown}
                   className="w-full bg-white/50 border border-heritage-brown/10 rounded-2xl pl-12 pr-12 py-4 text-base text-heritage-brown placeholder-heritage-brown/40 focus:bg-white focus:border-heritage-terracotta focus:outline-none transition-all font-medium"
                   autoFocus
                 />
                 <button 
                   onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }}
-                  className="absolute right-10 top-1/2 -translate-y-1/2 text-heritage-brown/40 hover:text-heritage-brown hover:scale-105 active:scale-95 transition-all p-1"
+                  className="absolute right-10 top-1/2 -translate-y-1/2 text-heritage-brown/40 hover:text-heritage-brown hover:scale-105 active:scale-95 transition-all p-1 cursor-pointer"
+                  title="Close search"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -910,16 +912,19 @@ export default function Navbar() {
                 <div className="px-6 py-3 border-b border-heritage-brown/10 bg-heritage-brown/5 flex gap-2 overflow-x-auto scrollbar-none shrink-0 select-none">
                   {[
                     { label: 'All', value: 'All' },
-                    { label: 'Clans', value: 'Clan' },
-                    { label: 'Leaders', value: 'Leader' },
-                    { label: 'Timeline', value: 'History Timeline' },
-                    { label: 'Oral', value: 'Oral History' },
-                    { label: 'Articles', value: 'Article' }
+                    { label: 'Articles', value: 'Heritage Articles' },
+                    { label: 'News', value: 'News' },
+                    { label: 'Events', value: 'Events' },
+                    { label: 'Clans', value: 'Clans' },
+                    { label: 'Leaders', value: 'Leaders' },
+                    { label: 'Oral Track', value: 'Oral History' },
+                    { label: 'Timeline', value: 'Timeline' },
+                    { label: 'Vocab', value: 'Vocabulary' }
                   ].map((cat) => {
                     const isSelected = selectedCategory === cat.value;
                     const count = cat.value === 'All'
-                      ? rawFilteredResults.length
-                      : rawFilteredResults.filter(item => item.category === cat.value).length;
+                      ? searchDatabase.length
+                      : searchDatabase.filter(item => item.category === cat.value).length;
 
                     return (
                       <button
@@ -947,20 +952,25 @@ export default function Navbar() {
               {/* Content area */}
               <div className="p-6 max-h-[380px] overflow-y-auto scrollbar-thin scrollbar-thumb-heritage-brown/10">
                 {searchQuery.trim() === '' ? (
-                  <div className="space-y-4">
+                  <div className="space-y-4 text-left">
                     <h3 className="text-xs font-black uppercase tracking-widest text-heritage-brown/40">Popular Searches</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {popularSearches.map((item, index) => (
                         <button
                           key={index}
                           onClick={() => handleItemClick(item.path)}
-                          className="flex items-center justify-between p-3.5 bg-white/50 hover:bg-white rounded-xl text-left border border-heritage-brown/5 text-sm text-heritage-brown hover:text-heritage-terracotta font-semibold hover:shadow-sm transition-all group animate-fade-in"
+                          className="flex items-center justify-between p-3.5 bg-white/50 hover:bg-white rounded-xl text-left border border-heritage-brown/5 text-sm text-heritage-brown hover:text-heritage-terracotta font-semibold hover:shadow-sm transition-all group cursor-pointer animate-fade-in"
                         >
                           <span>{item.title}</span>
                           <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-heritage-terracotta" />
                         </button>
                       ))}
                     </div>
+                  </div>
+                ) : loading ? (
+                  <div className="py-10 text-center flex flex-col items-center justify-center">
+                    <div className="w-8 h-8 rounded-full border-2 border-heritage-terracotta/20 border-t-heritage-terracotta animate-spin mb-3" />
+                    <p className="text-xs font-bold text-heritage-brown/50 uppercase tracking-wider animate-pulse">Querying archives...</p>
                   </div>
                 ) : filteredResults.length > 0 ? (
                   <div className="space-y-3">
@@ -974,37 +984,50 @@ export default function Navbar() {
                           navigate(`/search?q=${encodeURIComponent(searchQuery)}&category=${encodeURIComponent(selectedCategory)}`);
                           setSearchQuery('');
                         }}
-                        className="text-xs text-heritage-terracotta font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                        className="text-xs text-heritage-terracotta font-bold hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-none"
                       >
                         Advanced search <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>
-                    {filteredResults.map((item) => (
-                      <div 
-                        key={item.id}
-                        onClick={() => handleItemClick(item.targetPath)}
-                        className="flex items-start gap-4 p-4 bg-white hover:bg-heritage-terracotta/5 border border-heritage-brown/5 hover:border-heritage-terracotta/20 rounded-2xl cursor-pointer transition-all duration-200 group"
-                      >
-                        <div className="p-3 bg-heritage-cream rounded-xl group-hover:bg-white transition-colors shrink-0">
-                          {getCategoryIcon(item.category)}
-                        </div>
-                        <div className="flex-grow min-w-0">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-heritage-cream border border-heritage-brown/5 text-heritage-brown/60">
-                              {item.category}
-                            </span>
+                    {filteredResults.map((item, index) => {
+                      const isKeyboardSelected = index === activeIndex;
+                      return (
+                        <div 
+                          key={item.id}
+                          onClick={() => handleItemClick(item.targetPath)}
+                          className={`flex items-start gap-4 p-4 border rounded-2xl cursor-pointer transition-all duration-200 group ${
+                            isKeyboardSelected
+                              ? 'bg-heritage-terracotta/5 border-heritage-terracotta shadow-md'
+                              : 'bg-white hover:bg-heritage-terracotta/5 border-heritage-brown/5 hover:border-heritage-terracotta/20'
+                          }`}
+                        >
+                          <div className={`p-3 rounded-xl transition-colors shrink-0 ${
+                            isKeyboardSelected ? 'bg-white' : 'bg-heritage-cream group-hover:bg-white'
+                          }`}>
+                            {getCategoryIcon(item.category)}
                           </div>
-                          <h4 className="text-base font-serif font-bold text-heritage-brown group-hover:text-heritage-terracotta transition-colors">
-                            {item.title}
-                          </h4>
-                          <p className="text-xs font-semibold text-heritage-brown/80 mt-0.5">{item.subtitle}</p>
-                          <p className="text-xs text-heritage-brown/50 mt-1 leading-relaxed line-clamp-2">{item.description}</p>
+                          <div className="flex-grow min-w-0 text-left">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-heritage-cream border border-heritage-brown/5 text-heritage-brown/60">
+                                {item.category}
+                              </span>
+                            </div>
+                            <h4 className="text-base font-serif font-bold text-heritage-brown group-hover:text-heritage-terracotta transition-colors">
+                              <HighlightText text={item.title} highlight={searchQuery} />
+                            </h4>
+                            <p className="text-xs font-semibold text-heritage-brown/80 mt-0.5">
+                              <HighlightText text={item.subtitle} highlight={searchQuery} />
+                            </p>
+                            <p className="text-xs text-heritage-brown/50 mt-1 leading-relaxed line-clamp-2">
+                              <HighlightText text={item.description} highlight={searchQuery} />
+                            </p>
+                          </div>
+                          <div className="self-center opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-heritage-terracotta shrink-0">
+                            <ArrowRight className="w-4 h-4" />
+                          </div>
                         </div>
-                        <div className="self-center opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-heritage-terracotta shrink-0">
-                          <ArrowRight className="w-4 h-4" />
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     <div className="pt-2">
                       <button 
@@ -1013,37 +1036,25 @@ export default function Navbar() {
                           navigate(`/search?q=${encodeURIComponent(searchQuery)}&category=${encodeURIComponent(selectedCategory)}`);
                           setSearchQuery('');
                         }}
-                        className="w-full py-3.5 bg-heritage-brown hover:bg-heritage-brown/95 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm hover:shadow flex items-center justify-center gap-2"
+                        className="w-full py-3.5 bg-heritage-brown hover:bg-heritage-brown/95 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm hover:shadow flex items-center justify-center gap-2 border-none"
                       >
                         <span>View All results on full-screen Search Page</span>
                         <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
-                ) : rawFilteredResults.length > 0 ? (
-                  <div className="text-center py-10">
-                    <SlidersHorizontal className="w-10 h-10 text-heritage-brown/20 mx-auto mb-3" />
-                    <p className="text-heritage-brown font-semibold">No results in category "{selectedCategory}"</p>
-                    <p className="text-xs text-heritage-brown/40 mt-1 mb-4">But we found {rawFilteredResults.length} matching items in other categories!</p>
-                    <button 
-                      onClick={() => setSelectedCategory('All')}
-                      className="px-4 py-2 bg-heritage-brown text-white hover:bg-heritage-brown/90 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                    >
-                      Show All Categories
-                    </button>
-                  </div>
                 ) : (
                   <div className="text-center py-10">
                     <Search className="w-10 h-10 text-heritage-brown/20 mx-auto mb-3 animate-bounce" />
-                    <p className="text-heritage-brown font-semibold">No results found matching "{searchQuery}"</p>
-                    <p className="text-xs text-heritage-brown/40 mt-1">Try searching for generic terms like "Baise", "elder", or "Kyoga".</p>
+                    <p className="text-heritage-brown font-semibold text-left sm:text-center">No results found matching "{searchQuery}"</p>
+                    <p className="text-xs text-heritage-brown/40 mt-1 text-left sm:text-center">Try searching for generic terms like "Baise", "elder", or "Kyoga".</p>
                   </div>
                 )}
               </div>
 
               {/* Footer */}
               <div className="bg-heritage-brown/5 px-6 py-4 border-t border-heritage-brown/5 text-[10px] text-heritage-brown/40 font-bold uppercase tracking-widest flex justify-between items-center shrink-0">
-                <span>Esc to Close</span>
+                <span>Esc to Close • Arrow keys + Enter to Navigate</span>
                 <span>Bakenyi Heritage Platform</span>
               </div>
             </motion.div>
@@ -1052,4 +1063,27 @@ export default function Navbar() {
       </AnimatePresence>
     </>
   );
+}
+
+// Text Highlight component for matching queries
+function HighlightText({ text, highlight }: { text: string; highlight: string }) {
+  if (!highlight.trim()) return <span>{text}</span>;
+  const parts = text.split(new RegExp(`(${escapeRegExp(highlight)})`, 'gi'));
+  return (
+    <span>
+      {parts.map((part, i) => 
+        part.toLowerCase() === highlight.toLowerCase() ? (
+          <mark key={i} className="bg-amber-200 text-heritage-brown px-0.5 rounded font-bold">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </span>
+  );
+}
+
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
