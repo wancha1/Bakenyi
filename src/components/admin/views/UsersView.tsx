@@ -36,7 +36,7 @@ import {
 import { logAdminActivity } from '../../../lib/operations';
 import DangerAction, { DangerActionType, DangerLevel } from '../../DangerAction';
 
-export default function UsersView() {
+export default function UsersView({ currentUserRoleProp, currentUserEmailProp }: { currentUserRoleProp?: any; currentUserEmailProp?: string }) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState('');
@@ -103,6 +103,12 @@ export default function UsersView() {
   }, [users, search, roleFilter, statusFilter]);
 
   async function loadCurrentUserRole() {
+    if (currentUserRoleProp) {
+      setCurrentUserRole(currentUserRoleProp);
+      setCurrentUserEmail(currentUserEmailProp || '');
+      setIsAuthLoading(false);
+      return;
+    }
     setIsAuthLoading(true);
     try {
       const client = getSupabase();

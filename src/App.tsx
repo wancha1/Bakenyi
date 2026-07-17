@@ -208,71 +208,22 @@ function PublicLoginRoute({
 /**
  * Secured Dashboard Panel component.
  */
-function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
+function DashboardApp({ user, userRole, onLogout }: { user: any; userRole: any; onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [userRole, setUserRole] = useState<'super_admin' | 'admin' | 'historian' | 'community_leader' | 'reporter' | 'member' | 'public' | 'staff' | 'customer'>('public');
-  const [roleLoading, setRoleLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchRole() {
-      if (!user) return;
-      try {
-        const client = getSupabase();
-        let rawRole = 'customer';
-        if (client) {
-          const { data, error } = await client
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .maybeSingle();
-          if (!error && data?.role) {
-            rawRole = data.role;
-          } else {
-            rawRole = user.app_metadata?.role || 'customer';
-          }
-        } else {
-          rawRole = user.app_metadata?.role || 'customer';
-        }
-        
-        const email = user.email?.toLowerCase() || '';
-        if (rawRole === 'super_admin' || email === 'wanchaaaron@gmail.com' || email === 'aaronwancha@gmail.com' || email === 'superadmin@bakenye.com') {
-          setUserRole('super_admin');
-        } else if (rawRole === 'admin' || email === 'admin@bakenye.com' || email === 'admin@bakenyi.org') {
-          setUserRole('admin');
-        } else if (rawRole === 'historian') {
-          setUserRole('historian');
-        } else if (rawRole === 'community_leader') {
-          setUserRole('community_leader');
-        } else if (rawRole === 'staff' || rawRole === 'reporter' || email.includes('staff') || email.includes('reporter')) {
-          setUserRole('reporter');
-        } else if (rawRole === 'member') {
-          setUserRole('member');
-        } else {
-          setUserRole('public');
-        }
-      } catch (e) {
-        console.error('Failed to resolve role in DashboardApp:', e);
-        setUserRole('public');
-      } finally {
-        setRoleLoading(false);
-      }
-    }
-    fetchRole();
-  }, [user]);
+  const resolvedRole = userRole || 'public';
 
   // Handle reporter or historian members attempting to load restricted tabs
   useEffect(() => {
-    if (!roleLoading) {
-      const isRestricted = userRole === 'reporter' || userRole === 'historian';
-      if (isRestricted && !['dashboard', 'content', 'media'].includes(activeTab)) {
-        setActiveTab('dashboard');
-      }
+    const isRestricted = resolvedRole === 'reporter' || resolvedRole === 'historian';
+    if (isRestricted && !['dashboard', 'content', 'media'].includes(activeTab)) {
+      setActiveTab('dashboard');
     }
-  }, [activeTab, userRole, roleLoading]);
+  }, [activeTab, resolvedRole]);
 
-  if (roleLoading) {
+  if (!userRole) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col justify-center items-center">
         <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
@@ -283,21 +234,21 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
 
   // Render view by tab ID
   const renderView = () => {
-    const isRestricted = userRole === 'reporter' || userRole === 'historian';
+    const isRestricted = resolvedRole === 'reporter' || resolvedRole === 'historian';
     // Reporter/Historian role restriction guard
     if (isRestricted && !['dashboard', 'content', 'media'].includes(activeTab)) {
-      return <DashboardView onNavigate={(tab) => setActiveTab(tab)} user={user} userRole={userRole} />;
+      return <DashboardView onNavigate={(tab) => setActiveTab(tab)} user={user} userRole={resolvedRole} />;
     }
 
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardView onNavigate={(tab) => setActiveTab(tab)} user={user} userRole={userRole} />;
+        return <DashboardView onNavigate={(tab) => setActiveTab(tab)} user={user} userRole={resolvedRole} />;
       case 'users':
-        return <UsersView />;
+        return <UsersView currentUserRoleProp={resolvedRole} currentUserEmailProp={user?.email} />;
       case 'roles':
-        return <RolesView />;
+        return <RolesView currentUserRoleProp={resolvedRole} currentUserEmailProp={user?.email} />;
       case 'content':
-        return <ContentView userRole={userRole} />;
+        return <ContentView userRole={resolvedRole} />;
       case 'media':
         return <MediaView />;
       case 'reports':
@@ -309,7 +260,7 @@ function DashboardApp({ user, onLogout }: { user: any; onLogout: () => void }) {
       case 'system_health':
         return <SystemHealthView />;
       default:
-        return <DashboardView onNavigate={(tab) => setActiveTab(tab)} user={user} userRole={userRole} />;
+        return <DashboardView onNavigate={(tab) => setActiveTab(tab)} user={user} userRole={resolvedRole} />;
     }
   };
 
@@ -511,7 +462,7 @@ export default function App() {
                       <span className="text-xs text-slate-400 dark:text-slate-500 mt-3 font-semibold uppercase tracking-wider">Opening sanctuary...</span>
                     </div>
                   }>
-                    <DashboardApp user={user} onLogout={handleLogout} />
+                    <DashboardApp user={user} userRole={appUserRole} onLogout={handleLogout} />
                   </Suspense>
                 </ProtectedAdminRoute>
               } 
