@@ -262,8 +262,7 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
   }
 
   try {
-    const dbRecord = {
-      id: generatedId,
+    const dbRecord: any = {
       title: article.title,
       slug: generatedId,
       content: article.content || '',
@@ -274,8 +273,28 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
       updated_at: new Date().toISOString()
     };
 
+    // Auto-resolve logged-in user for created_by field
+    try {
+      const { data: userData } = await client.auth.getUser();
+      if (userData?.user?.id) {
+        dbRecord.created_by = userData.user.id;
+      }
+    } catch (userErr) {
+      console.warn('Could not retrieve user ID for created_by field:', userErr);
+    }
+
     // Try inserting into heritage_articles first
-    let { error } = await client.from('heritage_articles').insert(dbRecord);
+    let { data: insertedData, error } = await client
+      .from('heritage_articles')
+      .insert(dbRecord)
+      .select('id')
+      .maybeSingle();
+
+    let assignedId = generatedId;
+    if (insertedData?.id) {
+      assignedId = insertedData.id;
+    }
+
     if (error) {
       // Fallback to legacy articles table
       const fallbackRes = await client.from('articles').insert({
@@ -291,7 +310,13 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
       error = fallbackRes.error;
       if (error) throw error;
     }
-    return { data: newArticle, error: null };
+
+    const savedArticle: Article = {
+      ...newArticle,
+      id: assignedId
+    };
+
+    return { data: savedArticle, error: null };
   } catch (err: any) {
     console.warn('Supabase create article failed, but article has been saved to offline/localStorage cache successfully.', err);
     return { data: newArticle, error: null };

@@ -31,7 +31,11 @@ import { getArticles, createArticle, updateArticle, deleteArticle, uploadMedia, 
 import { logAdminActivity } from '../../lib/operations';
 import DangerAction, { DangerActionType, DangerLevel } from '../DangerAction';
 
-export default function ArticlesManager() {
+interface ArticlesManagerProps {
+  userRole?: string;
+}
+
+export default function ArticlesManager({ userRole = 'admin' }: ArticlesManagerProps) {
   // State
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +59,14 @@ export default function ArticlesManager() {
   
   // Simulated Role Switch for testing workflows
   const [simulatedRole, setSimulatedRole] = useState<'admin' | 'staff'>('admin');
+
+  useEffect(() => {
+    if (userRole === 'historian' || userRole === 'reporter' || userRole === 'staff') {
+      setSimulatedRole('staff');
+    } else {
+      setSimulatedRole('admin');
+    }
+  }, [userRole]);
   
   // Editor State
   const [isEditing, setIsEditing] = useState(false);

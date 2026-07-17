@@ -991,7 +991,32 @@ export async function updateRegistryItemStatus(recordId: string, status: string,
       return false;
     }
 
-    const updatePayload: any = { status };
+    let targetStatus = status;
+    const table = registryItem.table_name;
+    
+    if (['community_highlights', 'notices'].includes(table)) {
+      // These tables natively support the full standard status set
+      targetStatus = status;
+    } else if (table === 'heritage_articles') {
+      if (status === 'submitted' || status === 'under_review') targetStatus = 'pending';
+      else if (status === 'needs_revision') targetStatus = 'rejected';
+      else if (status === 'approved') targetStatus = 'approved';
+      else if (status === 'published') targetStatus = 'published';
+      else if (status === 'archived') targetStatus = 'archived';
+      else if (status === 'draft') targetStatus = 'draft';
+    } else if (table === 'news') {
+      if (status === 'submitted' || status === 'under_review') targetStatus = 'pending';
+      else if (status === 'needs_revision') targetStatus = 'draft';
+      else if (status === 'approved' || status === 'published') targetStatus = 'published';
+      else if (status === 'archived') targetStatus = 'archived';
+      else if (status === 'draft') targetStatus = 'draft';
+    } else if (['events', 'announcements', 'clans', 'leaders', 'vocabulary'].includes(table)) {
+      if (status === 'submitted' || status === 'under_review') targetStatus = 'pending';
+      else if (status === 'needs_revision') targetStatus = 'rejected';
+      else if (status === 'approved' || status === 'published') targetStatus = 'approved';
+    }
+
+    const updatePayload: any = { status: targetStatus };
     if (approvedBy) {
       updatePayload.approved_by = approvedBy;
       updatePayload.approved_at = new Date().toISOString();
@@ -1011,6 +1036,129 @@ export async function updateRegistryItemStatus(recordId: string, status: string,
     console.error('Failed to update registry item status on Supabase:', err);
     return false;
   }
+}
+
+// ==========================================
+// SOURCE CONTENT RETRIEVAL SERVICE
+// ==========================================
+
+export async function getSourceTableContent(tableName: string, recordId: string): Promise<any | null> {
+  const client = getSupabase();
+  if (!client) return null;
+  try {
+    const { data, error } = await client
+      .from(tableName)
+      .select('*')
+      .eq('id', recordId)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error(`Failed to fetch source table content from ${tableName} for record ${recordId}:`, err);
+    return null;
+  }
+}
+
+// ==========================================
+// UNIFIED MODERATION & REVISIONS TIMELINE SERVICE
+// ==========================================
+
+export async function getUnifiedModerationHistory(recordId: string): Promise<any[]> {
+  const client = getSupabase();
+  if (!client) return [];
+  const history: any[] = [];
+  
+  // 1. Fetch content_revisions
+  try {
+    const { data: revisions, error: revErr } = await client
+      .from('content_revisions')
+      .select('*')
+      .eq('record_id', recordId)
+      .order('created_at', { ascending: false });
+    
+    if (!revErr && revisions) {
+      for (const rev of revisions) {
+        history.push({
+          id: rev.id,
+          source: 'revision',
+          created_at: rev.created_at,
+          notes: rev.revision_notes || 'Content revised',
+          actor_id: rev.editor_id,
+          details: {
+            previous: rev.previous_version,
+            current: rev.current_version,
+            content_type: rev.content_type
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch content_revisions:', err);
+  }
+
+  // 2. Fetch audit_logs
+  try {
+    const { data: audits, error: auditErr } = await client
+      .from('audit_logs')
+      .select('*')
+      .eq('target_id', recordId)
+      .order('created_at', { ascending: false });
+
+    if (!auditErr && audits) {
+      for (const audit of audits) {
+        history.push({
+          id: audit.id,
+          source: 'audit',
+          created_at: audit.created_at,
+          notes: audit.event_type === 'STATUS_CHANGE' 
+            ? `Status changed from ${((audit.old_values as any)?.status || 'N/A').toUpperCase()} to ${((audit.new_values as any)?.status || 'N/A').toUpperCase()}`
+            : `Audit event: ${audit.event_type}`,
+          actor_id: audit.actor_id,
+          details: {
+            old_values: audit.old_values,
+            new_values: audit.new_values,
+            event_type: audit.event_type
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch audit_logs (likely due to RLS restrictions):', err);
+  }
+
+  // Sort unified history by created_at descending
+  history.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  // Resolve actor profiles if possible
+  const uniqueActorIds = Array.from(new Set(history.map(h => h.actor_id).filter(Boolean))) as string[];
+  if (uniqueActorIds.length > 0) {
+    try {
+      const { data: profiles, error: profErr } = await client
+        .from('profiles')
+        .select('id, email, name')
+        .in('id', uniqueActorIds);
+      
+      if (!profErr && profiles) {
+        const profileMap = new Map<string, any>();
+        for (const p of profiles) {
+          profileMap.set(p.id, p);
+        }
+        for (const item of history) {
+          if (item.actor_id && profileMap.has(item.actor_id)) {
+            const p = profileMap.get(item.actor_id);
+            item.actor_name = p.name || p.email?.split('@')[0] || 'Unknown';
+            item.actor_email = p.email;
+          } else {
+            item.actor_name = 'System / Automated';
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to resolve profile profiles for history items:', err);
+    }
+  }
+
+  return history;
 }
 
 // ==========================================

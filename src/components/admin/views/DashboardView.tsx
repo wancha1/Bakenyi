@@ -63,6 +63,7 @@ import {
 } from '../../../lib/supabase';
 import { Article } from '../../../types/article';
 import { getAuditLogs, AuditLog } from '../../../lib/operations';
+import { getContentRegistry, updateRegistryItemStatus, getSourceTableContent, getUnifiedModerationHistory } from '../../../lib/heritageService';
 
 // Website Governance Modules
 import { ContentItem, GovernancePage, VersionRecord, PageAuditLog } from './governance/types';
@@ -86,6 +87,16 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  // Moderation & Vetting states for Community Leaders
+  const [moderationRegistry, setModerationRegistry] = useState<any[]>([]);
+  const [isLoadingMod, setIsLoadingMod] = useState(false);
+  const [activeModItem, setActiveModItem] = useState<any | null>(null);
+  const [activeModContent, setActiveModContent] = useState<any | null>(null);
+  const [isLoadingModContent, setIsLoadingModContent] = useState(false);
+  const [modHistory, setModHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [modFilter, setModFilter] = useState<'All' | 'submitted' | 'under_review' | 'needs_revision'>('All');
 
   // Unified State for Governance Center content, audits, and revision logs
   const [governanceContent, setGovernanceContent] = useState<ContentItem[]>([]);
@@ -295,11 +306,25 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
     }
   };
 
+  const loadModerationData = async () => {
+    setIsLoadingMod(true);
+    try {
+      const data = await getContentRegistry();
+      setModerationRegistry(data);
+    } catch (err) {
+      console.error('Failed to load content registry for moderation:', err);
+    } finally {
+      setIsLoadingMod(false);
+    }
+  };
+
   useEffect(() => {
     loadDatabaseData();
+    loadModerationData();
     // Re-sync reactive updates
     const handleSync = () => {
       loadDatabaseData();
+      loadModerationData();
     };
     window.addEventListener('bakenye_operations_updated', handleSync);
     return () => {
@@ -489,6 +514,581 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
         <span className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
           Retrieving governance chronicles datasets...
         </span>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // COMMUNITY LEADER VETTING WORKSPACE
+  // ==========================================
+  if (resolvedRole === 'community_leader') {
+    const handleVetAction = async (recordId: string, action: 'approved' | 'under_review' | 'needs_revision') => {
+      try {
+        const success = await updateRegistryItemStatus(recordId, action, user?.id);
+        if (success) {
+          setActionMessage(`Moderation action "${action}" successfully applied!`);
+          setTimeout(() => setActionMessage(null), 4000);
+          // Refresh registry index and lists
+          loadModerationData();
+          loadDatabaseData();
+          setActiveModItem(null);
+        } else {
+          alert('Failed to apply moderation action.');
+        }
+      } catch (err: any) {
+        console.error('Failed to moderate content:', err);
+        alert(err.message || 'Error processing action.');
+      }
+    };
+
+    const handleOpenModDetails = async (item: any) => {
+      setActiveModItem(item);
+      setIsLoadingHistory(true);
+      setIsLoadingModContent(true);
+      setActiveModContent(null);
+      try {
+        const history = await getUnifiedModerationHistory(item.record_id);
+        setModHistory(history);
+      } catch (err) {
+        console.error('Failed to load item revisions history:', err);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+
+      try {
+        const content = await getSourceTableContent(item.table_name, item.record_id);
+        setActiveModContent(content);
+      } catch (err) {
+        console.error('Failed to load source table content:', err);
+      } finally {
+        setIsLoadingModContent(false);
+      }
+    };
+
+    const filteredRegistry = moderationRegistry.filter(item => {
+      if (modFilter === 'All') {
+        return ['submitted', 'under_review', 'needs_revision'].includes(item.status);
+      }
+      return item.status === modFilter;
+    });
+
+    const pendingCount = moderationRegistry.filter(item => item.status === 'submitted').length;
+    const reviewCount = moderationRegistry.filter(item => item.status === 'under_review').length;
+    const revisionsCount = moderationRegistry.filter(item => item.status === 'needs_revision').length;
+
+    return (
+      <div className="space-y-8 animate-fade-in text-left">
+        {/* Welcome Banner */}
+        <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden shadow-lg border border-indigo-500/15">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent pointer-events-none" />
+          <div className="space-y-2 relative z-10">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400">Community Leader Tribunal</span>
+            <h1 className="text-2xl md:text-3xl font-serif font-black tracking-tight">Preserver Leader {user?.email?.split('@')[0]}</h1>
+            <p className="text-xs text-slate-300 max-w-xl font-medium leading-relaxed">
+              Vetting Council Chamber. Evaluate community contributions, historical submissions, clan trees, and vocabulary records. Secure our digital preservation against inaccuracies.
+            </p>
+          </div>
+        </div>
+
+        {/* Status Alert Banner */}
+        {actionMessage && (
+          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-2xl flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <span>{actionMessage}</span>
+          </div>
+        )}
+
+        {/* Moderation Metrics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Submitted Queue</p>
+              <h3 className="text-3xl font-serif font-black text-amber-500 leading-none">{pendingCount}</h3>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 flex items-center justify-center">
+              <Inbox className="w-6 h-6 animate-bounce" />
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Active Review</p>
+              <h3 className="text-3xl font-serif font-black text-indigo-600 leading-none">{reviewCount}</h3>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 flex items-center justify-center">
+              <Clock className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Needs Revision</p>
+              <h3 className="text-3xl font-serif font-black text-rose-500 leading-none">{revisionsCount}</h3>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 flex items-center justify-center">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+
+        {/* Unified Content Registry Moderation Table */}
+        <div className="bg-white dark:bg-slate-800 rounded-[32px] border border-slate-100 dark:border-slate-700/50 p-6 md:p-8 space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-50 dark:border-slate-700/50">
+            <div>
+              <h2 className="text-lg font-serif font-black text-slate-900 dark:text-white">Unified Content Moderation Index</h2>
+              <p className="text-[11px] text-slate-400">Directly querying public.content_registry as the unified moderation register</p>
+            </div>
+
+            <div className="flex bg-slate-50 dark:bg-slate-900 p-1 rounded-xl border border-slate-100 dark:border-slate-800 shrink-0">
+              {(['All', 'submitted', 'under_review', 'needs_revision'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setModFilter(tab)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                    modFilter === tab 
+                      ? 'bg-indigo-600 text-white shadow-sm' 
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'
+                  }`}
+                >
+                  {tab === 'All' ? 'All Pending' : tab.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {isLoadingMod ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-2" />
+              <p className="text-[10px] font-black tracking-widest uppercase text-slate-400">Loading content registry...</p>
+            </div>
+          ) : filteredRegistry.length === 0 ? (
+            <div className="text-center py-16 border border-dashed border-slate-100 dark:border-slate-700/50 rounded-2xl">
+              <CheckCircle2 className="w-10 h-10 text-emerald-500/40 mx-auto mb-2" />
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white">Moderation Queue is Pristine!</h4>
+              <p className="text-[11px] text-slate-400">No community contributions currently require vetting under this filter.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs divide-y divide-slate-100 dark:divide-slate-700/50">
+                <thead>
+                  <tr className="text-[9px] text-slate-400 font-black uppercase tracking-widest pb-2">
+                    <th className="py-2">Title</th>
+                    <th className="py-2">Content Type</th>
+                    <th className="py-2">Author ID</th>
+                    <th className="py-2">Status</th>
+                    <th className="py-2">Submitted At</th>
+                    <th className="py-2 text-right">Controls</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                  {filteredRegistry.map(item => (
+                    <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                      <td className="py-3 font-medium text-slate-900 dark:text-white">{item.title}</td>
+                      <td className="py-3">
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-mono text-[10px] uppercase font-bold">
+                          {item.content_type}
+                        </span>
+                      </td>
+                      <td className="py-3 font-mono text-[10px] text-slate-400 truncate max-w-[120px]" title={item.author_id}>
+                        {item.author_id || 'System / Contributor'}
+                      </td>
+                      <td className="py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                          item.status === 'submitted' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400' :
+                          item.status === 'under_review' ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400 animate-pulse' :
+                          item.status === 'needs_revision' ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>
+                          {item.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3 font-mono text-[10px] text-slate-400">
+                        {item.submitted_at ? new Date(item.submitted_at).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="py-3 text-right">
+                        <button 
+                          onClick={() => handleOpenModDetails(item)}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                        >
+                          Vet Item
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Detailed Moderation Modal / Workspace */}
+        {activeModItem && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 max-w-2xl w-full p-6 md:p-8 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl animate-fade-in text-left">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-mono text-[9px] uppercase font-bold">
+                    Preservation Vetting: {activeModItem.content_type}
+                  </span>
+                  <h3 className="text-lg font-serif font-black text-slate-900 dark:text-white mt-1">{activeModItem.title}</h3>
+                </div>
+                <button 
+                  onClick={() => setActiveModItem(null)}
+                  className="p-1 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Actual Source Table Record Content Display */}
+              {isLoadingModContent ? (
+                <div className="flex items-center gap-2 py-6 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/20 dark:bg-slate-950/10 justify-center">
+                  <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Loading Source Record Content...</span>
+                </div>
+              ) : activeModContent ? (
+                <div className="border border-slate-100 dark:border-slate-800/80 rounded-2xl p-5 space-y-4 bg-slate-50/30 dark:bg-slate-950/20">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Actual Source Record (From Database Table)</h4>
+                  <div className="space-y-3 text-xs text-slate-700 dark:text-slate-300">
+                    <div className="grid grid-cols-2 gap-2 pb-2 border-b border-slate-100 dark:border-slate-800 font-mono text-[10px] text-slate-400">
+                      <div>Source Table: <span className="text-slate-600 dark:text-slate-200">{activeModItem.table_name}</span></div>
+                      <div>Record ID: <span className="text-slate-600 dark:text-slate-200">{activeModItem.record_id.substring(0, 8)}...</span></div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {activeModContent.title && (
+                        <div>
+                          <span className="font-bold block text-[9px] uppercase tracking-wider text-slate-400">Title</span>
+                          <span className="text-slate-900 dark:text-white font-medium text-sm">{activeModContent.title}</span>
+                        </div>
+                      )}
+                      {activeModContent.name && (
+                        <div>
+                          <span className="font-bold block text-[9px] uppercase tracking-wider text-slate-400">Name</span>
+                          <span className="text-slate-900 dark:text-white font-medium text-sm">{activeModContent.name}</span>
+                        </div>
+                      )}
+                      {activeModContent.content && (
+                        <div>
+                          <span className="font-bold block text-[9px] uppercase tracking-wider text-slate-400">Body Content</span>
+                          <div className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed max-h-[150px] overflow-y-auto bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-100 dark:border-slate-800 text-xs">
+                            {activeModContent.content}
+                          </div>
+                        </div>
+                      )}
+                      {activeModContent.message && (
+                        <div>
+                          <span className="font-bold block text-[9px] uppercase tracking-wider text-slate-400">Message</span>
+                          <div className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed max-h-[150px] overflow-y-auto bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-100 dark:border-slate-800 text-xs">
+                            {activeModContent.message}
+                          </div>
+                        </div>
+                      )}
+                      {activeModContent.description && (
+                        <div>
+                          <span className="font-bold block text-[9px] uppercase tracking-wider text-slate-400">Description</span>
+                          <div className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed max-h-[150px] overflow-y-auto bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-100 dark:border-slate-800 text-xs">
+                            {activeModContent.description}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {activeModContent.lukenye && (
+                        <div className="grid grid-cols-2 gap-3 bg-amber-500/5 p-3 rounded-xl border border-amber-500/10">
+                          <div>
+                            <span className="font-bold block text-[9px] uppercase text-amber-600/70 dark:text-amber-400/70">Lukenye Spelling</span>
+                            <span className="font-serif text-sm font-bold text-slate-900 dark:text-white">{activeModContent.lukenye}</span>
+                          </div>
+                          {activeModContent.english && (
+                            <div>
+                              <span className="font-bold block text-[9px] uppercase text-slate-400">English Meaning</span>
+                              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{activeModContent.english}</span>
+                            </div>
+                          )}
+                          {activeModContent.definition && (
+                            <div className="col-span-2 pt-2 border-t border-amber-500/10">
+                              <span className="font-bold block text-[9px] uppercase text-slate-400">Lukenye Definition</span>
+                              <p className="text-xs italic text-slate-600 dark:text-slate-400 mt-0.5">{activeModContent.definition}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {activeModContent.priority && (
+                        <div>
+                          <span className="font-bold block text-[9px] uppercase tracking-wider text-slate-400">Priority Level</span>
+                          <span className={`inline-block px-2 py-0.5 rounded-md font-mono text-[10px] uppercase font-bold mt-1 ${
+                            activeModContent.priority === 'emergency' ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/20' :
+                            activeModContent.priority === 'high' ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/20' :
+                            'bg-slate-100 text-slate-600 dark:bg-slate-800'
+                          }`}>
+                            {activeModContent.priority}
+                          </span>
+                        </div>
+                      )}
+
+                      {activeModContent.totem && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <span className="font-bold block text-[9px] uppercase tracking-wider text-slate-400">Totem (Oluzilo)</span>
+                            <span className="text-slate-900 dark:text-white font-medium">{activeModContent.totem}</span>
+                          </div>
+                          {activeModContent.totem_meaning && (
+                            <div>
+                              <span className="font-bold block text-[9px] uppercase tracking-wider text-slate-400">Totem Significance</span>
+                              <span className="text-slate-700 dark:text-slate-300">{activeModContent.totem_meaning}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-[11px] text-slate-400 p-4 border border-dashed border-slate-100 dark:border-slate-800 rounded-2xl text-center">
+                  Source record details could not be located in table "{activeModItem.table_name}".
+                </div>
+              )}
+
+              {/* Revision Audit logs / History block */}
+              <div className="bg-slate-50 dark:bg-slate-950/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/60 space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Vetting & Moderation History</h4>
+                
+                {isLoadingHistory ? (
+                  <div className="flex items-center gap-2 py-4">
+                    <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Retrieving audit log...</span>
+                  </div>
+                ) : modHistory.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 font-medium">No previous modifications or revisions have been logged for this item yet.</p>
+                ) : (
+                  <div className="space-y-3 max-h-[160px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                    {modHistory.map(item => (
+                      <div key={item.id} className="pt-2 text-[11px] space-y-1">
+                        <div className="flex justify-between font-mono text-[9px] text-slate-400">
+                          <span className="uppercase tracking-widest font-black text-indigo-500/80">
+                            {item.source === 'revision' ? '✏️ Revision' : '📋 Status Change'}
+                          </span>
+                          <span>{new Date(item.created_at).toLocaleString()}</span>
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-300">
+                          {item.notes}
+                        </p>
+                        <div className="text-[9px] font-semibold text-slate-400">
+                          Actor: <span className="text-slate-500 dark:text-slate-300 font-bold">{item.actor_name}</span> {item.actor_email && `(${item.actor_email})`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Vetting Controls Panel */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Tribunal Verdict Action</h4>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => handleVetAction(activeModItem.record_id, 'approved')}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wider text-[11px] py-3 rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-600/10 hover:shadow-none"
+                  >
+                    Approve & Publish
+                  </button>
+                  <button
+                    onClick={() => handleVetAction(activeModItem.record_id, 'under_review')}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-wider text-[11px] py-3 rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-600/10 hover:shadow-none"
+                  >
+                    Mark Under Review
+                  </button>
+                  <button
+                    onClick={() => handleVetAction(activeModItem.record_id, 'needs_revision')}
+                    className="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-black uppercase tracking-wider text-[11px] py-3 rounded-xl transition-all cursor-pointer"
+                  >
+                    Request Revision
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ==========================================
+  // HISTORIAN (CREATOR) DASHBOARD WORKSPACE
+  // ==========================================
+  if (resolvedRole === 'historian') {
+    // Historian Stats calculations
+    const myArticles = articles.filter(a => a.author === user?.email || a.author === 'Historian' || a.author === 'Reporter Nakabuye');
+    const draftsCount = myArticles.filter(a => a.status === 'draft').length;
+    const submittedCount = myArticles.filter(a => a.status === 'pending').length;
+    const approvedCount = myArticles.filter(a => a.status === 'approved').length;
+    const publishedCount = myArticles.filter(a => a.status === 'published').length;
+    const rejectedCount = myArticles.filter(a => a.status === 'rejected').length;
+
+    return (
+      <div className="space-y-8 animate-fade-in text-left">
+        {/* Welcome Banner */}
+        <div className="bg-gradient-to-r from-amber-950 via-slate-900 to-amber-950 p-6 md:p-8 rounded-[32px] text-white relative overflow-hidden shadow-lg border border-amber-500/10">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-500/10 via-transparent to-transparent pointer-events-none" />
+          <div className="space-y-2 relative z-10">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">Preserver Council Chamber</span>
+            <h1 className="text-2xl md:text-3xl font-serif font-black tracking-tight">Historian {user?.email?.split('@')[0]}</h1>
+            <p className="text-xs text-slate-300 max-w-xl font-medium leading-relaxed">
+              Welcome, Guardian of Bakenye Lore. In this sacred workspace, you chronicle the lineages, proverbs, oral traditions, and history of our people. Ensure all entries are meticulously researched and verified.
+            </p>
+          </div>
+        </div>
+
+        {/* Historian Core Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex flex-col justify-between">
+            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">My Drafts</span>
+            <div className="flex items-baseline gap-2 mt-2">
+              <span className="text-2xl font-bold font-serif">{draftsCount}</span>
+              <span className="text-[10px] text-slate-400">saved</span>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex flex-col justify-between">
+            <span className="text-[9px] font-black uppercase tracking-wider text-amber-500">Submitted</span>
+            <div className="flex items-baseline gap-2 mt-2">
+              <span className="text-2xl font-bold font-serif text-amber-500">{submittedCount}</span>
+              <span className="text-[10px] text-slate-400">pending vetting</span>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex flex-col justify-between">
+            <span className="text-[9px] font-black uppercase tracking-wider text-rose-500 font-black">Changes Requested</span>
+            <div className="flex items-baseline gap-2 mt-2">
+              <span className="text-2xl font-bold font-serif text-rose-500">{rejectedCount}</span>
+              <span className="text-[10px] text-slate-400">needs revision</span>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex flex-col justify-between">
+            <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 font-black">Approved</span>
+            <div className="flex items-baseline gap-2 mt-2">
+              <span className="text-2xl font-bold font-serif text-emerald-600">{approvedCount}</span>
+              <span className="text-[10px] text-slate-400 font-bold">vetted</span>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-xs flex flex-col justify-between">
+            <span className="text-[9px] font-black uppercase tracking-wider text-indigo-600">Published</span>
+            <div className="flex items-baseline gap-2 mt-2">
+              <span className="text-2xl font-bold font-serif text-indigo-600">{publishedCount}</span>
+              <span className="text-[10px] text-slate-400">live</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Historian Actions & Guidelines */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Action Card 1: Draft Article */}
+          <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 p-6 flex flex-col justify-between space-y-4">
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 flex items-center justify-center">
+                <FileText className="w-5 h-5" />
+              </div>
+              <h3 className="font-serif font-black text-sm text-slate-900 dark:text-white">Write Heritage Article</h3>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Add written chronicles, clan lineage accounts, or linguistic insights. Once submitted, community leaders will review it.
+              </p>
+            </div>
+            <button
+              onClick={() => onNavigate('content')}
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black uppercase tracking-wider text-[10px] py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <span>Go to Submissions</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Action Card 2: Media uploads */}
+          <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 p-6 flex flex-col justify-between space-y-4">
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 flex items-center justify-center">
+                <ImageIcon className="w-5 h-5" />
+              </div>
+              <h3 className="font-serif font-black text-sm text-slate-900 dark:text-white">Upload Cultural Media</h3>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Preserve historical photos, document scanned assets, or lineage-related audio interviews directly into the Bakenye repository.
+              </p>
+            </div>
+            <button
+              onClick={() => onNavigate('media')}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-wider text-[10px] py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <span>Go to Media Vault</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Guidelines & Vetting Policy */}
+          <div className="bg-amber-500/5 border border-amber-500/10 rounded-3xl p-6 space-y-3 text-left">
+            <span className="text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-500/10 px-2 py-0.5 rounded-md">Preservation Covenant</span>
+            <h3 className="text-sm font-serif font-black text-heritage-brown">Guardian Vetting Protocol</h3>
+            <ul className="space-y-2 text-[11px] text-heritage-brown/70 leading-relaxed list-disc list-inside">
+              <li>Always check references before submitting.</li>
+              <li>When a Community Leader requests changes, details are logged in your revision history.</li>
+              <li>RLS is strictly enforced: only you can edit your own drafts and pending revisions.</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Historian Submissions Tracker List */}
+        <div className="bg-white dark:bg-slate-800 rounded-[32px] border border-slate-100 dark:border-slate-700/50 p-6 md:p-8 space-y-4">
+          <div>
+            <h2 className="text-base font-serif font-black text-slate-900 dark:text-white">Submission Tracking & Chronicles</h2>
+            <p className="text-[11px] text-slate-400">Real-time status tracking of your submitted heritage chronicles</p>
+          </div>
+
+          {myArticles.length === 0 ? (
+            <div className="text-center py-10 border border-dashed border-slate-100 dark:border-slate-700/50 rounded-2xl">
+              <BookOpen className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-xs text-slate-400">You have not drafted any chronicles yet. Click below to begin.</p>
+              <button onClick={() => onNavigate('content')} className="mt-3 text-[10px] font-bold text-amber-600 uppercase tracking-wider hover:underline">
+                Write First Chronicle &rarr;
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs divide-y divide-slate-100 dark:divide-slate-700/50">
+                <thead>
+                  <tr className="text-[9px] text-slate-400 font-black uppercase tracking-widest pb-2">
+                    <th className="py-2">Title</th>
+                    <th className="py-2">Category</th>
+                    <th className="py-2">Status</th>
+                    <th className="py-2">Last Updated</th>
+                    <th className="py-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                  {myArticles.slice(0, 5).map(art => (
+                    <tr key={art.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                      <td className="py-3 font-medium text-slate-900 dark:text-white">{art.title}</td>
+                      <td className="py-3 text-slate-400">{art.category}</td>
+                      <td className="py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                          art.status === 'published' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' :
+                          art.status === 'approved' ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-400' :
+                          art.status === 'pending' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400' :
+                          art.status === 'rejected' ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 animate-pulse' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>
+                          {art.status === 'pending' ? 'Submitted' : art.status === 'rejected' ? 'Needs Revision' : art.status}
+                        </span>
+                      </td>
+                      <td className="py-3 font-mono text-[10px] text-slate-400">{art.publishedAt}</td>
+                      <td className="py-3 text-right">
+                        <button onClick={() => onNavigate('content')} className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer">
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
