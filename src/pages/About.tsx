@@ -80,13 +80,13 @@ function AnimatedCounter({ value, duration = 1.2 }: { value: number; duration?: 
 export default function About() {
   const [isLoading, setIsLoading] = useState(true);
   const [counterStats, setCounterStats] = useState({
-    stories: 18,
-    clans: 6,
-    leaders: 5,
-    photos: 12,
-    videos: 3,
-    vocabulary: 45,
-    contributors: 9
+    stories: 0,
+    clans: 0,
+    leaders: 0,
+    photos: 0,
+    videos: 0,
+    vocabulary: 0,
+    contributors: 0
   });
 
   const [galleryPreview, setGalleryPreview] = useState<any[]>([]);
@@ -115,19 +115,19 @@ export default function About() {
         const uniqueContributors = new Set([
           ...approvedStories.map((c: any) => c.userEmail),
           ...articlesData.map((a: any) => a.author || a.userEmail)
-        ]);
+        ].filter(Boolean));
 
         const photosCount = galleryData.filter((g: any) => g.fileType === 'image' || g.type === 'photo').length;
         const videosCount = galleryData.filter((g: any) => g.fileType === 'video' || g.type === 'video').length;
 
         setCounterStats({
-          stories: approvedStories.length + articlesData.length || 24,
-          clans: clansData.length || 12,
-          leaders: leadersData.length || 8,
-          photos: photosCount || 28,
-          videos: videosCount || 6,
-          vocabulary: vocabData.length || 125,
-          contributors: uniqueContributors.size || 15
+          stories: approvedStories.length + articlesData.length,
+          clans: clansData.length,
+          leaders: leadersData.length,
+          photos: photosCount,
+          videos: videosCount,
+          vocabulary: vocabData.length,
+          contributors: uniqueContributors.size
         });
 
         // Slice up to 4 items for gallery preview

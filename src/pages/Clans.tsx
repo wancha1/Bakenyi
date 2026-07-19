@@ -27,13 +27,12 @@ import {
   Layers,
   History as HistoryIcon
 } from 'lucide-react';
-import { getClans, Clan } from '../lib/supabase';
+import { getClans, Clan, getLeaders, getArticles } from '../lib/supabase';
 import SEO from '../components/SEO';
 import { 
   CLAN_EXHIBITION_METADATA, 
   INTER_CLAN_RELATIONSHIPS, 
   CULTURAL_LAWS, 
-  CLAN_STATS, 
   ADJACENT_EXHIBITION_WINGS,
   ClanMetadata
 } from '../data/clansExhibitionData';
@@ -46,6 +45,15 @@ export default function Clans() {
   const [loading, setLoading] = useState(true);
   const [selectedClan, setSelectedClan] = useState<Clan | null>(null);
   
+  // Dynamic statistics state
+  const [clanStats, setClanStats] = useState<any[]>([
+    { label: 'Registered Clans', value: '0', suffix: ' Clans', description: 'Sovereign lineages documented in the high registry.' },
+    { label: 'Active Elders', value: '0', suffix: '+', description: 'Council representatives keeping oral lore alive.' },
+    { label: 'Sacred Totems', value: '0', suffix: ' Totems', description: 'Protective animal and botanical symbols.' },
+    { label: 'Historic Regions', value: '0', suffix: ' Regions', description: 'Traditional territories and floating bays.' },
+    { label: 'Archived Chronicles', value: '0', suffix: ' Records', description: 'Verified historical documents and treaties.' }
+  ]);
+
   // Custom Filter & Interactive States
   const [selectedRegion, setSelectedRegion] = useState<string>('All');
   const [selectedSort, setSelectedSort] = useState<string>('alphabetical');
@@ -57,20 +65,61 @@ export default function Clans() {
   }, [searchParams]);
 
   useEffect(() => {
-    async function fetchClans() {
+    async function fetchClansAndStats() {
       setLoading(true);
       try {
-        const data = await getClans(true); // fetch approved clans
-        setClans(data);
+        const [clansData, leadersData, articlesData] = await Promise.all([
+          getClans(true).catch(() => []),
+          getLeaders(true).catch(() => []),
+          getArticles(true).catch(() => [])
+        ]);
+
+        setClans(clansData);
+
+        const uniqueTotemsCount = new Set(clansData.map(c => c.totem).filter(Boolean)).size;
+        const uniqueRegionsCount = new Set(clansData.map(c => c.origin).filter(Boolean)).size;
+
+        setClanStats([
+          {
+            label: 'Registered Clans',
+            value: String(clansData.length),
+            description: 'Sovereign lineages documented in the high registry.',
+            suffix: ' Clans'
+          },
+          {
+            label: 'Active Elders',
+            value: String(leadersData.length),
+            description: 'Council representatives keeping oral lore alive.',
+            suffix: '+'
+          },
+          {
+            label: 'Sacred Totems',
+            value: String(uniqueTotemsCount),
+            description: 'Protective animal and botanical symbols.',
+            suffix: ' Totems'
+          },
+          {
+            label: 'Historic Regions',
+            value: String(uniqueRegionsCount || 1),
+            description: 'Traditional territories and floating bays.',
+            suffix: ' Regions'
+          },
+          {
+            label: 'Archived Chronicles',
+            value: String(articlesData.length),
+            description: 'Verified historical documents and treaties.',
+            suffix: ' Records'
+          }
+        ]);
       } catch (e) {
-        console.error('Clans: failed to fetch:', e);
+        console.error('Clans: failed to fetch clans and stats:', e);
         setClans([]);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchClans();
+    fetchClansAndStats();
   }, []);
 
   const handleSearchChange = (val: string) => {
@@ -306,12 +355,12 @@ export default function Clans() {
       <section className="relative z-20 -mt-8 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 bg-white shadow-2xl border border-stone-200/60 p-6 rounded-[28px]">
-            {CLAN_STATS.map((stat, idx) => (
+            {clanStats.map((stat, idx) => (
               <div 
                 key={idx} 
                 className={`flex flex-col text-left p-2 ${
-                  idx < CLAN_STATS.length - 1 ? 'md:border-r border-stone-100' : ''
-                } ${idx % 2 === 0 ? 'col-span-1' : 'col-span-1'} ${idx === CLAN_STATS.length - 1 ? 'col-span-2 md:col-span-1' : ''}`}
+                  idx < clanStats.length - 1 ? 'md:border-r border-stone-100' : ''
+                } ${idx % 2 === 0 ? 'col-span-1' : 'col-span-1'} ${idx === clanStats.length - 1 ? 'col-span-2 md:col-span-1' : ''}`}
               >
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl md:text-4xl font-serif font-black text-heritage-terracotta tracking-tight">

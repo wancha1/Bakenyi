@@ -121,15 +121,15 @@ export default function Home() {
 
   // Stats Counters
   const [counterStats, setCounterStats] = useState({
-    stories: 18,
-    clans: 6,
-    leaders: 5,
-    photos: 12,
-    videos: 3,
-    vocabulary: 45,
-    contributors: 9,
-    events: 2,
-    visitors: 1420
+    stories: 0,
+    clans: 0,
+    leaders: 0,
+    photos: 0,
+    videos: 0,
+    vocabulary: 0,
+    contributors: 0,
+    events: 0,
+    visitors: 124 // Keep a dynamic visitor offset or count if no analytic service, but keep simple
   });
 
   useEffect(() => {
@@ -147,9 +147,11 @@ export default function Home() {
       getContributions().then(contribsData => {
         const approvedStories = contribsData.filter((c: any) => c.status === 'approved');
         setRecentStories(approvedStories.slice(0, 4));
+        const uniqueUsers = new Set(contribsData.map(c => c.userId || c.userEmail).filter(Boolean));
         setCounterStats(prev => ({
           ...prev,
-          stories: prev.stories + approvedStories.length
+          stories: prev.stories + approvedStories.length,
+          contributors: uniqueUsers.size
         }));
       }).catch(err => console.warn('Contributions fetch failed:', err));
 
@@ -172,30 +174,30 @@ export default function Home() {
 
       getEvents(true).then(eventsData => {
         setEvents(eventsData);
-        setCounterStats(prev => ({ ...prev, events: eventsData.length || prev.events }));
+        setCounterStats(prev => ({ ...prev, events: eventsData.length }));
       }).catch(err => console.warn('Events fetch failed:', err));
 
       getClans(true).then(clansData => {
         setClans(clansData);
-        setCounterStats(prev => ({ ...prev, clans: clansData.length || prev.clans }));
+        setCounterStats(prev => ({ ...prev, clans: clansData.length }));
       }).catch(err => console.warn('Clans fetch failed:', err));
 
       getLeaders(true).then(leadersData => {
         setLeaders(leadersData);
-        setCounterStats(prev => ({ ...prev, leaders: leadersData.length || prev.leaders }));
+        setCounterStats(prev => ({ ...prev, leaders: leadersData.length }));
       }).catch(err => console.warn('Leaders fetch failed:', err));
 
       getVocabulary(true).then(vocabData => {
         setVocabulary(vocabData);
-        setCounterStats(prev => ({ ...prev, vocabulary: vocabData.length || prev.vocabulary }));
+        setCounterStats(prev => ({ ...prev, vocabulary: vocabData.length }));
       }).catch(err => console.warn('Vocabulary fetch failed:', err));
 
       getGalleryImages(false).then(galleryData => {
         setGalleryImages(galleryData);
         setCounterStats(prev => ({
           ...prev,
-          photos: galleryData.filter((g: any) => g.type === 'photo').length || prev.photos,
-          videos: galleryData.filter((g: any) => g.type === 'video').length || prev.videos
+          photos: galleryData.filter((g: any) => g.type === 'photo').length,
+          videos: galleryData.filter((g: any) => g.type === 'video').length
         }));
       }).catch(err => console.warn('Gallery images fetch failed:', err));
       

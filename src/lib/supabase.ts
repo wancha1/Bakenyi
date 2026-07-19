@@ -1070,50 +1070,7 @@ export interface Clan {
   created_at?: string;
 }
 
-const DEFAULT_FALLBACK_CLANS: Clan[] = [
-  {
-    id: 'clan-1',
-    name: 'Baise-Mugaya Clan',
-    totem: 'Crested Crane (Nnali)',
-    motto: 'Engooli Emaali',
-    desc: 'Traditionally serving as the navigators and high canoe crafters of Lake Kyoga, steering communities across the waters.',
-    status: 'approved',
-    history: 'Migrated from the river Nile regions to Lake Kyoga shoreline settlements in the 17th century, establishing maritime safety guidelines.',
-    origin: 'Lake Kyoga shoreline settlements',
-    leadership: 'Led by the Lineage Chief Custodian',
-    custodian: 'Elder Christopher Kyega',
-    gallery_urls: [],
-    document_urls: []
-  },
-  {
-    id: 'clan-2',
-    name: 'Baise-Musuuba Clan',
-    totem: 'Nile Perch (Mputa)',
-    motto: 'Ennyanja Tugigabana',
-    desc: 'Traditionally serving as the master net weavers and fishermen, ensuring sustainable fishing methods.',
-    status: 'approved',
-    history: 'Known as the early pioneers of the floating islands structures and marsh construction techniques.',
-    origin: 'Kyoga Floating Archipelago',
-    leadership: 'Eldership Council',
-    custodian: 'Elder Jackson Mukasa',
-    gallery_urls: [],
-    document_urls: []
-  },
-  {
-    id: 'clan-3',
-    name: 'Baise-Igaga Clan',
-    totem: 'Lungfish (Mamba)',
-    motto: 'Obumu Bugumu',
-    desc: 'Traditionally the spiritual guardians and herbalists of the swamp forests, protecting the flora and fauna.',
-    status: 'approved',
-    history: 'A lineage of deep-sea navigators who mapped safe paths through dense water hyacinths during early storms.',
-    origin: 'Southern Wetland Bays',
-    leadership: 'Chief Spiritual Custodian',
-    custodian: 'Elder Florence Nabakooza',
-    gallery_urls: [],
-    document_urls: []
-  }
-];
+const DEFAULT_FALLBACK_CLANS: Clan[] = [];
 
 export async function getClans(onlyApproved = true): Promise<Clan[]> {
   const client = getSupabase();
@@ -1269,44 +1226,7 @@ export interface Leader {
   created_at?: string;
 }
 
-const DEFAULT_FALLBACK_LEADERS: Leader[] = [
-  {
-    id: 'leader-1',
-    name: 'Elder Christopher Kyega',
-    role: 'Chief Historian & Story Keeper',
-    bio: 'At 92 years of age, Elder Christopher is the chief guardian of the Baise-Mugaya lineage records. He holds in his memory over 300 ancestral paddle songs and the exact oral coordinates of 15 lost settlements.',
-    photo_url: '',
-    expertise: 'Oral History & Navigation Records',
-    clan: 'Baise-Mugaya',
-    contact_email: 'christopher.kyega@bakenyi.org',
-    status: 'approved',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'leader-2',
-    name: 'Elder Florence Nabakooza',
-    role: 'Spiritual Custodian & Herbalist',
-    bio: 'Florence is the lead expert on the medicinal plants of Lake Kyoga wetlands. She holds traditional ecological knowledge on protecting the breeding grounds of rare fish species.',
-    photo_url: '',
-    expertise: 'Traditional Ecological Knowledge (TEK)',
-    clan: 'Baise-Igaga',
-    contact_email: 'florence.nabakooza@bakenyi.org',
-    status: 'approved',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'leader-3',
-    name: 'Honourable Jackson Mukasa',
-    role: 'Council Elder & Net Weaver',
-    bio: 'Jackson preserves the traditional craft of weaving biodegradable nets from wild reeds, helping modern fishermen adopt sustainable lake methods.',
-    photo_url: '',
-    expertise: 'Maritime Craftsmanship',
-    clan: 'Baise-Musuuba',
-    contact_email: 'jackson.mukasa@bakenyi.org',
-    status: 'approved',
-    created_at: new Date().toISOString()
-  }
-];
+const DEFAULT_FALLBACK_LEADERS: Leader[] = [];
 
 export async function getLeaders(onlyApproved = true): Promise<Leader[]> {
   const client = getSupabase();
@@ -1435,38 +1355,7 @@ export interface Vocabulary {
   created_at?: string;
 }
 
-const DEFAULT_FALLBACK_VOCABULARY: Vocabulary[] = [
-  {
-    id: 'vocab-1',
-    lukenye: 'Abaato',
-    english: 'Canoe / Wooden Boats',
-    category: 'maritime',
-    usage: 'Used to refer to both custom fishing boats and long voyage canoes.',
-    example_sentence: 'Abaato ya Bakenyi eri na mwoyo (The Bakenyi canoe has a soul).',
-    status: 'approved',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'vocab-2',
-    lukenye: 'Nnali',
-    english: 'The Crested Crane',
-    category: 'totem',
-    usage: 'The sacred bird totem signifying peace and community guidance.',
-    example_sentence: 'Nnali azaala emirembe (The Crested Crane brings peace).',
-    status: 'approved',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'vocab-3',
-    lukenye: 'Kasiise',
-    english: 'The Floating Island',
-    category: 'geography',
-    usage: 'Specifically used to describe natural floating reed rafts on Lake Kyoga.',
-    example_sentence: 'Kasiise kimanyi okutambula (The floating island knows how to travel).',
-    status: 'approved',
-    created_at: new Date().toISOString()
-  }
-];
+const DEFAULT_FALLBACK_VOCABULARY: Vocabulary[] = [];
 
 export async function getVocabulary(onlyApproved = true): Promise<Vocabulary[]> {
   const client = getSupabase();
@@ -1868,44 +1757,7 @@ export interface ElderQuestion {
   created_at: string;
 }
 
-const DEFAULT_FALLBACK_QUESTIONS: ElderQuestion[] = [
-  {
-    id: 'q-1',
-    name: 'Waiswa Peter',
-    email: 'waiswa@example.com',
-    question: 'What is the historical significance of the canoe building craft among the Bakenyi?',
-    category: 'Traditions',
-    status: 'answered',
-    answer: 'Canoe building (traditional papyrus and wooden canoes) is a vital spiritual and economic craft for the Bakenyi. Before carving a canoe, specific prayers were offered to the water spirits (Mukasa) for safety, and the craft was passed down as a sacred lineage secret.',
-    answered_by: 'Elder Mukama James',
-    answered_at: '2026-07-10T14:30:00Z',
-    created_at: '2026-07-09T09:00:00Z'
-  },
-  {
-    id: 'q-2',
-    name: 'Nambi Sarah',
-    email: 'nambi@example.com',
-    question: 'How does the Bakenyi marriage system respect clan totems?',
-    category: 'Social Laws',
-    status: 'answered',
-    answer: 'The Bakenyi practice strict exogamy. One is forbidden from marrying someone from their father\'s clan (same primary totem) or their mother\'s clan (same secondary totem). This preserves genetic health and strengthens inter-clan alliances.',
-    answered_by: 'Elder Nabirye Florence',
-    answered_at: '2026-07-12T10:15:00Z',
-    created_at: '2026-07-11T16:45:00Z'
-  },
-  {
-    id: 'q-3',
-    name: 'Kintu David',
-    email: 'kintu@example.com',
-    question: 'Where did the Bakenyi people settle first along Lake Kyoga?',
-    category: 'History',
-    status: 'answered',
-    answer: 'The earliest settlements were recorded around the floating islands (ebigiri) and marshy peninsulas of Lake Kyoga, especially near the modern-day Buyende and Kaliro districts. These locations offered natural protection and abundant fishing grounds.',
-    answered_by: 'Elder Tabingwa Moses',
-    answered_at: '2026-07-15T11:00:00Z',
-    created_at: '2026-07-14T08:20:00Z'
-  }
-];
+const DEFAULT_FALLBACK_QUESTIONS: ElderQuestion[] = [];
 
 function initializeElderQuestionsStorage() {
   if (!localStorage.getItem('bakenye_elder_questions')) {
