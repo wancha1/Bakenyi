@@ -6,24 +6,29 @@ import { Shield, Award, Coffee, Compass, Volume2, ChevronRight } from 'lucide-re
 interface FeaturedHeritageProps {
   featuredItems: {
     clan: {
+      id?: string;
       name: string;
       totem: string;
       desc: string;
     };
     leader: {
+      id?: string;
       name: string;
       role: string;
       bio: string;
     };
     food: {
+      id?: string;
       title: string;
       desc: string;
     };
     artifact: {
+      id?: string;
       title: string;
       desc: string;
     };
     oralHistory: {
+      id?: string;
       title: string;
       desc: string;
     };
@@ -74,8 +79,11 @@ export default function FeaturedHeritage({ featuredItems }: FeaturedHeritageProp
             </div>
             <div className="pt-6 border-t border-stone-100 dark:border-stone-800/80 mt-6 flex justify-between items-center">
               <span className="text-[10px] text-stone-400 font-medium">Settled around Kyoga basin</span>
-              <Link to="/clans" className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 hover:underline flex items-center font-bold">
-                Discover Clans <ChevronRight className="w-3.5 h-3.5" />
+              <Link 
+                to={featuredItems.clan.id ? `/clans/${featuredItems.clan.id}` : "/clans"} 
+                className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 hover:underline flex items-center font-bold"
+              >
+                Discover Clan <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </motion.div>
@@ -106,8 +114,11 @@ export default function FeaturedHeritage({ featuredItems }: FeaturedHeritageProp
             </div>
             <div className="pt-6 border-t border-stone-100 dark:border-stone-800/80 mt-6 flex justify-between items-center">
               <span className="text-[10px] text-stone-400 font-medium">Active Council Member</span>
-              <Link to="/leadership" className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:underline flex items-center font-bold">
-                Meet Elders <ChevronRight className="w-3.5 h-3.5" />
+              <Link 
+                to={featuredItems.leader.id ? `/leadership/${featuredItems.leader.id}` : "/leadership"} 
+                className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 hover:underline flex items-center font-bold"
+              >
+                Meet Elder <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </motion.div>
@@ -204,7 +215,10 @@ export default function FeaturedHeritage({ featuredItems }: FeaturedHeritageProp
             </div>
             <div className="pt-6 border-t border-stone-100 dark:border-stone-800/80 mt-6 flex justify-between items-center">
               <span className="text-[10px] text-stone-400 font-medium">Floating worlds of Kyoga</span>
-              <Link to="/articles" className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:underline flex items-center font-bold">
+              <Link 
+                to={featuredItems.oralHistory.id ? `/oral-history/${featuredItems.oralHistory.id}` : "/history"} 
+                className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:underline flex items-center font-bold"
+              >
                 Read Memoirs <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>

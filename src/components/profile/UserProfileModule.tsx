@@ -18,7 +18,12 @@ import {
   BookOpen,
   Mic,
   Camera,
-  AlertCircle
+  AlertCircle,
+  Facebook,
+  Send,
+  MessageSquare,
+  Globe,
+  Link
 } from 'lucide-react';
 
 interface UserProfile {
@@ -67,6 +72,14 @@ export default function UserProfileModule({ user }: { user: any }) {
 
   // Recent activity log
   const [activities, setActivities] = useState<RecentActivity[]>([]);
+
+  // Social links states
+  const [socialWhatsApp, setSocialWhatsApp] = useState('');
+  const [socialTelegram, setSocialTelegram] = useState('');
+  const [socialFacebook, setSocialFacebook] = useState('');
+  const [socialX, setSocialX] = useState('');
+  const [socialWebsite, setSocialWebsite] = useState('');
+  const [urlErrors, setUrlErrors] = useState<{ [key: string]: string }>({});
 
   const avatarPresets = [
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
@@ -140,6 +153,21 @@ export default function UserProfileModule({ user }: { user: any }) {
       const localNotif = localStorage.getItem(`bakenyi_pref_notif_${user.id}`);
       if (localNotif) {
         setNotifPref(JSON.parse(localNotif));
+      }
+
+      // Load social links from localStorage
+      try {
+        const storedSocial = localStorage.getItem(`bakenyi_social_links_${user.id}`);
+        if (storedSocial) {
+          const links = JSON.parse(storedSocial);
+          setSocialWhatsApp(links.whatsapp || '');
+          setSocialTelegram(links.telegram || '');
+          setSocialFacebook(links.facebook || '');
+          setSocialX(links.x || '');
+          setSocialWebsite(links.website || '');
+        }
+      } catch (err) {
+        console.warn('Failed to parse social links:', err);
       }
 
       // Calculate dynamic statistics
@@ -219,6 +247,40 @@ export default function UserProfileModule({ user }: { user: any }) {
     setSaving(true);
     setError(null);
     setSuccess(null);
+
+    // Validate social URLs
+    const errors: { [key: string]: string } = {};
+    const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/i;
+
+    if (socialTelegram && !socialTelegram.startsWith('https://t.me/') && !urlPattern.test(socialTelegram)) {
+      errors.telegram = 'Please enter a valid Telegram URL or t.me link.';
+    }
+    if (socialFacebook && !socialFacebook.startsWith('https://facebook.com/') && !urlPattern.test(socialFacebook)) {
+      errors.facebook = 'Please enter a valid Facebook URL.';
+    }
+    if (socialX && !socialX.startsWith('https://x.com/') && !socialX.startsWith('https://twitter.com/') && !urlPattern.test(socialX)) {
+      errors.x = 'Please enter a valid X / Twitter URL.';
+    }
+    if (socialWebsite && !urlPattern.test(socialWebsite)) {
+      errors.website = 'Please enter a valid website URL.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setUrlErrors(errors);
+      setError('Some social links have invalid URL formats.');
+      setSaving(false);
+      return;
+    }
+
+    setUrlErrors({});
+    const linksObj = {
+      whatsapp: socialWhatsApp,
+      telegram: socialTelegram,
+      facebook: socialFacebook,
+      x: socialX,
+      website: socialWebsite
+    };
+    localStorage.setItem(`bakenyi_social_links_${user.id}`, JSON.stringify(linksObj));
 
     try {
       const client = getSupabase();
@@ -348,6 +410,72 @@ export default function UserProfileModule({ user }: { user: any }) {
             </div>
           </div>
 
+          {/* Configured Social Platforms list */}
+          {(socialWhatsApp || socialTelegram || socialFacebook || socialX || socialWebsite) && (
+            <div className="w-full mt-5 pt-4 border-t border-heritage-brown/5 text-left">
+              <span className="text-[10px] font-black uppercase text-heritage-brown/40 dark:text-stone-500 block mb-2 tracking-wider">
+                Configured Socials
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {socialWhatsApp && (
+                  <a
+                    href={socialWhatsApp.startsWith('http') ? socialWhatsApp : `https://wa.me/${socialWhatsApp.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 text-emerald-600 hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
+                    title="WhatsApp Connection"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </a>
+                )}
+                {socialTelegram && (
+                  <a
+                    href={socialTelegram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 text-sky-500 hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
+                    title="Telegram Channel"
+                  >
+                    <Send className="w-4 h-4" />
+                  </a>
+                )}
+                {socialFacebook && (
+                  <a
+                    href={socialFacebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 text-blue-600 hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
+                    title="Facebook Profile"
+                  >
+                    <Facebook className="w-4 h-4" />
+                  </a>
+                )}
+                {socialX && (
+                  <a
+                    href={socialX}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 text-stone-700 dark:text-stone-300 hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
+                    title="X / Twitter Feed"
+                  >
+                    <Link className="w-4 h-4" />
+                  </a>
+                )}
+                {socialWebsite && (
+                  <a
+                    href={socialWebsite}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 text-amber-600 hover:scale-105 transition-transform flex items-center justify-center cursor-pointer"
+                    title="Personal Website"
+                  >
+                    <Globe className="w-4 h-4" />
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Preset Avatar Selection list */}
           <div className="mt-8 pt-5 border-t border-heritage-brown/5 w-full">
             <span className="text-[10px] font-black uppercase text-heritage-brown/40 dark:text-stone-500 block mb-3 text-left tracking-wider">
@@ -448,6 +576,101 @@ export default function UserProfileModule({ user }: { user: any }) {
                     <option value="Riverine Kyoga Dialect">Riverine Kyoga Dialect (Regional Branch)</option>
                     <option value="Riparian Marshlands Dialect">Riparian Marshlands Dialect</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Social Connectivity Network */}
+              <div className="bg-heritage-brown/5 dark:bg-stone-950 p-5 rounded-2xl border border-heritage-brown/5 space-y-4">
+                <h4 className="text-[11px] font-black uppercase tracking-wider text-heritage-brown dark:text-heritage-sand flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-heritage-terracotta" />
+                  <span>Social Presence Networks</span>
+                </h4>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[9px] font-black uppercase text-heritage-brown/60 dark:text-stone-400 block mb-1">
+                      WhatsApp Number / Link
+                    </label>
+                    <input
+                      type="text"
+                      value={socialWhatsApp}
+                      onChange={(e) => setSocialWhatsApp(e.target.value)}
+                      placeholder="E.g. +256700000000"
+                      className="w-full bg-white dark:bg-stone-900 border border-heritage-brown/10 dark:border-stone-800 rounded-xl px-3.5 py-2.5 text-xs text-heritage-brown dark:text-white font-semibold focus:outline-none focus:border-heritage-terracotta"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-black uppercase text-heritage-brown/60 dark:text-stone-400 block mb-1">
+                      Telegram URL
+                    </label>
+                    <input
+                      type="text"
+                      value={socialTelegram}
+                      onChange={(e) => setSocialTelegram(e.target.value)}
+                      placeholder="E.g. https://t.me/username"
+                      className={`w-full bg-white dark:bg-stone-900 border rounded-xl px-3.5 py-2.5 text-xs text-heritage-brown dark:text-white font-semibold focus:outline-none focus:border-heritage-terracotta ${
+                        urlErrors.telegram ? 'border-rose-500' : 'border-heritage-brown/10 dark:border-stone-800'
+                      }`}
+                    />
+                    {urlErrors.telegram && (
+                      <span className="text-[9px] text-rose-500 block mt-1">{urlErrors.telegram}</span>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-black uppercase text-heritage-brown/60 dark:text-stone-400 block mb-1">
+                      Facebook URL
+                    </label>
+                    <input
+                      type="text"
+                      value={socialFacebook}
+                      onChange={(e) => setSocialFacebook(e.target.value)}
+                      placeholder="E.g. https://facebook.com/username"
+                      className={`w-full bg-white dark:bg-stone-900 border rounded-xl px-3.5 py-2.5 text-xs text-heritage-brown dark:text-white font-semibold focus:outline-none focus:border-heritage-terracotta ${
+                        urlErrors.facebook ? 'border-rose-500' : 'border-heritage-brown/10 dark:border-stone-800'
+                      }`}
+                    />
+                    {urlErrors.facebook && (
+                      <span className="text-[9px] text-rose-500 block mt-1">{urlErrors.facebook}</span>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-black uppercase text-heritage-brown/60 dark:text-stone-400 block mb-1">
+                      X / Twitter URL
+                    </label>
+                    <input
+                      type="text"
+                      value={socialX}
+                      onChange={(e) => setSocialX(e.target.value)}
+                      placeholder="E.g. https://x.com/username"
+                      className={`w-full bg-white dark:bg-stone-900 border rounded-xl px-3.5 py-2.5 text-xs text-heritage-brown dark:text-white font-semibold focus:outline-none focus:border-heritage-terracotta ${
+                        urlErrors.x ? 'border-rose-500' : 'border-heritage-brown/10 dark:border-stone-800'
+                      }`}
+                    />
+                    {urlErrors.x && (
+                      <span className="text-[9px] text-rose-500 block mt-1">{urlErrors.x}</span>
+                    )}
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[9px] font-black uppercase text-heritage-brown/60 dark:text-stone-400 block mb-1">
+                      Personal Website URL
+                    </label>
+                    <input
+                      type="text"
+                      value={socialWebsite}
+                      onChange={(e) => setSocialWebsite(e.target.value)}
+                      placeholder="E.g. https://example.com"
+                      className={`w-full bg-white dark:bg-stone-900 border rounded-xl px-3.5 py-2.5 text-xs text-heritage-brown dark:text-white font-semibold focus:outline-none focus:border-heritage-terracotta ${
+                        urlErrors.website ? 'border-rose-500' : 'border-heritage-brown/10 dark:border-stone-800'
+                      }`}
+                    />
+                    {urlErrors.website && (
+                      <span className="text-[9px] text-rose-500 block mt-1">{urlErrors.website}</span>
+                    )}
+                  </div>
                 </div>
               </div>
 

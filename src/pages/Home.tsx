@@ -345,26 +345,42 @@ export default function Home() {
 
   // Curated Featured items
   const featuredItems = useMemo(() => {
-    const selectedClan = clans[0] || { name: 'Baise-Mugaya Clan', totem: 'Crested Crane (Nnali)', desc: 'Traditionally serving as the navigators and high canoe crafters of Lake Kyoga, steering communities across the waters.' };
-    const selectedLeader = leaders[0] || { name: 'Elder Christopher Kyega', role: 'Chief Historian & Story Keeper (92 years)', bio: 'Possesses direct oral line coordinates of the 17th-century migrations of the Bakenyi riverine communities.' };
+    const selectedClan = clans.find(c => c.name?.toLowerCase().includes('baise-mugaya')) || clans[0] || { 
+      id: 'baise-mugaya-clan-fallback-id',
+      name: 'Baise-Mugaya Clan', 
+      totem: 'Crested Crane (Nnali)', 
+      desc: 'Traditionally serving as the navigators and high canoe crafters of Lake Kyoga, steering communities across the waters.' 
+    };
+
+    const selectedLeader = leaders.find(l => l.name?.toLowerCase().includes('christopher kyega')) || leaders[0] || { 
+      id: 'elder-christopher-kyega-fallback-id',
+      name: 'Elder Christopher Kyega', 
+      role: 'Chief Historian & Story Keeper (92 years)', 
+      bio: 'Possesses direct oral line coordinates of the 17th-century migrations of the Bakenyi riverine communities.' 
+    };
+
+    const selectedOralHistory = recentArticles.find(a => a.title?.toLowerCase().includes('ebiswa') || a.title?.toLowerCase().includes('legend')) || recentArticles[0] || {
+      id: 'legends-of-ebiswa-fallback-id',
+      title: 'The Legends of the Ebiswa',
+      desc: 'Ancient accounts of the floating reed islands of Lake Kyoga which served as temporary mobile settlements during periods of regional migration.'
+    };
     
     return {
       clan: selectedClan,
       leader: selectedLeader,
       food: {
+        id: 'gastronomy-food-spotlight-id',
         title: 'Embaata & Smoked Kyoga Catfish',
         desc: 'Traditional lake cuisine salted and slow-smoked on dry papyrus reed mattresses, creating a distinctive deep river aroma.'
       },
       artifact: {
+        id: 'canoe-artifact-spotlight-id',
         title: 'The Amato (Traditional Dugout Canoe)',
         desc: 'Hand-carved from a single Musizi tree trunk, shaped to pierce the heavy Kyoga water lilies and propelled by distinctive heart-shaped paddles.'
       },
-      oralHistory: {
-        title: 'The Legends of the Ebiswa',
-        desc: 'Ancient accounts of the floating reed islands of Lake Kyoga which served as temporary mobile settlements during periods of regional migration.'
-      }
+      oralHistory: selectedOralHistory
     };
-  }, [clans, leaders]);
+  }, [clans, leaders, recentArticles]);
 
   return (
     <div className="relative overflow-hidden bg-[#faf8f5] dark:bg-stone-950 text-stone-900 dark:text-stone-100 min-h-screen font-sans">
@@ -373,6 +389,46 @@ export default function Home() {
         description="Preserving the rich riverine traditions, clans, totems, language (Lukenye), and oral history archives of the Bakenye people of Lake Kyoga, Uganda."
         keywords="Home, Bakenye culture, Lake Kyoga, Lukenye dialect, oral history preservation, African clans, indigenous river dwellers"
       />
+
+      {/* Subtle Ambient Floating Background Gradients */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <motion.div 
+          animate={{
+            x: [0, 40, -20, 0],
+            y: [0, -60, 40, 0],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="absolute top-[10%] left-[5%] w-72 h-72 rounded-full bg-amber-500/5 dark:bg-amber-500/3 blur-[120px]"
+        />
+        <motion.div 
+          animate={{
+            x: [0, -50, 30, 0],
+            y: [0, 40, -50, 0],
+          }}
+          transition={{
+            duration: 30,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="absolute top-[40%] right-[10%] w-96 h-96 rounded-full bg-orange-600/5 dark:bg-orange-600/3 blur-[140px]"
+        />
+        <motion.div 
+          animate={{
+            x: [0, 30, -30, 0],
+            y: [0, 50, -40, 0],
+          }}
+          transition={{
+            duration: 28,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="absolute bottom-[20%] left-[15%] w-80 h-80 rounded-full bg-emerald-600/5 dark:bg-emerald-600/3 blur-[125px]"
+        />
+      </div>
       
       {/* 1. HERO SECTION */}
       <HeroSection 
@@ -389,6 +445,9 @@ export default function Home() {
         statuses={statuses}
         handleOpenStatus={handleOpenStatus}
       />
+
+      {/* Spacing before "Today in Bakenye" */}
+      <div className="h-10 md:h-16" />
 
       {/* 3. DAILY SPOTLIGHT */}
       <DailySpotlight 

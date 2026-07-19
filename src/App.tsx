@@ -19,6 +19,7 @@ import Header from './components/admin/Header';
 // Storefront Pages (Lazy loaded for massive speed improvements and micro-chunk code-splitting)
 const Home = lazy(() => import('./pages/Home'));
 const About = lazy(() => import('./pages/About'));
+const Bookmarks = lazy(() => import('./pages/Bookmarks'));
 const History = lazy(() => import('./pages/History'));
 const Clans = lazy(() => import('./pages/Clans'));
 const Leadership = lazy(() => import('./pages/Leadership'));
@@ -420,6 +421,7 @@ export default function App() {
             <Route element={<StorefrontLayout user={user} userRole={appUserRole} />}>
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
+              <Route path="/bookmarks" element={<Bookmarks />} />
               <Route path="/history" element={<History />} />
               <Route path="/clans" element={<Clans />} />
               <Route path="/leadership" element={<Leadership />} />

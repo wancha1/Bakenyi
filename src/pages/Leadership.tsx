@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Mail, Linkedin, User, ShieldCheck, Award, Users, Search } from 'lucide-react';
 import { getLeaders, Leader } from '../lib/supabase';
@@ -159,16 +159,23 @@ export default function Leadership() {
                       {leader.bio || 'Verifying authentic oral narratives and supervising digital language programs.'}
                     </p>
                     <div className="w-full pt-4 border-t border-heritage-brown/5 flex flex-col items-center">
-                      <div className="flex items-center text-heritage-olive text-[10px] font-bold uppercase tracking-wider mb-4">
+                      <div className="flex items-center text-heritage-olive text-[10px] font-bold uppercase tracking-wider mb-3">
                         <Award className="w-3 h-3 mr-1" />
                         {leader.expertise || 'Cultural Custodian'}
                       </div>
                       
                       {leader.clan && (
-                        <div className="text-[10px] text-heritage-brown/40 font-bold uppercase tracking-wider mb-4">
+                        <div className="text-[10px] text-heritage-brown/40 font-bold uppercase tracking-wider mb-3">
                           Clan: {leader.clan}
                         </div>
                       )}
+
+                      <Link 
+                        to={`/leadership/${leader.id}`}
+                        className="w-full py-2 px-4 bg-heritage-terracotta hover:bg-heritage-terracotta/90 text-white rounded-xl text-xs font-bold text-center transition-all duration-200 mb-4 hover:shadow-md block"
+                      >
+                        Explore Chronicle
+                      </Link>
 
                       <div className="flex space-x-3">
                         {leader.contact_email ? (

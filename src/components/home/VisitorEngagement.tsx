@@ -238,7 +238,7 @@ export default function VisitorEngagement({
                   className="p-4 rounded-2xl bg-stone-950 border border-stone-800 hover:border-amber-500/50 transition-colors block text-left"
                 >
                   <BookOpen className="w-5 h-5 text-amber-500 mb-2" />
-                  <h5 className="font-bold text-xs text-stone-100">Submit Story</h5>
+                  <h5 className="font-bold text-xs text-stone-100">Submit News</h5>
                   <p className="text-[10px] text-stone-400 mt-1">Write historical logs or transcription drafts.</p>
                 </Link>
                 <Link 

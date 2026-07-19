@@ -192,100 +192,144 @@ export default function Clans() {
         </div>
       </section>
 
-      {/* Ancestral History Modal */}
+      {/* Immersive Museum-Quality Clan Exhibition Board */}
       <AnimatePresence>
         {selectedClan && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            {/* Backdrop Blur */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedClan(null)}
-              className="absolute inset-0 bg-heritage-brown/60 backdrop-blur-xs"
+              className="fixed inset-0 bg-stone-950/85 backdrop-blur-md"
             />
             
+            {/* Exhibition Container */}
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-heritage-cream w-full max-w-2xl rounded-[32px] overflow-hidden border-2 border-heritage-terracotta/20 shadow-2xl z-10 text-left"
+              exit={{ opacity: 0, scale: 0.95, y: 30 }}
+              transition={{ type: "spring", damping: 25, stiffness: 180 }}
+              className="relative bg-heritage-cream dark:bg-stone-900 w-full max-w-4xl rounded-[32px] overflow-hidden border border-heritage-terracotta/20 dark:border-stone-800 shadow-2xl z-10 text-left flex flex-col md:flex-row"
             >
-              <div className="bg-heritage-brown p-8 text-white relative">
-                <div className="absolute inset-0 cultural-pattern opacity-10" />
-                <button 
-                  onClick={() => setSelectedClan(null)}
-                  className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors text-lg cursor-pointer font-bold"
-                >
-                  ✕
-                </button>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-heritage-terracotta/20 flex items-center justify-center shrink-0 border border-heritage-terracotta/30">
-                    <Shield className="w-6 h-6 text-heritage-terracotta" />
+              
+              {/* Left Column - Visual Emblem & Custodian Panel */}
+              <div className="md:w-2/5 bg-heritage-brown dark:bg-stone-950 text-white p-8 relative flex flex-col justify-between border-b md:border-b-0 md:border-r border-heritage-terracotta/10 overflow-hidden">
+                <div className="absolute inset-0 cultural-pattern opacity-10 pointer-events-none" />
+                <div className="absolute -top-24 -left-24 w-48 h-48 bg-heritage-terracotta/10 rounded-full blur-2xl pointer-events-none" />
+                
+                {/* Header info */}
+                <div className="relative space-y-6">
+                  <div className="flex justify-between items-start">
+                    <span className="text-[9px] font-sans font-black uppercase tracking-widest text-heritage-sand bg-white/10 px-2.5 py-1 rounded-full">
+                      Lineage Registry
+                    </span>
+                    <button 
+                      onClick={() => setSelectedClan(null)}
+                      className="md:hidden text-white/70 hover:text-white transition-colors text-lg cursor-pointer"
+                      aria-label="Close"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-heritage-sand">Bakenyi Lineage Group</span>
-                    <h3 className="text-3xl font-serif font-bold text-white">{selectedClan.name}</h3>
+                  
+                  {/* Large Icon Crest */}
+                  <div className="w-24 h-24 rounded-3xl bg-heritage-cream/5 border border-white/10 flex items-center justify-center shadow-inner relative group mx-auto md:mx-0">
+                    <div className="absolute inset-2 border border-dashed border-white/15 rounded-2xl pointer-events-none" />
+                    <Shield className="w-12 h-12 text-heritage-terracotta" />
+                  </div>
+                  
+                  <div className="space-y-2 text-center md:text-left">
+                    <h3 className="text-3xl md:text-4xl font-serif font-black text-white leading-tight">
+                      {selectedClan.name}
+                    </h3>
+                    <p className="text-xs font-mono font-bold text-heritage-sand uppercase tracking-widest">
+                      {selectedClan.totem ? `Totem: ${selectedClan.totem}` : "No totem registered"}
+                    </p>
                   </div>
                 </div>
-              </div>
 
-              <div className="p-8 max-h-[70vh] overflow-y-auto space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white/80 border border-heritage-brown/5 rounded-2xl p-4 flex gap-3 items-center">
-                    <Sparkles className="w-5 h-5 text-heritage-terracotta shrink-0" />
-                    <div>
-                      <h5 className="text-[10px] font-bold text-heritage-brown/40 uppercase tracking-wider">Totem / Emblem</h5>
-                      <p className="text-xs font-bold text-heritage-brown">{selectedClan.totem || 'None'}</p>
+                {/* Custodian detail at bottom */}
+                <div className="relative mt-8 pt-6 border-t border-white/10 space-y-3">
+                  <div className="flex gap-3 items-center">
+                    <div className="p-2 bg-white/5 rounded-lg border border-white/10">
+                      <User className="w-4 h-4 text-heritage-sand" />
                     </div>
-                  </div>
-
-                  <div className="bg-white/80 border border-heritage-brown/5 rounded-2xl p-4 flex gap-3 items-center">
-                    <User className="w-5 h-5 text-heritage-terracotta shrink-0" />
                     <div>
-                      <h5 className="text-[10px] font-bold text-heritage-brown/40 uppercase tracking-wider">Assigned Custodian</h5>
-                      <p className="text-xs font-bold text-heritage-brown">{selectedClan.custodian || 'No custodian assigned'}</p>
+                      <h5 className="text-[9px] font-black uppercase tracking-wider text-white/40">Registered Custodian</h5>
+                      <p className="text-xs font-semibold text-white/90">{selectedClan.custodian || "Council of Elders"}</p>
                     </div>
                   </div>
 
                   {selectedClan.origin && (
-                    <div className="bg-white/80 border border-heritage-brown/5 rounded-2xl p-4 flex gap-3 items-center md:col-span-2">
-                      <MapPin className="w-5 h-5 text-heritage-terracotta shrink-0" />
+                    <div className="flex gap-3 items-center">
+                      <div className="p-2 bg-white/5 rounded-lg border border-white/10">
+                        <MapPin className="w-4 h-4 text-heritage-sand" />
+                      </div>
                       <div>
-                        <h5 className="text-[10px] font-bold text-heritage-brown/40 uppercase tracking-wider">Geographic Settlement Origin</h5>
-                        <p className="text-xs font-bold text-heritage-brown">{selectedClan.origin}</p>
+                        <h5 className="text-[9px] font-black uppercase tracking-wider text-white/40">Geographic Center</h5>
+                        <p className="text-xs font-semibold text-white/90">{selectedClan.origin}</p>
                       </div>
                     </div>
                   )}
                 </div>
+              </div>
 
-                {selectedClan.motto && (
-                  <div className="bg-white border-l-4 border-heritage-terracotta p-4 rounded-r-2xl italic text-heritage-brown/70 font-medium">
-                    "{selectedClan.motto}"
-                  </div>
-                )}
+              {/* Right Column - Story & Chronicles Narrative */}
+              <div className="md:w-3/5 p-8 md:p-10 flex flex-col justify-between max-h-[85vh] md:max-h-[600px] overflow-y-auto space-y-8 bg-white/50 dark:bg-stone-900/40">
+                
+                {/* Close Button on Desktop */}
+                <button 
+                  onClick={() => setSelectedClan(null)}
+                  className="hidden md:block absolute top-6 right-8 text-heritage-brown/50 hover:text-heritage-brown dark:text-stone-400 dark:hover:text-white transition-colors text-lg cursor-pointer font-bold self-end"
+                  aria-label="Close panel"
+                >
+                  ✕
+                </button>
 
-                <div className="space-y-2">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-heritage-terracotta flex items-center gap-1.5">
-                    <BookOpen className="w-4 h-4" />
-                    <span>Origins & Descriptive Summary</span>
-                  </h4>
-                  <p className="text-sm text-heritage-brown/70 leading-relaxed font-medium">
-                    {selectedClan.desc || selectedClan.description || 'Traditional Bakenyi lineage group with deep historical bonds.'}
-                  </p>
-                </div>
+                <div className="space-y-6">
+                  {/* Motto if registered */}
+                  {selectedClan.motto && (
+                    <div className="bg-heritage-cream dark:bg-stone-800 border-l-4 border-heritage-terracotta p-5 rounded-r-2xl italic text-heritage-brown/80 dark:text-stone-200 font-medium text-sm shadow-xs">
+                      "{selectedClan.motto}"
+                    </div>
+                  )}
 
-                {selectedClan.history && (
-                  <div className="space-y-2 pt-4 border-t border-heritage-brown/5">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-heritage-terracotta flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4" />
-                      <span>Detailed Ancestral History & Timeline</span>
+                  {/* Summary narratives */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-sans font-black uppercase tracking-widest text-heritage-terracotta flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" />
+                      <span>Lineage Chronicle</span>
                     </h4>
-                    <p className="text-sm text-heritage-brown/70 leading-relaxed whitespace-pre-wrap font-medium">
-                      {selectedClan.history}
+                    <p className="text-sm text-heritage-brown/75 dark:text-stone-300 leading-relaxed font-medium">
+                      {selectedClan.desc || selectedClan.description || "Traditional Bakenyi lineage group with deep historical bonds."}
                     </p>
                   </div>
-                )}
+
+                  {/* Detailed History chronicles */}
+                  {selectedClan.history && (
+                    <div className="space-y-3 pt-6 border-t border-heritage-brown/5 dark:border-stone-800">
+                      <h4 className="text-xs font-sans font-black uppercase tracking-widest text-heritage-terracotta flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        <span>Sacred History & Oral Records</span>
+                      </h4>
+                      <p className="text-sm text-heritage-brown/75 dark:text-stone-300 leading-relaxed whitespace-pre-wrap font-medium">
+                        {selectedClan.history}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Disclaimer/Advisory block */}
+                <div className="pt-6 border-t border-heritage-brown/5 dark:border-stone-800 flex gap-3 items-start text-[11px] text-heritage-brown/50 dark:text-stone-400 font-medium">
+                  <Info className="w-4 h-4 text-heritage-terracotta shrink-0 mt-0.5" />
+                  <span>
+                    This archival registry was authorized directly by the Council of Elder Custodians. Descendants may request correction through their clan leader.
+                  </span>
+                </div>
               </div>
+
             </motion.div>
           </div>
         )}

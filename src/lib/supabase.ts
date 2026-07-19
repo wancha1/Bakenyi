@@ -143,37 +143,27 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
       error = fallbackRes.error;
     }
 
-    if (data && data.length > 0) {
-      // Map database schema to frontend Article model
-      const dbArticles = data.map((row: any) => ({
-        id: row.id,
-        title: row.title,
-        excerpt: row.summary || '',
-        content: row.content || '',
-        category: 'Heritage', // default or custom category if needed
-        author: 'Bakenyi Committee', // default author
-        publishedAt: row.published_at || row.created_at || new Date().toISOString().split('T')[0],
-        status: row.status || 'published',
-        views: 0,
-        tags: ['Heritage']
-      }));
+    if (error) throw error;
 
-      const merged = [...localList, ...dbArticles];
-      const unique = merged.filter((item, index, self) => self.findIndex(t => t.id === item.id) === index);
-      return onlyPublished ? unique.filter(a => a.status === 'published') : unique;
-    }
+    const dbArticles = (data || []).map((row: any) => ({
+      id: row.id,
+      title: row.title,
+      excerpt: row.summary || '',
+      content: row.content || '',
+      category: 'Heritage', // default or custom category if needed
+      author: 'Bakenyi Committee', // default author
+      publishedAt: row.published_at || row.created_at || new Date().toISOString().split('T')[0],
+      status: row.status || 'published',
+      views: 0,
+      tags: ['Heritage']
+    }));
 
-    // Fallback if data is empty
-    const staticArticles = onlyPublished ? bakenyiArticles.filter(a => a.status === 'published') : bakenyiArticles;
-    const merged = [...localList, ...staticArticles];
+    const merged = [...localList, ...dbArticles];
     const unique = merged.filter((item, index, self) => self.findIndex(t => t.id === item.id) === index);
     return onlyPublished ? unique.filter(a => a.status === 'published') : unique;
   } catch (err) {
-    console.warn('Supabase fetch failed, returning high-quality local articles:', err);
-    const staticArticles = onlyPublished ? bakenyiArticles.filter(a => a.status === 'published') : bakenyiArticles;
-    const merged = [...localList, ...staticArticles];
-    const unique = merged.filter((item, index, self) => self.findIndex(t => t.id === item.id) === index);
-    return onlyPublished ? unique.filter(a => a.status === 'published') : unique;
+    console.warn('Supabase fetch articles failed:', err);
+    return [];
   }
 }
 
@@ -209,6 +199,8 @@ export async function getArticleById(id: string): Promise<Article | null> {
       error = fallbackRes.error;
     }
 
+    if (error) throw error;
+
     if (data) {
       return {
         id: data.id,
@@ -227,8 +219,7 @@ export async function getArticleById(id: string): Promise<Article | null> {
     console.warn(`Supabase read for ID ${id} failed:`, err);
   }
 
-  // Fallback to high-quality local data
-  return bakenyiArticles.find(a => a.id === id) || null;
+  return null;
 }
 
 /**
@@ -1126,23 +1117,21 @@ const DEFAULT_FALLBACK_CLANS: Clan[] = [
 
 export async function getClans(onlyApproved = true): Promise<Clan[]> {
   const client = getSupabase();
-  const stored = localStorage.getItem('bakenye_clans');
-  if (!stored) {
-    localStorage.setItem('bakenye_clans', JSON.stringify(DEFAULT_FALLBACK_CLANS));
-  }
-  const localList = JSON.parse(localStorage.getItem('bakenye_clans') || '[]');
 
   if (!client) {
+    const stored = localStorage.getItem('bakenye_clans');
+    if (!stored) {
+      localStorage.setItem('bakenye_clans', JSON.stringify(DEFAULT_FALLBACK_CLANS));
+    }
+    const localList = JSON.parse(localStorage.getItem('bakenye_clans') || '[]');
     return onlyApproved ? localList.filter((c: any) => c.status === 'approved') : localList;
   }
 
   try {
     const { data, error } = await client.from('clans').select('*').order('name', { ascending: true });
-    if (error || !data || data.length === 0) {
-      return onlyApproved ? localList.filter((c: any) => c.status === 'approved') : localList;
-    }
+    if (error) throw error;
     
-    const mapped = data.map((row: any) => ({
+    const mapped = (data || []).map((row: any) => ({
       id: row.id,
       name: row.name,
       totem: row.totem || '',
@@ -1158,14 +1147,10 @@ export async function getClans(onlyApproved = true): Promise<Clan[]> {
       created_at: row.created_at
     }));
 
-    const pendingLocal = localList.filter((c: any) => c.status === 'pending');
-    const combined = [...mapped, ...pendingLocal];
-    const unique = combined.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
-
-    return onlyApproved ? unique.filter(c => c.status === 'approved') : unique;
+    return onlyApproved ? mapped.filter(c => c.status === 'approved') : mapped;
   } catch (err) {
-    console.warn('Supabase fetch clans failed, returning local fallback:', err);
-    return onlyApproved ? localList.filter((c: any) => c.status === 'approved') : localList;
+    console.warn('Supabase fetch clans failed:', err);
+    return [];
   }
 }
 
@@ -1325,13 +1310,13 @@ const DEFAULT_FALLBACK_LEADERS: Leader[] = [
 
 export async function getLeaders(onlyApproved = true): Promise<Leader[]> {
   const client = getSupabase();
-  const stored = localStorage.getItem('bakenye_leaders');
-  if (!stored) {
-    localStorage.setItem('bakenye_leaders', JSON.stringify(DEFAULT_FALLBACK_LEADERS));
-  }
-  const localList = JSON.parse(localStorage.getItem('bakenye_leaders') || '[]');
 
   if (!client) {
+    const stored = localStorage.getItem('bakenye_leaders');
+    if (!stored) {
+      localStorage.setItem('bakenye_leaders', JSON.stringify(DEFAULT_FALLBACK_LEADERS));
+    }
+    const localList = JSON.parse(localStorage.getItem('bakenye_leaders') || '[]');
     return onlyApproved ? localList.filter((l: any) => l.status === 'approved') : localList;
   }
 
@@ -1341,11 +1326,9 @@ export async function getLeaders(onlyApproved = true): Promise<Leader[]> {
       .select('id, full_name, title, biography, clan_id, status, created_at')
       .order('full_name', { ascending: true });
     
-    if (error || !data || data.length === 0) {
-      return onlyApproved ? localList.filter((l: any) => l.status === 'approved') : localList;
-    }
+    if (error) throw error;
 
-    const mapped = data.map((row: any) => ({
+    const mapped = (data || []).map((row: any) => ({
       id: row.id,
       name: row.full_name || '',
       role: row.title || '',
@@ -1358,14 +1341,10 @@ export async function getLeaders(onlyApproved = true): Promise<Leader[]> {
       created_at: row.created_at
     }));
 
-    const pendingLocal = localList.filter((l: any) => l.status === 'pending');
-    const combined = [...mapped, ...pendingLocal];
-    const unique = combined.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
-
-    return onlyApproved ? unique.filter(l => l.status === 'approved') : unique;
+    return onlyApproved ? mapped.filter(l => l.status === 'approved') : mapped;
   } catch (err: any) {
-    console.warn('Supabase fetch leaders failed, using local fallback:', err);
-    return onlyApproved ? localList.filter((l: any) => l.status === 'approved') : localList;
+    console.warn('Supabase fetch leaders failed:', err);
+    return [];
   }
 }
 
@@ -1491,23 +1470,21 @@ const DEFAULT_FALLBACK_VOCABULARY: Vocabulary[] = [
 
 export async function getVocabulary(onlyApproved = true): Promise<Vocabulary[]> {
   const client = getSupabase();
-  const stored = localStorage.getItem('bakenye_vocabulary');
-  if (!stored) {
-    localStorage.setItem('bakenye_vocabulary', JSON.stringify(DEFAULT_FALLBACK_VOCABULARY));
-  }
-  const localList = JSON.parse(localStorage.getItem('bakenye_vocabulary') || '[]');
 
   if (!client) {
+    const stored = localStorage.getItem('bakenye_vocabulary');
+    if (!stored) {
+      localStorage.setItem('bakenye_vocabulary', JSON.stringify(DEFAULT_FALLBACK_VOCABULARY));
+    }
+    const localList = JSON.parse(localStorage.getItem('bakenye_vocabulary') || '[]');
     return onlyApproved ? localList.filter((v: any) => v.status === 'approved') : localList;
   }
 
   try {
     const { data, error } = await client.from('vocabulary').select('*').order('id', { ascending: true });
-    if (error || !data || data.length === 0) {
-      return onlyApproved ? localList.filter((v: any) => v.status === 'approved') : localList;
-    }
+    if (error) throw error;
 
-    const mapped = data.map((row: any) => ({
+    const mapped = (data || []).map((row: any) => ({
       id: row.id,
       lukenye: row.lukenye,
       english: row.english,
@@ -1519,14 +1496,10 @@ export async function getVocabulary(onlyApproved = true): Promise<Vocabulary[]> 
       created_at: row.created_at
     }));
 
-    const pendingLocal = localList.filter((v: any) => v.status === 'pending');
-    const combined = [...mapped, ...pendingLocal];
-    const unique = combined.filter((v, i, a) => a.findIndex(t => t.lukenye === v.lukenye) === i);
-
-    return onlyApproved ? unique.filter(v => v.status === 'approved') : unique;
+    return onlyApproved ? mapped.filter(v => v.status === 'approved') : mapped;
   } catch (err) {
-    console.warn('Supabase fetch vocabulary failed, using local fallback:', err);
-    return onlyApproved ? localList.filter((v: any) => v.status === 'approved') : localList;
+    console.warn('Supabase fetch vocabulary failed:', err);
+    return [];
   }
 }
 

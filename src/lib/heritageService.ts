@@ -176,18 +176,14 @@ initializeLocalStorage();
 
 export async function getStatuses(onlyApproved = true): Promise<Status[]> {
   const client = getSupabase();
-  initializeLocalStorage();
 
-  const getLocalData = (): Status[] => {
+  if (!client) {
+    initializeLocalStorage();
     const localList = JSON.parse(localStorage.getItem('bakenye_statuses') || '[]');
     const now = new Date();
     return onlyApproved
       ? localList.filter((s: any) => s.status === 'approved' && !s.is_archived && (!s.expires_at || new Date(s.expires_at) > now))
       : localList;
-  };
-
-  if (!client) {
-    return getLocalData();
   }
 
   try {
@@ -221,8 +217,8 @@ export async function getStatuses(onlyApproved = true): Promise<Status[]> {
       ? mapped.filter(s => s.status === 'approved' && !s.is_archived && (!s.expires_at || new Date(s.expires_at) > now))
       : mapped;
   } catch (err: any) {
-    console.warn('Supabase fetch statuses failed, falling back to local storage:', err);
-    return getLocalData();
+    console.warn('Supabase fetch statuses failed:', err);
+    return [];
   }
 }
 
@@ -345,15 +341,11 @@ export async function deleteStatus(id: string): Promise<boolean> {
 
 export async function getNews(onlyPublished = true): Promise<News[]> {
   const client = getSupabase();
-  initializeLocalStorage();
-
-  const getLocalData = (): News[] => {
-    const localList = JSON.parse(localStorage.getItem('bakenye_news') || '[]');
-    return onlyPublished ? localList.filter((n: any) => n.status === 'published') : localList;
-  };
 
   if (!client) {
-    return getLocalData();
+    initializeLocalStorage();
+    const localList = JSON.parse(localStorage.getItem('bakenye_news') || '[]');
+    return onlyPublished ? localList.filter((n: any) => n.status === 'published') : localList;
   }
 
   try {
@@ -385,8 +377,8 @@ export async function getNews(onlyPublished = true): Promise<News[]> {
 
     return onlyPublished ? mapped.filter(n => n.status === 'published') : mapped;
   } catch (err: any) {
-    console.warn('Supabase fetch news failed, falling back to local storage:', err);
-    return getLocalData();
+    console.warn('Supabase fetch news failed:', err);
+    return [];
   }
 }
 
@@ -512,18 +504,14 @@ export async function deleteNews(id: string): Promise<boolean> {
 
 export async function getAnnouncements(onlyApproved = true): Promise<Announcement[]> {
   const client = getSupabase();
-  initializeLocalStorage();
 
-  const getLocalData = (): Announcement[] => {
+  if (!client) {
+    initializeLocalStorage();
     const localList = JSON.parse(localStorage.getItem('bakenye_announcements') || '[]');
     const now = new Date();
     return onlyApproved
       ? localList.filter((a: any) => a.status === 'approved' && (!a.start_date || new Date(a.start_date) <= now) && (!a.end_date || new Date(a.end_date) >= now))
       : localList;
-  };
-
-  if (!client) {
-    return getLocalData();
   }
 
   try {
@@ -555,8 +543,8 @@ export async function getAnnouncements(onlyApproved = true): Promise<Announcemen
       ? mapped.filter(a => a.status === 'approved' && (!a.start_date || new Date(a.start_date) <= now) && (!a.end_date || new Date(a.end_date) >= now))
       : mapped;
   } catch (err: any) {
-    console.warn('Supabase fetch announcements failed, falling back to local storage:', err);
-    return getLocalData();
+    console.warn('Supabase fetch announcements failed:', err);
+    return [];
   }
 }
 
@@ -676,15 +664,11 @@ export async function deleteAnnouncement(id: string): Promise<boolean> {
 
 export async function getEvents(onlyApproved = true): Promise<Event[]> {
   const client = getSupabase();
-  initializeLocalStorage();
-
-  const getLocalData = (): Event[] => {
-    const localList = JSON.parse(localStorage.getItem('bakenye_events') || '[]');
-    return onlyApproved ? localList.filter((e: any) => e.status === 'approved') : localList;
-  };
 
   if (!client) {
-    return getLocalData();
+    initializeLocalStorage();
+    const localList = JSON.parse(localStorage.getItem('bakenye_events') || '[]');
+    return onlyApproved ? localList.filter((e: any) => e.status === 'approved') : localList;
   }
 
   try {
@@ -716,8 +700,8 @@ export async function getEvents(onlyApproved = true): Promise<Event[]> {
 
     return onlyApproved ? mapped.filter(e => e.status === 'approved') : mapped;
   } catch (err: any) {
-    console.warn('Supabase fetch events failed, falling back to local storage:', err);
-    return getLocalData();
+    console.warn('Supabase fetch events failed:', err);
+    return [];
   }
 }
 

@@ -5,76 +5,76 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
   
   return (
-    <footer className="relative bg-stone-950 text-heritage-cream pt-16 pb-8 overflow-hidden border-t border-stone-900">
+    <footer className="relative bg-stone-950 text-heritage-cream pt-12 pb-6 overflow-hidden border-t border-stone-900">
       {/* Background Pattern Overlay */}
       <div className="absolute inset-0 cultural-pattern opacity-10 pointer-events-none" />
       
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
           {/* Brand Column */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             <Link to="/" className="flex items-center space-x-2 grayscale invert opacity-90">
-              <Globe className="w-8 h-8" />
+              <Globe className="w-7 h-7 text-heritage-terracotta" />
               <div className="flex flex-col">
-                <span className="text-xl font-serif font-bold leading-tight tracking-tight">BAKENYI</span>
-                <span className="text-[10px] font-sans font-semibold uppercase tracking-[0.2em] leading-none">Heritage Platform</span>
+                <span className="text-lg font-serif font-black leading-tight tracking-tight">BAKENYI</span>
+                <span className="text-[9px] font-sans font-semibold uppercase tracking-[0.2em] leading-none">Heritage Platform</span>
               </div>
             </Link>
-            <p className="text-heritage-cream/70 text-sm leading-relaxed max-w-xs">
+            <p className="text-heritage-cream/70 text-xs leading-relaxed max-w-xs font-medium">
               Dedicated to the preservation, documentation, and promotion of the rich cultural heritage of the Bakenyi people.
             </p>
-            <div className="flex space-x-4">
-              <a href="#" className="hover:text-heritage-terracotta transition-colors">
-                <Facebook className="w-5 h-5" />
+            <div className="flex space-x-4 pt-1">
+              <a href="#" className="text-heritage-cream/60 hover:text-heritage-terracotta transition-colors" aria-label="Facebook Page">
+                <Facebook className="w-4 h-4" />
               </a>
-              <a href="#" className="hover:text-heritage-terracotta transition-colors">
-                <Twitter className="w-5 h-5" />
+              <a href="#" className="text-heritage-cream/60 hover:text-heritage-terracotta transition-colors" aria-label="Twitter Profile">
+                <Twitter className="w-4 h-4" />
               </a>
-              <a href="#" className="hover:text-heritage-terracotta transition-colors">
-                <Instagram className="w-5 h-5" />
+              <a href="#" className="text-heritage-cream/60 hover:text-heritage-terracotta transition-colors" aria-label="Instagram Account">
+                <Instagram className="w-4 h-4" />
               </a>
             </div>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-lg font-serif font-bold mb-6 border-b border-heritage-cream/20 pb-2">Quick Links</h4>
-            <ul className="space-y-3">
-              <li><Link to="/about" className="text-heritage-cream/70 hover:text-white transition-colors text-sm">About Us</Link></li>
-              <li><Link to="/history" className="text-heritage-cream/70 hover:text-white transition-colors text-sm">Our History</Link></li>
-              <li><Link to="/clans" className="text-heritage-cream/70 hover:text-white transition-colors text-sm">Bakenyi Clans</Link></li>
-              <li><Link to="/gallery" className="text-heritage-cream/70 hover:text-white transition-colors text-sm">Photo Archive</Link></li>
-              <li><Link to="/language" className="text-heritage-cream/70 hover:text-white transition-colors text-sm">Lukenye Language</Link></li>
-              <li><Link to="/articles" className="text-heritage-cream/70 hover:text-white transition-colors text-sm">Published Articles</Link></li>
-              <li><Link to="/contribute" className="text-heritage-cream/70 hover:text-white transition-colors text-sm">Join the Archive</Link></li>
-              <li><Link to="/admin" className="text-heritage-cream/70 hover:text-white transition-colors text-sm opacity-20 hover:opacity-100">Admin Portal</Link></li>
+            <h4 className="text-xs font-sans font-black uppercase tracking-widest text-white mb-4 border-b border-heritage-cream/10 pb-1.5">Quick Links</h4>
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-medium">
+              <li><Link to="/about" className="text-heritage-cream/70 hover:text-white transition-colors">About Us</Link></li>
+              <li><Link to="/history" className="text-heritage-cream/70 hover:text-white transition-colors">Our History</Link></li>
+              <li><Link to="/clans" className="text-heritage-cream/70 hover:text-white transition-colors">Bakenyi Clans</Link></li>
+              <li><Link to="/gallery" className="text-heritage-cream/70 hover:text-white transition-colors">Photo Archive</Link></li>
+              <li><Link to="/language" className="text-heritage-cream/70 hover:text-white transition-colors">Lukenye Dialect</Link></li>
+              <li><Link to="/articles" className="text-heritage-cream/70 hover:text-white transition-colors">Published Articles</Link></li>
+              <li><Link transition-colors="true" to="/contribute" className="text-heritage-cream/70 hover:text-white">Join Archive</Link></li>
+              <li><Link to="/admin" className="text-heritage-cream/50 hover:text-white transition-colors">Admin Portal</Link></li>
             </ul>
           </div>
 
           {/* Culture Section */}
           <div>
-            <h4 className="text-lg font-serif font-bold mb-6 border-b border-heritage-cream/20 pb-2">Our Culture</h4>
-            <ul className="space-y-3">
-              <li className="text-heritage-cream/70 text-sm italic">"Waita muno" — The art of fishing</li>
-              <li className="text-heritage-cream/70 text-sm italic">"Embaire" — Traditional music</li>
-              <li className="text-heritage-cream/70 text-sm italic">"Obutenyi" — Unity & Identity</li>
-              <li className="text-heritage-cream/70 text-sm italic">"Ebiswa" — Oral Traditions</li>
+            <h4 className="text-xs font-sans font-black uppercase tracking-widest text-white mb-4 border-b border-heritage-cream/10 pb-1.5">Our Culture</h4>
+            <ul className="space-y-2 text-xs font-medium">
+              <li className="text-heritage-cream/70 italic">"Waita muno" — The art of fishing</li>
+              <li className="text-heritage-cream/70 italic">"Embaire" — Traditional music</li>
+              <li className="text-heritage-cream/70 italic">"Obutenyi" — Unity & Identity</li>
+              <li className="text-heritage-cream/70 italic">"Ebiswa" — Oral Traditions</li>
             </ul>
           </div>
 
           {/* Contact Info */}
           <div>
-            <h4 className="text-lg font-serif font-bold mb-6 border-b border-heritage-cream/20 pb-2">Get in Touch</h4>
-            <ul className="space-y-4">
-              <li className="flex items-start space-x-3 text-sm text-heritage-cream/70">
-                <MapPin className="w-5 h-5 text-heritage-terracotta shrink-0" />
+            <h4 className="text-xs font-sans font-black uppercase tracking-widest text-white mb-4 border-b border-heritage-cream/10 pb-1.5">Get in Touch</h4>
+            <ul className="space-y-3 text-xs font-medium">
+              <li className="flex items-start space-x-2.5 text-heritage-cream/70">
+                <MapPin className="w-4 h-4 text-heritage-terracotta shrink-0" />
                 <span>Kyoga Region, Uganda</span>
               </li>
-              <li className="flex items-center space-x-3 text-sm text-heritage-cream/70">
+              <li className="flex items-center space-x-2.5 text-heritage-cream/70">
                 <Mail className="w-4 h-4 text-heritage-terracotta shrink-0" />
                 <span>heritage@bakenyi.org</span>
               </li>
-              <li className="flex items-center space-x-3 text-sm text-heritage-cream/70">
+              <li className="flex items-center space-x-2.5 text-heritage-cream/70">
                 <Phone className="w-4 h-4 text-heritage-terracotta shrink-0" />
                 <span>+256 700 000000</span>
               </li>
@@ -83,7 +83,7 @@ export default function Footer() {
         </div>
 
         {/* Web App CTA Banner */}
-        <div className="mt-8 mb-12 p-6 rounded-2xl bg-heritage-olive/15 border border-heritage-cream/10 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+        <div className="mt-6 mb-8 p-5 rounded-xl bg-heritage-olive/10 border border-heritage-cream/5 flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden">
           <div className="absolute inset-0 cultural-pattern opacity-5 pointer-events-none" />
           <div className="relative z-10 flex items-center space-x-4">
             <div className="p-3 bg-heritage-terracotta text-white rounded-xl shrink-0">

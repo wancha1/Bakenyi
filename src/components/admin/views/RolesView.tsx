@@ -16,7 +16,7 @@ import {
 import { fetchUsers, updateUserRole, UserProfile, getSupabase } from '../../../lib/supabaseClient';
 import { logAdminActivity } from '../../../lib/operations';
 
-export default function RolesView() {
+export default function RolesView({ currentUserRoleProp, currentUserEmailProp }: { currentUserRoleProp?: any; currentUserEmailProp?: string }) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState('');
@@ -38,6 +38,12 @@ export default function RolesView() {
   }, []);
 
   async function loadCurrentUserRole() {
+    if (currentUserRoleProp) {
+      setCurrentUserRole(currentUserRoleProp);
+      setCurrentUserEmail(currentUserEmailProp || '');
+      setIsAuthLoading(false);
+      return;
+    }
     setIsAuthLoading(true);
     try {
       const client = getSupabase();

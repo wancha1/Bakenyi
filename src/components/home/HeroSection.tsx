@@ -32,16 +32,27 @@ export default function HeroSection({
   return (
     <section id="homepage-hero" className="relative min-h-[92vh] flex items-center justify-center overflow-hidden bg-stone-950">
       <motion.div 
-        initial={{ scale: 1.1, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 1.8 }}
-        className="absolute inset-0 z-0"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 2.0 }}
+        className="absolute inset-0 z-0 overflow-hidden"
       >
-        <img 
+        <motion.img 
           src="https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=2000" 
           alt="Lake Kyoga shoreline background" 
-          className="w-full h-full object-cover brightness-[0.3] contrast-[1.05]"
+          className="w-[106%] h-[106%] -left-[3%] -top-[3%] relative object-cover brightness-[0.3] contrast-[1.05]"
           referrerPolicy="no-referrer"
+          animate={{
+            scale: [1.02, 1.08, 1.02],
+            x: [0, 15, -15, 0],
+            y: [0, -10, 10, 0],
+            rotate: [0, 0.5, -0.5, 0]
+          }}
+          transition={{
+            duration: 40,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-stone-950/40 to-stone-950" />
         <div className="absolute inset-0 bg-stone-900/10 backdrop-blur-[1px]" />
@@ -69,7 +80,7 @@ export default function HeroSection({
           </p>
 
           {/* Premium Global Search Bar */}
-          <div className="relative w-full max-w-2xl mx-auto mb-10 z-30">
+          <div className="relative w-full max-w-2xl mx-auto mb-10 z-30 hidden md:block">
             <div className={`flex items-center bg-white dark:bg-stone-900 border ${isSearchFocused ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-stone-200/20'} rounded-2xl shadow-2xl transition-all duration-300 p-1.5 overflow-hidden`}>
               <div className="pl-4 pr-2 text-stone-400">
                 <Search className="w-5 h-5 text-amber-500" />
@@ -181,7 +192,7 @@ export default function HeroSection({
               className="w-full sm:w-auto bg-white/10 hover:bg-white/15 text-white border border-white/20 font-black text-xs uppercase tracking-widest px-10 py-4.5 rounded-2xl transition-all hover:border-white/40 flex items-center justify-center cursor-pointer font-bold"
               id="cta-submit-story"
             >
-              Submit a Story
+              Submit News
             </Link>
             <Link 
               to="/about" 
@@ -196,7 +207,7 @@ export default function HeroSection({
 
       {/* Scroll Indicator */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/40 text-[9px] uppercase tracking-[0.25em] flex flex-col items-center gap-2">
-        <span>Unveil Archive</span>
+        <span>Explore Archives</span>
         <motion.div 
           animate={{ y: [0, 8, 0] }} 
           transition={{ repeat: Infinity, duration: 1.5 }}

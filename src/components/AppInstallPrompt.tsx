@@ -94,27 +94,9 @@ export default function AppInstallPrompt() {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      
-      // Let's show the initial visual notification pill
-      const isDismissed = sessionStorage.getItem('bakenye_app_prompt_dismissed');
-      if (!isDismissed) {
-        const timer = setTimeout(() => {
-          setIsNotificationVisible(true);
-        }, 1500);
-        return () => clearTimeout(timer);
-      }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Standard fallback prompt trigger
-    const isDismissed = sessionStorage.getItem('bakenye_app_prompt_dismissed');
-    if (!isDismissed && !profile.isStandalone) {
-      const timer = setTimeout(() => {
-        setIsNotificationVisible(true);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
