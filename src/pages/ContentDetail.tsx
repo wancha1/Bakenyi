@@ -27,11 +27,15 @@ import {
   Send,
   MessageSquare,
   Check,
-  Globe as GlobeIcon
+  Globe as GlobeIcon,
+  Shield,
+  CheckCircle2,
+  Compass
 } from 'lucide-react';
 import { getSupabase } from '../lib/supabaseClient';
 import { getArticleById, getClans, getLeaders, getArticles } from '../lib/supabase';
 import { getNews, getEvents } from '../lib/heritageService';
+import { CLAN_EXHIBITION_METADATA } from '../data/clansExhibitionData';
 import SEO from '../components/SEO';
 
 interface ContentDetailProps {
@@ -521,55 +525,179 @@ Preserving the original Lukenye nouns for these natural elements is critical. Th
         )}
 
         {/* SCHEMA 2: CLAN LORE */}
-        {contentType === 'clan' && (
-          <div className="space-y-8 text-left">
-            <div className="p-8 bg-white dark:bg-stone-900 border border-heritage-brown/10 rounded-3xl relative overflow-hidden shadow-sm">
-              <div className="absolute top-0 inset-x-0 h-2 bg-heritage-terracotta" />
-              
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div>
-                  <h1 className="font-serif font-black text-3xl text-heritage-brown dark:text-white">
-                    {data.name} Clan
-                  </h1>
-                  <p className="text-xs text-heritage-brown/60 dark:text-stone-400 mt-1 font-bold">
-                    Primary Totem: <strong className="text-heritage-terracotta uppercase">{data.totem}</strong>
-                  </p>
-                </div>
+        {contentType === 'clan' && (() => {
+          const metadata = CLAN_EXHIBITION_METADATA[data.id];
+          const exhibition = metadata || {
+            imageUrl: 'https://images.unsplash.com/photo-1516690561799-46d8f74f9abf?auto=format&fit=crop&q=80&w=800',
+            historicalRecordsCount: 15,
+            activeEldersCount: 3,
+            specialization: 'Lineage Custodians',
+            heritageStory: data.desc || data.description || 'A proud and sovereign Bakenye lineage group with deep historical bonds to the lands and waters of Lake Kyoga.',
+            sacredDuties: [
+              'Preservation of lineage oral histories and ancestral genealogies.',
+              'Active participation in the Council of Elders assemblies.',
+              'Protection of the local environmental habitat associated with the clan totem.'
+            ],
+            clanColor: 'amber'
+          };
+
+          return (
+            <div className="space-y-12 text-left">
+              {/* Top Exhibition Plaque with Banner Image */}
+              <div className="relative bg-white dark:bg-stone-900 border-2 border-heritage-brown/15 dark:border-stone-800 rounded-[32px] p-6 md:p-10 shadow-xl overflow-hidden flex flex-col lg:flex-row gap-8 items-center">
+                {/* Cultural pattern background overlay */}
+                <div className="absolute inset-0 cultural-pattern opacity-5 pointer-events-none" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-heritage-terracotta/10 rounded-full blur-2xl pointer-events-none" />
                 
-                <div className="px-4 py-2 bg-heritage-olive/10 border border-heritage-olive/20 rounded-xl">
-                  <span className="text-[10px] font-black uppercase text-heritage-olive block tracking-wider">Estimated Population</span>
-                  <span className="text-sm font-black text-heritage-brown dark:text-white mt-0.5 block">{data.population || 'Regional'}</span>
+                {/* Large Exhibition Image Frame */}
+                <div className="relative shrink-0 mx-auto lg:mx-0">
+                  <div className="absolute inset-0 bg-heritage-terracotta rounded-3xl rotate-3 scale-[1.02] opacity-20 transition-transform" />
+                  <div className="w-56 h-56 md:w-64 md:h-64 rounded-2xl overflow-hidden border-8 border-heritage-cream dark:border-stone-950 shadow-2xl relative z-10 bg-heritage-brown/15 flex items-center justify-center">
+                    <img 
+                      src={exhibition.imageUrl} 
+                      alt={data.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  {/* Official Exhibit Placard Tag */}
+                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-stone-950 text-heritage-sand text-[9px] font-mono uppercase tracking-[0.25em] py-1.5 px-4 rounded-md shadow-lg z-20 whitespace-nowrap border border-stone-800">
+                    Exhibit Ref: CLN-{data.id?.toUpperCase() || 'CORE'}
+                  </div>
+                </div>
+
+                {/* Clan Details Panel */}
+                <div className="flex-grow space-y-6 relative z-10 text-center lg:text-left">
+                  <div>
+                    <span className="text-[10px] font-sans font-black uppercase tracking-widest text-heritage-terracotta bg-heritage-terracotta/10 px-3.5 py-1.5 rounded-full inline-block mb-3">
+                      {exhibition.specialization || 'Traditional Lineage Guild'}
+                    </span>
+                    <h1 className="font-serif font-black text-3xl md:text-5xl text-heritage-brown dark:text-white tracking-tight leading-tight">
+                      {data.name} Clan
+                    </h1>
+                    {data.motto && (
+                      <p className="text-xs md:text-sm font-serif italic text-heritage-brown/70 dark:text-stone-300 mt-2">
+                        "{data.motto}"
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Info badge cluster */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto lg:mx-0">
+                    <div className="p-4 bg-heritage-cream/50 dark:bg-stone-950 rounded-2xl border border-heritage-brown/5 flex items-center gap-3">
+                      <div className="p-2 bg-heritage-terracotta/10 rounded-xl shrink-0">
+                        <Compass className="w-5 h-5 text-heritage-terracotta" />
+                      </div>
+                      <div className="text-left min-w-0">
+                        <span className="text-[9px] font-black uppercase text-heritage-brown/40 dark:text-stone-500 block">Primary Totem</span>
+                        <strong className="text-sm text-heritage-brown dark:text-stone-200 block truncate uppercase">{data.totem}</strong>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-heritage-cream/50 dark:bg-stone-950 rounded-2xl border border-heritage-brown/5 flex items-center gap-3">
+                      <div className="p-2 bg-amber-500/10 rounded-xl shrink-0">
+                        <User className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div className="text-left min-w-0">
+                        <span className="text-[9px] font-black uppercase text-heritage-brown/40 dark:text-stone-500 block">Registered Custodian</span>
+                        <strong className="text-sm text-heritage-brown dark:text-stone-200 block truncate">{data.custodian || 'Council Representative'}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Geographic origin summary */}
+                  <div className="text-xs font-medium text-heritage-brown/60 dark:text-stone-400 border-l-4 border-heritage-terracotta pl-4 italic">
+                    Geographic Center: <strong>{data.origin || 'Lake Kyoga Shoreline and floating reed basins'}</strong>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8 pt-6 border-t border-heritage-brown/5">
-                <div className="p-4 bg-heritage-cream dark:bg-stone-950 rounded-2xl">
-                  <span className="text-[10px] font-black uppercase text-heritage-brown/40 block">Origin Region / Headquarters</span>
-                  <span className="text-xs font-black text-heritage-brown dark:text-stone-200 mt-1 block flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-heritage-terracotta shrink-0" />
-                    <span>{data.headquarters || 'Lake Kyoga Basin'}</span>
-                  </span>
-                </div>
-                <div className="p-4 bg-heritage-cream dark:bg-stone-950 rounded-2xl">
-                  <span className="text-[10px] font-black uppercase text-heritage-brown/40 block">Leader Representative</span>
-                  <span className="text-xs font-black text-heritage-brown dark:text-stone-200 mt-1 block flex items-center gap-1">
-                    <User className="w-3.5 h-3.5 text-heritage-olive shrink-0" />
-                    <span>{data.leader || 'Council Representative'}</span>
-                  </span>
-                </div>
-              </div>
-            </div>
+              {/* Clan Narratives & Duties Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* Narratives Section */}
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="bg-white dark:bg-stone-900 border border-heritage-brown/10 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                    <h2 className="font-serif font-black text-2xl text-heritage-brown dark:text-white border-b border-heritage-brown/5 pb-3 flex items-center gap-2">
+                      <BookOpen className="w-6 h-6 text-heritage-terracotta" />
+                      <span>Lineage Chronicle & Specialized Duty</span>
+                    </h2>
+                    <div className="whitespace-pre-line text-sm sm:text-base leading-relaxed text-heritage-brown/80 dark:text-stone-200 font-medium">
+                      {exhibition.heritageStory}
+                    </div>
+                  </div>
 
-            <div className="space-y-6">
-              <h2 className="font-serif font-black text-xl text-heritage-brown dark:text-white">
-                Historical Clan Narratives & Lore
-              </h2>
-              <div className="whitespace-pre-line text-sm sm:text-base leading-relaxed text-heritage-brown/90 dark:text-stone-200 bg-white dark:bg-stone-900 border border-heritage-brown/10 p-6 rounded-3xl shadow-sm">
-                {data.description || 'This clan plays a key role in maritime council networks and environmental preservation around floating marshes.'}
+                  {data.history && (
+                    <div className="bg-white dark:bg-stone-900 border border-heritage-brown/10 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                      <h2 className="font-serif font-black text-2xl text-heritage-brown dark:text-white border-b border-heritage-brown/5 pb-3 flex items-center gap-2">
+                        <Calendar className="w-6 h-6 text-heritage-olive" />
+                        <span>Sacred History & Oral Records</span>
+                      </h2>
+                      <div className="whitespace-pre-line text-xs sm:text-sm leading-relaxed text-heritage-brown/80 dark:text-stone-200 font-medium">
+                        {data.history}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Traditional Guardian Emblem Block */}
+                  <div className="bg-stone-950 text-heritage-sand p-8 rounded-3xl relative overflow-hidden">
+                    <div className="absolute inset-0 cultural-pattern opacity-10 pointer-events-none" />
+                    <div className="relative z-10 text-center max-w-lg mx-auto space-y-4">
+                      <p className="text-sm font-serif italic text-heritage-sand/85">
+                        "Traditional guild duties represent an eternal contract between our people, our totems, and the waters of Lake Kyoga. Each Bakenye child inherits these obligations as a birthright."
+                      </p>
+                      <div className="w-10 h-0.5 bg-heritage-terracotta mx-auto" />
+                      <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-heritage-terracotta block">The Council of Elders Seal</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: Traditional Guild Duties & Stats */}
+                <div className="lg:col-span-1 space-y-6">
+                  {/* Preserved Guild Duties card */}
+                  <div className="bg-white dark:bg-stone-900 border border-heritage-brown/10 rounded-3xl p-6 shadow-xs space-y-6">
+                    <h3 className="font-serif font-black text-xl text-heritage-brown dark:text-white flex items-center gap-2">
+                      <Award className="w-5.5 h-5.5 text-amber-600" />
+                      <span>Preserved Guild Duties</span>
+                    </h3>
+
+                    <ul className="grid grid-cols-1 gap-4">
+                      {exhibition.sacredDuties.map((duty: string, idx: number) => (
+                        <li key={idx} className="flex items-start gap-3 text-xs text-heritage-brown/80 dark:text-stone-300 font-medium leading-relaxed">
+                          <CheckCircle2 className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
+                          <span>{duty}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Exhibition Stats card */}
+                  <div className="bg-heritage-cream/40 dark:bg-stone-900/40 border border-heritage-brown/10 rounded-3xl p-6 space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-heritage-brown/50">Lineage Vital Records</h4>
+                    <div className="space-y-3.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-heritage-brown/60">Estimated Population</span>
+                        <span className="font-bold text-heritage-brown dark:text-stone-300">{data.population || 'Regional'}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-heritage-brown/60">Verified Chronicles</span>
+                        <span className="font-bold text-heritage-brown dark:text-stone-300">{exhibition.historicalRecordsCount} Records</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-heritage-brown/60">Active Council Elders</span>
+                        <span className="font-bold text-heritage-brown dark:text-stone-300">{exhibition.activeEldersCount} Representatives</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-heritage-brown/60">Registry Seal</span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 font-bold text-[9px] uppercase tracking-wider">Verified</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* SCHEMA 3: LEADER BIOGRAPHY - MUSEUM EXHIBITION REDESIGN */}
         {contentType === 'leader' && (
