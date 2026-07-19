@@ -1851,5 +1851,227 @@ export async function fetchAnalyticsMetrics(
   }
 }
 
+// ==========================================
+// ELDER Q&A SERVICE ("CONSULT AN ELDER")
+// ==========================================
+
+export interface ElderQuestion {
+  id: string;
+  name: string;
+  email: string;
+  question: string;
+  category: string;
+  status: 'pending' | 'answered' | 'rejected' | 'archived';
+  answer?: string;
+  answered_by?: string;
+  answered_at?: string;
+  created_at: string;
+}
+
+const DEFAULT_FALLBACK_QUESTIONS: ElderQuestion[] = [
+  {
+    id: 'q-1',
+    name: 'Waiswa Peter',
+    email: 'waiswa@example.com',
+    question: 'What is the historical significance of the canoe building craft among the Bakenyi?',
+    category: 'Traditions',
+    status: 'answered',
+    answer: 'Canoe building (traditional papyrus and wooden canoes) is a vital spiritual and economic craft for the Bakenyi. Before carving a canoe, specific prayers were offered to the water spirits (Mukasa) for safety, and the craft was passed down as a sacred lineage secret.',
+    answered_by: 'Elder Mukama James',
+    answered_at: '2026-07-10T14:30:00Z',
+    created_at: '2026-07-09T09:00:00Z'
+  },
+  {
+    id: 'q-2',
+    name: 'Nambi Sarah',
+    email: 'nambi@example.com',
+    question: 'How does the Bakenyi marriage system respect clan totems?',
+    category: 'Social Laws',
+    status: 'answered',
+    answer: 'The Bakenyi practice strict exogamy. One is forbidden from marrying someone from their father\'s clan (same primary totem) or their mother\'s clan (same secondary totem). This preserves genetic health and strengthens inter-clan alliances.',
+    answered_by: 'Elder Nabirye Florence',
+    answered_at: '2026-07-12T10:15:00Z',
+    created_at: '2026-07-11T16:45:00Z'
+  },
+  {
+    id: 'q-3',
+    name: 'Kintu David',
+    email: 'kintu@example.com',
+    question: 'Where did the Bakenyi people settle first along Lake Kyoga?',
+    category: 'History',
+    status: 'answered',
+    answer: 'The earliest settlements were recorded around the floating islands (ebigiri) and marshy peninsulas of Lake Kyoga, especially near the modern-day Buyende and Kaliro districts. These locations offered natural protection and abundant fishing grounds.',
+    answered_by: 'Elder Tabingwa Moses',
+    answered_at: '2026-07-15T11:00:00Z',
+    created_at: '2026-07-14T08:20:00Z'
+  }
+];
+
+function initializeElderQuestionsStorage() {
+  if (!localStorage.getItem('bakenye_elder_questions')) {
+    localStorage.setItem('bakenye_elder_questions', JSON.stringify(DEFAULT_FALLBACK_QUESTIONS));
+  }
+}
+
+export async function getElderQuestions(onlyAnswered = true): Promise<ElderQuestion[]> {
+  const client = getSupabase();
+  initializeElderQuestionsStorage();
+  const localList = JSON.parse(localStorage.getItem('bakenye_elder_questions') || '[]');
+
+  if (!client) {
+    return onlyAnswered 
+      ? localList.filter((q: any) => q.status === 'answered') 
+      : localList;
+  }
+
+  try {
+    const { data, error } = await client
+      .from('elder_questions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    
+    const mapped = (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      question: row.question,
+      category: row.category || 'General',
+      status: row.status,
+      answer: row.answer,
+      answered_by: row.answered_by,
+      answered_at: row.answered_at,
+      created_at: row.created_at
+    }));
+
+    return onlyAnswered 
+      ? mapped.filter(q => q.status === 'answered') 
+      : mapped;
+  } catch (err: any) {
+    console.warn('Supabase fetch elder questions failed, using local storage fallback:', err);
+    return onlyAnswered 
+      ? localList.filter((q: any) => q.status === 'answered') 
+      : localList;
+  }
+}
+
+export async function submitElderQuestion(msg: { name: string; email: string; question: string; category: string }): Promise<{ data: ElderQuestion | null; error: Error | null }> {
+  const client = getSupabase();
+  initializeElderQuestionsStorage();
+  const id = generateUUID();
+  const completeMsg: ElderQuestion = { 
+    ...msg, 
+    id, 
+    status: 'pending', 
+    created_at: new Date().toISOString() 
+  };
+
+  const stored = localStorage.getItem('bakenye_elder_questions') || '[]';
+  const list = JSON.parse(stored);
+  list.unshift(completeMsg);
+  localStorage.setItem('bakenye_elder_questions', JSON.stringify(list));
+
+  if (!client) {
+    return { data: completeMsg, error: null };
+  }
+
+  try {
+    const { data, error } = await client.from('elder_questions').insert({
+      id,
+      name: msg.name,
+      email: msg.email,
+      question: msg.question,
+      category: msg.category,
+      status: 'pending'
+    }).select().single();
+
+    if (error) {
+      // Retry with simpler object
+      const { error: errorSimple } = await client.from('elder_questions').insert({
+        name: msg.name,
+        email: msg.email,
+        question: msg.question,
+        category: msg.category,
+        status: 'pending'
+      });
+      if (errorSimple) throw errorSimple;
+    }
+
+    return { data: data || completeMsg, error: null };
+  } catch (err: any) {
+    console.warn('Supabase elder_questions write failed, saved to local cache:', err);
+    return { data: completeMsg, error: null };
+  }
+}
+
+export async function updateElderQuestionStatus(id: string, status: ElderQuestion['status'], answer?: string, answeredBy?: string): Promise<boolean> {
+  const client = getSupabase();
+  initializeElderQuestionsStorage();
+  const stored = localStorage.getItem('bakenye_elder_questions') || '[]';
+  const list = JSON.parse(stored);
+  const idx = list.findIndex((q: any) => q.id === id);
+  
+  if (idx !== -1) {
+    list[idx].status = status;
+    if (answer !== undefined) {
+      list[idx].answer = answer;
+      list[idx].answered_at = new Date().toISOString();
+    }
+    if (answeredBy !== undefined) {
+      list[idx].answered_by = answeredBy;
+    }
+    localStorage.setItem('bakenye_elder_questions', JSON.stringify(list));
+  }
+
+  if (!client) return true;
+
+  try {
+    const updatePayload: any = { status };
+    if (answer !== undefined) {
+      updatePayload.answer = answer;
+      updatePayload.answered_at = new Date().toISOString();
+    }
+    if (answeredBy !== undefined) {
+      updatePayload.answered_by = answeredBy;
+    }
+
+    const { error } = await client
+      .from('elder_questions')
+      .update(updatePayload)
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Failed to update elder question status:', err);
+    return false;
+  }
+}
+
+export async function deleteElderQuestion(id: string): Promise<boolean> {
+  const client = getSupabase();
+  initializeElderQuestionsStorage();
+  const stored = localStorage.getItem('bakenye_elder_questions') || '[]';
+  const list = JSON.parse(stored);
+  const filtered = list.filter((q: any) => q.id !== id);
+  localStorage.setItem('bakenye_elder_questions', JSON.stringify(filtered));
+
+  if (!client) return true;
+
+  try {
+    const { error } = await client
+      .from('elder_questions')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('Failed to delete elder question:', err);
+    return false;
+  }
+}
+
 
 

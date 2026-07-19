@@ -22,6 +22,8 @@ import {
   X,
   FileDown,
   Archive,
+  HelpCircle,
+  MessageSquare,
   Image as ImageIcon
 } from 'lucide-react';
 import { 
@@ -44,7 +46,11 @@ import {
   Leader,
   getStoryCategories,
   saveStoryCategory,
-  StoryCategory
+  StoryCategory,
+  getElderQuestions,
+  updateElderQuestionStatus,
+  deleteElderQuestion,
+  ElderQuestion
 } from '../../../lib/supabase';
 import ArticlesManager from '../ArticlesManager';
 import HeritageModulesManager from './HeritageModulesManager';
@@ -63,7 +69,7 @@ export default function ContentView({ userRole = 'admin' }: ContentViewProps) {
   const isElder = resolvedRole === 'super_admin';
   const isAdmin = resolvedRole === 'admin' || resolvedRole === 'community_leader' || resolvedRole === 'super_admin';
 
-  const [activeSubTab, setActiveSubTab] = useState<'articles' | 'submissions' | 'clans' | 'leadership' | 'categories' | 'heritage_modules'>('articles');
+  const [activeSubTab, setActiveSubTab] = useState<'articles' | 'submissions' | 'clans' | 'leadership' | 'categories' | 'heritage_modules' | 'elder_qna'>('articles');
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [isLoadingContribs, setIsLoadingContribs] = useState(false);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
@@ -126,6 +132,65 @@ export default function ContentView({ userRole = 'admin' }: ContentViewProps) {
   });
   const [newField, setNewField] = useState('');
 
+  // Elder Q&As States
+  const [elderQuestions, setElderQuestions] = useState<ElderQuestion[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [answeringQuestionId, setAnsweringQuestionId] = useState<string | null>(null);
+  const [elderAnswer, setElderAnswer] = useState('');
+  const [elderResponderName, setElderResponderName] = useState('');
+  const [isUpdatingQuestion, setIsUpdatingQuestion] = useState(false);
+
+  const loadElderQuestions = async () => {
+    setIsLoadingQuestions(true);
+    try {
+      const qList = await getElderQuestions(false); // false = fetch all including pending/archived/rejected
+      setElderQuestions(qList);
+    } catch (err) {
+      console.error('Failed to load elder questions:', err);
+    } finally {
+      setIsLoadingQuestions(false);
+    }
+  };
+
+  const handleUpdateQuestionStatus = async (id: string, status: ElderQuestion['status'], answer?: string, answeredBy?: string) => {
+    setIsUpdatingQuestion(true);
+    try {
+      const success = await updateElderQuestionStatus(id, status, answer, answeredBy);
+      if (success) {
+        await loadElderQuestions();
+        setAnsweringQuestionId(null);
+        setElderAnswer('');
+        setElderResponderName('');
+      } else {
+        alert('Failed to update question status.');
+      }
+    } catch (err) {
+      console.error('handleUpdateQuestionStatus error:', err);
+    } finally {
+      setIsUpdatingQuestion(false);
+    }
+  };
+
+  const handleDeleteQuestion = async (id: string) => {
+    if (!confirm('Are you absolutely sure you want to delete this question? This action is permanent.')) {
+      return;
+    }
+    try {
+      const success = await deleteElderQuestion(id);
+      if (success) {
+        await loadElderQuestions();
+      } else {
+        alert('Failed to delete question.');
+      }
+    } catch (err) {
+      console.error('handleDeleteQuestion error:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadElderQuestions(); // load initially for pending badge count
+  }, []);
+
   useEffect(() => {
     if (activeSubTab === 'submissions') {
       loadContributions();
@@ -136,6 +201,8 @@ export default function ContentView({ userRole = 'admin' }: ContentViewProps) {
       loadLeaders();
     } else if (activeSubTab === 'categories') {
       loadCategories();
+    } else if (activeSubTab === 'elder_qna') {
+      loadElderQuestions();
     }
   }, [activeSubTab]);
 
@@ -584,6 +651,23 @@ export default function ContentView({ userRole = 'admin' }: ContentViewProps) {
         >
           <Sparkles className="w-3.5 h-3.5" />
           <span>Heritage Feeds</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('elder_qna')}
+          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+            activeSubTab === 'elder_qna'
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/30'
+          }`}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          <span>Elder Q&A</span>
+          {elderQuestions.filter(q => q.status === 'pending').length > 0 && (
+            <span className="bg-rose-500 text-white font-bold text-[9px] px-1.5 py-0.5 rounded-full animate-pulse">
+              {elderQuestions.filter(q => q.status === 'pending').length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -1468,6 +1552,254 @@ export default function ContentView({ userRole = 'admin' }: ContentViewProps) {
       {activeSubTab === 'heritage_modules' && (
         <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 p-6 shadow-xs">
           <HeritageModulesManager userRole={resolvedRole} />
+        </div>
+      )}
+
+      {activeSubTab === 'elder_qna' && (
+        <div className="space-y-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs">
+              <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Inquiries Received</span>
+              <p className="text-3xl font-serif font-bold text-slate-900 dark:text-white mt-1">{elderQuestions.length}</p>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs">
+              <span className="text-[10px] font-black uppercase text-rose-500 tracking-wider">Awaiting Decree (Pending)</span>
+              <p className="text-3xl font-serif font-bold text-rose-600 dark:text-rose-400 mt-1">
+                {elderQuestions.filter(q => q.status === 'pending').length}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-xs">
+              <span className="text-[10px] font-black uppercase text-emerald-500 tracking-wider">Decrees Uttered (Answered)</span>
+              <p className="text-3xl font-serif font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                {elderQuestions.filter(q => q.status === 'answered').length}
+              </p>
+            </div>
+          </div>
+
+          {/* List panel */}
+          <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700/50 p-6 shadow-xs">
+            <div className="flex items-center justify-between mb-6 border-b border-slate-100 dark:border-slate-700/30 pb-4">
+              <div>
+                <h3 className="font-serif font-bold text-xl text-slate-900 dark:text-white">Elder Council Q&A Registry</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Scribe and moderate traditional oral inquiries from the Bakenyi public.</p>
+              </div>
+              <button 
+                onClick={loadElderQuestions}
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border dark:border-slate-700 rounded-lg text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 cursor-pointer"
+              >
+                Refresh Registry
+              </button>
+            </div>
+
+            {isLoadingQuestions ? (
+              <div className="flex flex-col justify-center items-center h-64 space-y-2">
+                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                <span className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Loading oral records...</span>
+              </div>
+            ) : elderQuestions.length === 0 ? (
+              <div className="text-center py-16 text-slate-400 dark:text-slate-500">
+                <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <p className="font-medium text-sm">No questions registered in the system yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {elderQuestions.map((q) => (
+                  <div 
+                    key={q.id} 
+                    className="border border-slate-100 dark:border-slate-700/50 rounded-2xl p-5 hover:border-slate-200 dark:hover:border-slate-700 transition-all bg-slate-50/30 dark:bg-slate-900/10"
+                  >
+                    {/* Header info */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2.5 py-1 rounded">
+                          {q.category}
+                        </span>
+                        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                          {new Date(q.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      
+                      {/* Status label badge */}
+                      <div>
+                        {q.status === 'pending' && (
+                          <span className="bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/30 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider">
+                            Awaiting Decree
+                          </span>
+                        )}
+                        {q.status === 'answered' && (
+                          <span className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider">
+                            Decree Uttered
+                          </span>
+                        )}
+                        {q.status === 'rejected' && (
+                          <span className="bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/30 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider">
+                            Rejected
+                          </span>
+                        )}
+                        {q.status === 'archived' && (
+                          <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider">
+                            Archived
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Question text */}
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white leading-relaxed mb-1">
+                      "{q.question}"
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                      Asked by: <span className="font-bold text-slate-700 dark:text-slate-300">{q.name}</span> ({q.email})
+                    </p>
+
+                    {/* Answer section if answered */}
+                    {q.answer && (
+                      <div className="mt-4 p-4 bg-emerald-50/20 dark:bg-emerald-950/10 border-l-4 border-emerald-500 rounded-r-xl">
+                        <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block mb-1">Decree Content</span>
+                        <p className="text-xs font-serif italic text-slate-700 dark:text-slate-300 leading-relaxed mb-2">
+                          "{q.answer}"
+                        </p>
+                        <div className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider flex items-center justify-between">
+                          <span>Verified Spokesperson: {q.answered_by || 'Elder Council'}</span>
+                          {q.answered_at && <span>Answered: {new Date(q.answered_at).toLocaleDateString()}</span>}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Answering Form Field inline */}
+                    {answeringQuestionId === q.id && (
+                      <div className="mt-5 p-4 bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900/30 rounded-xl space-y-4 shadow-sm">
+                        <h4 className="text-xs font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider">Scribe Council Answer</h4>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1">Verified Elder Responder</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. Elder Mukama James"
+                              required
+                              value={elderResponderName}
+                              onChange={(e) => setElderResponderName(e.target.value)}
+                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-250 focus:outline-none focus:border-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1">State / Action</label>
+                            <div className="flex gap-2">
+                              <span className="text-[10px] font-bold text-slate-500 py-2">Publishing as answered</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[9px] font-black uppercase text-slate-400 tracking-wider mb-1">Decree / Answer Text</label>
+                          <textarea 
+                            rows={3} 
+                            placeholder="Type the Elder Council response or authentic historical/cultural decree..."
+                            required
+                            value={elderAnswer}
+                            onChange={(e) => setElderAnswer(e.target.value)}
+                            className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-250 leading-relaxed focus:outline-none focus:border-indigo-500"
+                          />
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setAnsweringQuestionId(null);
+                              setElderAnswer('');
+                              setElderResponderName('');
+                            }}
+                            className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white rounded-lg text-[10px] font-black uppercase tracking-wider cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            type="button"
+                            disabled={isUpdatingQuestion}
+                            onClick={() => handleUpdateQuestionStatus(q.id, 'answered', elderAnswer, elderResponderName)}
+                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Publish Decree</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions button strip */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex gap-2">
+                        {q.status === 'pending' && answeringQuestionId !== q.id && (
+                          <button 
+                            onClick={() => {
+                              setAnsweringQuestionId(q.id);
+                              setElderAnswer(q.answer || '');
+                              setElderResponderName(q.answered_by || '');
+                            }}
+                            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white dark:bg-indigo-950/40 dark:text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                          >
+                            Scribe Decree (Answer)
+                          </button>
+                        )}
+
+                        {q.status === 'answered' && answeringQuestionId !== q.id && (
+                          <button 
+                            onClick={() => {
+                              setAnsweringQuestionId(q.id);
+                              setElderAnswer(q.answer || '');
+                              setElderResponderName(q.answered_by || '');
+                            }}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-600 text-slate-600 hover:text-white dark:bg-slate-800 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                          >
+                            Edit Answer
+                          </button>
+                        )}
+
+                        {q.status === 'pending' && (
+                          <button 
+                            onClick={() => handleUpdateQuestionStatus(q.id, 'rejected')}
+                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white dark:bg-rose-950/40 dark:text-rose-400 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                        )}
+
+                        {q.status !== 'archived' && (
+                          <button 
+                            onClick={() => handleUpdateQuestionStatus(q.id, 'archived')}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                          >
+                            Archive
+                          </button>
+                        )}
+
+                        {q.status === 'archived' && (
+                          <button 
+                            onClick={() => handleUpdateQuestionStatus(q.id, 'pending')}
+                            className="px-3 py-1.5 bg-amber-50 hover:bg-amber-600 text-amber-600 hover:text-white dark:bg-amber-950/40 dark:text-amber-400 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                          >
+                            Reopen Inquiry
+                          </button>
+                        )}
+                      </div>
+
+                      <button 
+                        onClick={() => handleDeleteQuestion(q.id)}
+                        className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg transition-colors cursor-pointer"
+                        title="Delete Question"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
