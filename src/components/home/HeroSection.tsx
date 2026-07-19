@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, NavigateFunction } from 'react-router-dom';
-import { Search, X, Compass } from 'lucide-react';
+import { Search, X, Compass, PlusCircle, ArrowRight } from 'lucide-react';
+import { Button, Badge, FadeIn } from '../ui';
 
 interface SearchResultItem {
   id: string;
@@ -30,60 +31,75 @@ export default function HeroSection({
   navigate,
 }: HeroSectionProps) {
   return (
-    <section id="homepage-hero" className="relative min-h-[92vh] flex items-center justify-center overflow-hidden bg-stone-950">
+    <section 
+      id="homepage-hero" 
+      className="relative min-h-[92vh] flex items-center justify-center overflow-hidden bg-stone-950"
+      aria-label="Welcome section"
+    >
+      {/* Background with cinematic panning animation */}
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 2.0 }}
+        transition={{ duration: 1.8 }}
         className="absolute inset-0 z-0 overflow-hidden"
       >
         <motion.img 
           src="https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=2000" 
-          alt="Lake Kyoga shoreline background" 
-          className="w-[106%] h-[106%] -left-[3%] -top-[3%] relative object-cover brightness-[0.3] contrast-[1.05]"
+          alt="Lake Kyoga wetlands shoreline background" 
+          className="w-[106%] h-[106%] -left-[3%] -top-[3%] relative object-cover brightness-[0.25] contrast-[1.05]"
           referrerPolicy="no-referrer"
           animate={{
-            scale: [1.02, 1.08, 1.02],
-            x: [0, 15, -15, 0],
-            y: [0, -10, 10, 0],
-            rotate: [0, 0.5, -0.5, 0]
+            scale: [1.02, 1.07, 1.02],
+            x: [0, 10, -10, 0],
+            y: [0, -8, 8, 0],
           }}
           transition={{
-            duration: 40,
+            duration: 35,
             repeat: Infinity,
             ease: "easeInOut"
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-stone-950/40 to-stone-950" />
-        <div className="absolute inset-0 bg-stone-900/10 backdrop-blur-[1px]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-stone-950/20 via-stone-950/40 to-stone-950" />
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-[0.5px]" />
       </motion.div>
 
-      {/* Global Search Overlay container when focused */}
+      {/* Hero Content Container */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white w-full py-16 flex flex-col items-center">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
-          className="w-full max-w-4xl"
-        >
-          <span className="inline-block px-4 py-1.5 mb-6 rounded-full bg-amber-500/10 border border-amber-500/30 text-heritage-sand text-[10px] tracking-[0.35em] font-black uppercase text-amber-300">
-            The Digital Sanctuary of the Bakenyi People
-          </span>
+        <FadeIn direction="up" duration={0.8} className="w-full max-w-4xl flex flex-col items-center">
           
-          <h1 className="text-4xl sm:text-6xl md:text-8xl font-serif font-black mb-8 leading-[1.05] tracking-tight">
+          {/* Subheading Badge */}
+          <Badge 
+            variant="sand" 
+            size="md" 
+            className="mb-8 border-heritage-sand/30 bg-heritage-sand/10 text-heritage-sand tracking-[0.25em] py-2 px-4 shadow-sm"
+          >
+            Digital Sanctuary of the Bakenyi People
+          </Badge>
+          
+          {/* Typography Heading */}
+          <h1 className="text-4xl sm:text-6xl md:text-8xl font-serif font-black mb-8 leading-[1.1] tracking-tight">
             Preserving the <br />
-            <span className="text-amber-400 font-serif italic text-shadow-md">Riverine Heritage</span>
+            <span className="text-heritage-terracotta dark:text-heritage-sand font-serif italic text-shadow-premium">
+              Riverine Heritage
+            </span>
           </h1>
 
-          <p className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-stone-300 mb-10 font-light leading-relaxed">
+          {/* Body description */}
+          <p className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-stone-300 mb-10 font-normal leading-relaxed">
             Explore the history, clans, language, and custom oral memories of Uganda's lake dwellers, archived directly from the Elder Council.
           </p>
 
-          {/* Premium Global Search Bar */}
-          <div className="relative w-full max-w-2xl mx-auto mb-10 z-30 hidden md:block">
-            <div className={`flex items-center bg-white dark:bg-stone-900 border ${isSearchFocused ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-stone-200/20'} rounded-2xl shadow-2xl transition-all duration-300 p-1.5 overflow-hidden`}>
-              <div className="pl-4 pr-2 text-stone-400">
-                <Search className="w-5 h-5 text-amber-500" />
+          {/* Premium Search Bar */}
+          <div className="relative w-full max-w-2xl mx-auto mb-12 z-30 hidden md:block">
+            <div 
+              className={`flex items-center bg-white dark:bg-stone-900 border ${
+                isSearchFocused 
+                  ? 'border-heritage-terracotta ring-4 ring-heritage-terracotta/20' 
+                  : 'border-heritage-brown/10 dark:border-white/10'
+              } rounded-[20px] shadow-2xl transition-all duration-300 p-1.5 overflow-hidden`}
+            >
+              <div className="pl-4 pr-2">
+                <Search className="w-5 h-5 text-heritage-terracotta" />
               </div>
               <input 
                 type="text"
@@ -91,47 +107,51 @@ export default function HeroSection({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
-                className="flex-grow bg-transparent border-none text-stone-900 dark:text-white px-2 py-3 text-sm focus:outline-none placeholder-stone-500 font-medium"
+                className="flex-grow bg-transparent border-none text-stone-900 dark:text-stone-100 px-2 py-3 text-sm focus:outline-none placeholder-stone-500 font-medium"
+                aria-label="Search cultural records"
               />
               {searchTerm && (
                 <button 
                   onClick={() => setSearchTerm('')}
                   className="p-2 text-stone-400 hover:text-stone-600 rounded-lg mr-1 cursor-pointer"
                   id="btn-clear-hero-search"
+                  title="Clear input"
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
-              <button 
+              <Button 
+                variant="primary"
                 onClick={() => navigate(`/search?q=${encodeURIComponent(searchTerm)}`)}
-                className="bg-amber-500 hover:bg-amber-400 text-stone-950 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
                 id="btn-submit-hero-search"
+                className="px-6 py-3 rounded-xl"
               >
                 Search
-              </button>
+              </Button>
             </div>
 
-            {/* Instant Search Dropdown Results Panel */}
+            {/* Dropdown Instant Results Panel */}
             <AnimatePresence>
               {isSearchFocused && searchTerm.trim() && (
                 <>
                   <div 
                     className="fixed inset-0 z-10" 
                     onClick={() => setIsSearchFocused(false)} 
+                    aria-hidden="true"
                   />
                   <motion.div
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 15 }}
-                    className="absolute left-0 right-0 mt-3 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 rounded-3xl shadow-2xl border border-stone-200 dark:border-stone-800 max-h-[400px] overflow-y-auto text-left z-20 p-4 scrollbar-thin"
+                    className="absolute left-0 right-0 mt-3 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 rounded-3xl shadow-2xl border border-heritage-brown/10 dark:border-white/10 max-h-[400px] overflow-y-auto text-left z-20 p-4 scrollbar-thin"
                   >
-                    <div className="flex justify-between items-center pb-2 mb-3 border-b border-stone-100 dark:border-stone-800">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-stone-400">
+                    <div className="flex justify-between items-center pb-2 mb-3 border-b border-heritage-brown/5 dark:border-white/5">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-heritage-brown/40 dark:text-white/40">
                         Search Database Results ({searchResults.length})
                       </span>
                       <button 
                         onClick={() => setIsSearchFocused(false)}
-                        className="text-stone-400 hover:text-stone-600 text-xs flex items-center gap-1 cursor-pointer"
+                        className="text-heritage-brown/40 hover:text-heritage-terracotta dark:text-white/40 dark:hover:text-heritage-sand text-xs flex items-center gap-1 cursor-pointer font-bold"
                         id="btn-close-dropdown-search"
                       >
                         Close <X className="w-3.5 h-3.5" />
@@ -139,37 +159,37 @@ export default function HeroSection({
                     </div>
 
                     {searchResults.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         {searchResults.map((item) => (
                           <Link
                             key={item.id}
                             to={item.path}
                             onClick={() => setIsSearchFocused(false)}
-                            className="block p-3 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors border border-transparent hover:border-stone-100 dark:hover:border-stone-800"
+                            className="block p-3 rounded-xl hover:bg-heritage-brown/5 dark:hover:bg-white/5 transition-all duration-200 border border-transparent hover:border-heritage-brown/5 dark:hover:border-white/5"
                             id={`hero-search-item-${item.id}`}
                           >
                             <div className="flex items-center justify-between">
-                              <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                              <Badge variant="olive" size="sm">
                                 {item.type}
-                              </span>
-                              <span className="text-[9px] text-stone-400 font-mono">
+                              </Badge>
+                              <span className="text-[9px] text-heritage-brown/40 dark:text-white/40 font-mono font-bold tracking-wider">
                                 {item.subtitle}
                               </span>
                             </div>
-                            <h5 className="font-serif font-bold text-sm text-stone-900 dark:text-stone-100 mt-1">
+                            <h5 className="font-serif font-bold text-sm text-heritage-brown dark:text-white mt-1">
                               {item.title}
                             </h5>
-                            <p className="text-xs text-stone-500 dark:text-stone-400 line-clamp-1 mt-0.5">
+                            <p className="text-xs text-heritage-brown/60 dark:text-white/60 line-clamp-1 mt-0.5">
                               {item.text}
                             </p>
                           </Link>
                         ))}
                       </div>
                     ) : (
-                      <div className="py-8 text-center text-stone-500 dark:text-stone-400">
-                        <Compass className="w-8 h-8 mx-auto text-stone-300 mb-2 animate-pulse" />
+                      <div className="py-8 text-center text-heritage-brown/40 dark:text-white/40">
+                        <Compass className="w-8 h-8 mx-auto text-heritage-brown/20 dark:text-white/20 mb-2 animate-pulse" />
                         <p className="text-xs font-bold">No exact cultural records found.</p>
-                        <p className="text-[10px] text-stone-400 mt-1">Try another search term like "Clan", "Kyoga", "Canoe", or "Language".</p>
+                        <p className="text-[10px] text-heritage-brown/30 mt-1">Try another search term like "Clan", "Kyoga", "Canoe", or "Language".</p>
                       </div>
                     )}
                   </motion.div>
@@ -178,40 +198,49 @@ export default function HeroSection({
             </AnimatePresence>
           </div>
 
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link 
-              to="/history" 
-              className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs uppercase tracking-widest px-10 py-4.5 rounded-2xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] shadow-xl cursor-pointer font-bold"
+          {/* CTA Button Group */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
+            <Button 
+              variant="primary" 
+              size="lg"
+              onClick={() => navigate('/history')}
+              leftIcon={<Compass className="w-4 h-4" />}
               id="cta-explore"
+              className="w-full sm:w-auto font-black shadow-lg"
             >
-              Explore Heritage <Compass className="w-4 h-4" />
-            </Link>
-            <Link 
-              to="/contribute" 
-              className="w-full sm:w-auto bg-white/10 hover:bg-white/15 text-white border border-white/20 font-black text-xs uppercase tracking-widest px-10 py-4.5 rounded-2xl transition-all hover:border-white/40 flex items-center justify-center cursor-pointer font-bold"
+              Explore Heritage
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="lg"
+              onClick={() => navigate('/contribute')}
+              leftIcon={<PlusCircle className="w-4 h-4" />}
               id="cta-submit-story"
+              className="w-full sm:w-auto text-white dark:text-white border-white/20 hover:bg-white/10"
             >
               Submit News
-            </Link>
+            </Button>
+
             <Link 
               to="/about" 
               className="w-full sm:w-auto text-stone-300 hover:text-white text-xs font-bold uppercase tracking-wider py-3 flex items-center justify-center hover:underline"
               id="cta-learn-mission"
             >
-              Learn Our Mission &rarr;
+              Learn Our Mission <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Link>
           </div>
-        </motion.div>
+
+        </FadeIn>
       </div>
 
       {/* Scroll Indicator */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/40 text-[9px] uppercase tracking-[0.25em] flex flex-col items-center gap-2">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/40 text-[9px] uppercase tracking-[0.25em] flex flex-col items-center gap-2 select-none">
         <span>Explore Archives</span>
         <motion.div 
           animate={{ y: [0, 8, 0] }} 
-          transition={{ repeat: Infinity, duration: 1.5 }}
-          className="w-1.5 h-1.5 bg-amber-400 rounded-full"
+          transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+          className="w-1.5 h-1.5 bg-heritage-sand rounded-full"
         />
       </div>
     </section>

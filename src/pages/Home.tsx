@@ -22,6 +22,7 @@ import {
 import { Status, News, Announcement, Event } from '../types/heritage';
 import { dailySpotlights } from '../data/dailyHeritage';
 import SEO from '../components/SEO';
+import { Modal, Button, Input } from '../components/ui';
 
 // Modular Home Components
 import HeroSection from '../components/home/HeroSection';
@@ -667,70 +668,48 @@ export default function Home() {
       {/* =========================================================================
           EVENT RSVP MODAL DIALOG
           ========================================================================= */}
-      <AnimatePresence>
+      <Modal
+        isOpen={!!selectedEventForRsvp}
+        onClose={() => setSelectedEventForRsvp(null)}
+        title="Register for Gathering"
+        size="sm"
+        id="rsvp-modal-container"
+      >
         {selectedEventForRsvp && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-xs text-left"
-          >
-            <motion.div 
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              className="w-full max-w-md bg-white dark:bg-stone-900 rounded-3xl p-8 shadow-2xl relative border border-stone-200 dark:border-stone-800"
-            >
-              <button 
-                onClick={() => setSelectedEventForRsvp(null)}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 dark:text-stone-400 cursor-pointer transition-colors"
-                id="btn-close-rsvp-modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
+          <div className="space-y-6">
+            <p className="text-xs sm:text-sm text-heritage-brown/65 dark:text-stone-400 leading-relaxed">
+              You are RSVPing to: <strong className="text-heritage-terracotta dark:text-heritage-sand font-bold">{selectedEventForRsvp.title}</strong>
+            </p>
 
-              <h3 className="font-serif font-black text-2xl text-stone-900 dark:text-white mb-2">
-                Register for Gathering
-              </h3>
-              <p className="text-xs text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
-                You are RSVPing to: <strong className="text-amber-600 dark:text-amber-400">{selectedEventForRsvp.title}</strong>
-              </p>
+            {rsvpSuccess ? (
+              <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 text-emerald-800 dark:text-emerald-400 p-4.5 rounded-2xl flex items-center gap-3">
+                <Check className="w-5 h-5 text-emerald-600 shrink-0 animate-bounce" />
+                <span className="text-xs font-bold font-mono uppercase tracking-wider">Successfully Registered! Your seat is secured.</span>
+              </div>
+            ) : (
+              <form onSubmit={handleRsvpSubmit} className="space-y-5">
+                <Input 
+                  label="Your Full Name"
+                  required
+                  value={rsvpName}
+                  onChange={(e) => setRsvpName(e.target.value)}
+                  placeholder="e.g., Elder Daniel Mukasa"
+                  id="input-rsvp-name"
+                />
 
-              {rsvpSuccess ? (
-                <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/30 text-emerald-800 dark:text-emerald-400 p-4 rounded-2xl flex items-center gap-3">
-                  <Check className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <span className="text-xs font-bold">Successfully Registered! Your seat is secured.</span>
-                </div>
-              ) : (
-                <form onSubmit={handleRsvpSubmit} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-stone-400">
-                      Your Full Name
-                    </label>
-                    <input 
-                      type="text"
-                      required
-                      value={rsvpName}
-                      onChange={(e) => setRsvpName(e.target.value)}
-                      placeholder="e.g., Elder Daniel Mukasa"
-                      className="w-full bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-amber-500 text-stone-900 dark:text-white font-medium"
-                      id="input-rsvp-name"
-                    />
-                  </div>
-
-                  <button 
-                    type="submit"
-                    className="w-full bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs uppercase tracking-widest py-3.5 rounded-xl transition-colors cursor-pointer"
-                    id="btn-submit-rsvp"
-                  >
-                    Confirm RSVP
-                  </button>
-                </form>
-              )}
-            </motion.div>
-          </motion.div>
+                <Button 
+                  type="submit"
+                  variant="primary"
+                  className="w-full py-4 rounded-xl font-bold font-mono text-xs"
+                  id="btn-submit-rsvp"
+                >
+                  Confirm RSVP Seat
+                </Button>
+              </form>
+            )}
+          </div>
         )}
-      </AnimatePresence>
+      </Modal>
 
     </div>
   );
