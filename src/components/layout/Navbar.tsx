@@ -4,7 +4,7 @@ import {
   Menu, X, Globe, Search, Shield, User, Clock, BookOpen, Volume2, 
   ArrowRight, Sun, Moon, SlidersHorizontal, ChevronDown, LogOut, 
   LayoutDashboard, LogIn, FileText, Users, PenTool, Smartphone, Download,
-  Calendar, Bookmark, Newspaper
+  Calendar, Bookmark, Newspaper, Heart
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getSupabase, checkIsAdmin } from '../../lib/supabaseClient';
@@ -482,6 +482,17 @@ export default function Navbar() {
                   Contact
                 </Link>
 
+                {/* Donate Link */}
+                <Link 
+                  to="/donate"
+                  className={`relative px-3 py-2 text-sm font-semibold transition-all rounded-lg hover:bg-heritage-brown/5 flex items-center gap-1 ${
+                    location.pathname === '/donate' ? 'text-heritage-terracotta font-bold' : 'text-heritage-brown/80'
+                  }`}
+                >
+                  <Heart className="w-3.5 h-3.5 text-heritage-terracotta fill-heritage-terracotta/20" />
+                  <span>Donate</span>
+                </Link>
+
                 {/* Admin Link (Directly visible if Administrator or Elder) */}
                 {isAdmin && (
                   <Link 
@@ -765,6 +776,19 @@ export default function Navbar() {
                   }`}
                 >
                   Contact
+                </Link>
+
+                {/* Donate Link */}
+                <Link
+                  to="/donate"
+                  className={`block px-3 py-3 text-sm font-bold border-b border-heritage-brown/5 ${
+                    location.pathname === '/donate' ? 'text-heritage-terracotta bg-heritage-terracotta/5 rounded-lg' : 'text-heritage-brown/80'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Heart className="w-4 h-4 text-heritage-terracotta fill-heritage-terracotta/20" />
+                    <span>Support & Donate</span>
+                  </span>
                 </Link>
 
                 {/* Mobile Auth Actions Box */}

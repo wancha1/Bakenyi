@@ -76,6 +76,7 @@ export default function Footer() {
               <li><Link to="/language" className="text-heritage-cream/70 hover:text-white transition-colors">Lukenye Dialect</Link></li>
               <li><Link to="/articles" className="text-heritage-cream/70 hover:text-white transition-colors">Published Articles</Link></li>
               <li><Link transition-colors="true" to="/contribute" className="text-heritage-cream/70 hover:text-white">Join Archive</Link></li>
+              <li><Link to="/donate" className="text-heritage-cream/70 hover:text-white transition-colors">Support & Donate</Link></li>
               <li><Link to="/admin" className="text-heritage-cream/50 hover:text-white transition-colors">Admin Portal</Link></li>
             </ul>
           </div>

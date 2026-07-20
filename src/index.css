@@ -172,3 +172,55 @@ html {
   @apply py-16 sm:py-24 md:py-28;
 }
 
+/* ==========================================
+   ACCESSIBILITY CONTRAST & VISIBILITY BOOSTS
+   ========================================== */
+
+/* Light theme contrast boosters for heritage-brown opacities to meet WCAG AA standards */
+.text-heritage-brown\/20 { color: rgba(86, 61, 45, 0.5) !important; }
+.text-heritage-brown\/30 { color: rgba(86, 61, 45, 0.65) !important; }
+.text-heritage-brown\/40 { color: rgba(86, 61, 45, 0.72) !important; }
+.text-heritage-brown\/45 { color: rgba(86, 61, 45, 0.75) !important; }
+.text-heritage-brown\/50 { color: rgba(86, 61, 45, 0.78) !important; }
+.text-heritage-brown\/55 { color: rgba(86, 61, 45, 0.8) !important; }
+.text-heritage-brown\/60 { color: rgba(86, 61, 45, 0.82) !important; }
+.text-heritage-brown\/65 { color: rgba(86, 61, 45, 0.85) !important; }
+.text-heritage-brown\/70 { color: rgba(86, 61, 45, 0.88) !important; }
+.text-heritage-brown\/80 { color: rgba(86, 61, 45, 0.93) !important; }
+
+/* Dark theme contrast boosters for heritage-brown opacities to meet WCAG AA standards */
+.dark .text-heritage-brown\/20 { color: rgba(246, 230, 218, 0.55) !important; }
+.dark .text-heritage-brown\/30 { color: rgba(246, 230, 218, 0.7) !important; }
+.dark .text-heritage-brown\/40 { color: rgba(246, 230, 218, 0.75) !important; }
+.dark .text-heritage-brown\/45 { color: rgba(246, 230, 218, 0.78) !important; }
+.dark .text-heritage-brown\/50 { color: rgba(246, 230, 218, 0.82) !important; }
+.dark .text-heritage-brown\/55 { color: rgba(246, 230, 218, 0.85) !important; }
+.dark .text-heritage-brown\/60 { color: rgba(246, 230, 218, 0.88) !important; }
+.dark .text-heritage-brown\/65 { color: rgba(246, 230, 218, 0.9) !important; }
+.dark .text-heritage-brown\/70 { color: rgba(246, 230, 218, 0.92) !important; }
+.dark .text-heritage-brown\/80 { color: rgba(246, 230, 218, 0.96) !important; }
+
+/* Global text contrast enhancement for standard grey/stone/slate shades in light mode */
+.text-stone-400, .text-slate-400, .text-gray-400, .text-neutral-400, .text-zinc-400 {
+  color: #57534e !important; /* stone-600 equivalent - excellent readability on light background */
+}
+.text-stone-500, .text-slate-500, .text-gray-500, .text-neutral-500, .text-zinc-500 {
+  color: #44403c !important; /* stone-700 equivalent - highly visible and readable */
+}
+
+/* Global text contrast enhancement for standard grey/stone/slate shades in dark mode */
+.dark .text-stone-500, .dark .dark\:text-stone-500, .dark .text-slate-500, .dark .dark\:text-slate-500, .dark .text-gray-500, .dark .dark\:text-gray-500 {
+  color: #d6d3d1 !important; /* stone-300 equivalent - high visibility on dark background */
+}
+.dark .text-stone-400, .dark .dark\:text-stone-400, .dark .text-slate-400, .dark .dark\:text-slate-400, .dark .text-gray-400, .dark .dark\:text-gray-400 {
+  color: #e7e5e4 !important; /* stone-200 equivalent - extremely bright and visible */
+}
+
+/* Optimize font-smoothing and text legibility across all browsers */
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+

@@ -32,6 +32,7 @@ const Contact = lazy(() => import('./pages/Contact'));
 const Search = lazy(() => import('./pages/Search'));
 const MemberDashboard = lazy(() => import('./pages/MemberDashboard'));
 const ContentDetail = lazy(() => import('./pages/ContentDetail'));
+const Donate = lazy(() => import('./pages/Donate'));
 
 // Admin View Panels (Lazy loaded to optimize bundle size for general visitors)
 const DashboardView = lazy(() => import('./components/admin/views/DashboardView'));
@@ -439,6 +440,7 @@ export default function App() {
               <Route path="/events/:id" element={<ContentDetail defaultType="event" />} />
               <Route path="/contribute" element={<Contribute />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/donate" element={<Donate />} />
               <Route path="/search" element={<Search />} />
               <Route path="/member" element={<MemberDashboard />} />
             </Route>

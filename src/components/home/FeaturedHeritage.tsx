@@ -72,17 +72,17 @@ export default function FeaturedHeritage({ featuredItems }: FeaturedHeritageProp
               <div>
                 <div className="flex items-center gap-2 mb-6">
                   <Shield className="w-5 h-5 text-heritage-terracotta" />
-                  <span className="text-[9px] font-black uppercase tracking-wider text-heritage-brown/40 dark:text-stone-500">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-heritage-brown/70 dark:text-stone-300">
                     Clan of the Week
                   </span>
                 </div>
-                <h3 className="font-serif font-bold text-2xl text-heritage-brown dark:text-white">
+                <h3 className="font-serif font-bold text-2xl text-heritage-brown dark:text-white drop-shadow-xs">
                   {featuredItems.clan.name}
                 </h3>
-                <div className="mt-2.5 inline-block px-3 py-1 bg-heritage-terracotta/5 border border-heritage-terracotta/10 text-heritage-terracotta dark:text-heritage-sand text-[10px] font-bold rounded-lg font-mono uppercase tracking-wider">
+                <div className="mt-2.5 inline-block px-3 py-1 bg-heritage-terracotta/10 border border-heritage-terracotta/30 text-heritage-terracotta dark:bg-heritage-sand/20 dark:border-heritage-sand/40 dark:text-heritage-sand text-[10px] font-extrabold rounded-lg font-mono uppercase tracking-wider">
                   Totem: {featuredItems.clan.totem}
                 </div>
-                <p className="text-xs sm:text-sm text-heritage-brown/65 dark:text-stone-400 mt-4 leading-relaxed text-left">
+                <p className="text-xs sm:text-sm text-heritage-brown/85 dark:text-stone-200 mt-4 leading-relaxed text-left font-medium">
                   {featuredItems.clan.desc}
                 </p>
               </div>
