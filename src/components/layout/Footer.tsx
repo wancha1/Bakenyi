@@ -1,8 +1,37 @@
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Globe, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Smartphone, Download } from 'lucide-react';
+import { Globe, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Smartphone, Download, Send, Check } from 'lucide-react';
+import { subscribeNewsletter } from '../../lib/supabase';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !email.includes('@')) {
+      setStatus('error');
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    setStatus('submitting');
+    try {
+      const { success, error } = await subscribeNewsletter(email);
+      if (success) {
+        setStatus('success');
+        setEmail('');
+      } else {
+        setStatus('error');
+        setErrorMessage(error?.message || 'Subscription failed. Please try again.');
+      }
+    } catch (err: any) {
+      setStatus('error');
+      setErrorMessage('An unexpected error occurred.');
+    }
+  };
   
   return (
     <footer className="relative bg-stone-950 text-heritage-cream pt-12 pb-6 overflow-hidden border-t border-stone-900">
@@ -10,9 +39,9 @@ export default function Footer() {
       <div className="absolute inset-0 cultural-pattern opacity-10 pointer-events-none" />
       
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-8 mb-10">
           {/* Brand Column */}
-          <div className="space-y-4">
+          <div className="space-y-4 lg:col-span-1 md:col-span-3 lg:md:col-span-1">
             <Link to="/" className="flex items-center space-x-2 grayscale invert opacity-90">
               <Globe className="w-7 h-7 text-heritage-terracotta" />
               <div className="flex flex-col">
@@ -60,6 +89,51 @@ export default function Footer() {
               <li className="text-heritage-cream/70 italic">"Obutenyi" — Unity & Identity</li>
               <li className="text-heritage-cream/70 italic">"Ebiswa" — Oral Traditions</li>
             </ul>
+          </div>
+
+          {/* Newsletter Section */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-sans font-black uppercase tracking-widest text-white mb-4 border-b border-heritage-cream/10 pb-1.5">Stay Updated</h4>
+            <p className="text-heritage-cream/70 text-xs leading-relaxed font-medium">
+              Subscribe to get notified when new cultural articles, clan chronicles, and oral histories are published.
+            </p>
+            {status === 'success' ? (
+              <div className="p-3 bg-emerald-950/40 border border-emerald-800/30 rounded-xl flex items-start gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white">Subscribed!</p>
+                  <p className="text-[10px] text-emerald-400/80 mt-0.5">Thank you for joining our cultural keeping network.</p>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubscribe} className="space-y-2">
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (status === 'error') setStatus('idle');
+                    }}
+                    placeholder="Enter your email"
+                    disabled={status === 'submitting'}
+                    className="w-full px-3 py-2.5 bg-stone-900 border border-stone-800/80 rounded-xl text-xs text-white placeholder-stone-500 focus:outline-none focus:border-heritage-terracotta disabled:opacity-60 pr-10"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={status === 'submitting'}
+                    className="absolute right-1.5 top-1.5 bottom-1.5 px-2.5 bg-heritage-terracotta hover:bg-heritage-terracotta/90 text-white rounded-lg transition-colors flex items-center justify-center cursor-pointer disabled:opacity-60"
+                    aria-label="Subscribe"
+                  >
+                    <Send className="w-3 h-3" />
+                  </button>
+                </div>
+                {status === 'error' && (
+                  <p className="text-[10px] text-red-400 font-medium">{errorMessage}</p>
+                )}
+              </form>
+            )}
           </div>
 
           {/* Contact Info */}

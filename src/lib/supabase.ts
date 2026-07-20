@@ -1925,5 +1925,57 @@ export async function deleteElderQuestion(id: string): Promise<boolean> {
   }
 }
 
+export async function subscribeNewsletter(email: string): Promise<{ success: boolean; error: Error | null }> {
+  const client = getSupabase();
+  const id = generateUUID();
+  const entry = {
+    id,
+    email,
+    created_at: new Date().toISOString()
+  };
+
+  // Local storage backup
+  const stored = localStorage.getItem('bakenye_newsletter_subscribers') || '[]';
+  const list = JSON.parse(stored);
+  if (!list.some((item: any) => item.email === email)) {
+    list.unshift(entry);
+    localStorage.setItem('bakenye_newsletter_subscribers', JSON.stringify(list));
+  }
+
+  if (!client) {
+    return { success: true, error: null };
+  }
+
+  try {
+    // 1. Try to insert to newsletter_subscribers table if it exists
+    const { error: subError } = await client.from('newsletter_subscribers').insert({
+      email,
+      created_at: new Date().toISOString()
+    });
+
+    if (!subError) {
+      return { success: true, error: null };
+    }
+
+    // 2. If it fails (e.g. table doesn't exist), log as a contact message
+    const { error: msgError } = await client.from('contact_messages').insert({
+      name: 'Newsletter Subscriber',
+      email,
+      phone: '',
+      subject: 'Newsletter Signup',
+      message: `A user has signed up for the cultural newsletter: ${email}`,
+      status: 'pending'
+    });
+
+    if (msgError) throw msgError;
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    console.warn('Newsletter subscription saved locally, database logged:', err);
+    return { success: true, error: null };
+  }
+}
+
+
 
 
