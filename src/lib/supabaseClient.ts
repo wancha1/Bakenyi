@@ -415,11 +415,11 @@ export const fetchMediaFiles = async (): Promise<MediaFile[]> => {
   const client = getSupabase();
   if (client) {
     try {
-      const { data, error } = await client.storage.from('media').list();
+      const { data, error } = await client.storage.from('heritage-images').list();
       if (!error && data) {
         return data.map((f: any) => ({
           name: f.name,
-          url: client.storage.from('media').getPublicUrl(f.name).data.publicUrl,
+          url: client.storage.from('heritage-images').getPublicUrl(f.name).data.publicUrl,
           size: f.metadata?.size || 0,
           created_at: f.created_at || new Date().toISOString(),
           status: 'approved'
@@ -437,9 +437,9 @@ export const uploadMediaFile = async (file: File): Promise<MediaFile> => {
   if (client) {
     try {
       const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-      const { data, error } = await client.storage.from('media').upload(fileName, file);
+      const { data, error } = await client.storage.from('heritage-images').upload(fileName, file);
       if (!error && data) {
-        const publicUrl = client.storage.from('media').getPublicUrl(fileName).data.publicUrl;
+        const publicUrl = client.storage.from('heritage-images').getPublicUrl(fileName).data.publicUrl;
         return {
           name: fileName,
           url: publicUrl,
@@ -477,7 +477,7 @@ export const deleteMediaFile = async (name: string): Promise<boolean> => {
   const client = getSupabase();
   if (client) {
     try {
-      await client.storage.from('media').remove([name]);
+      await client.storage.from('heritage-images').remove([name]);
       return true;
     } catch (e) {
       console.error('Supabase storage remove media failed:', e);

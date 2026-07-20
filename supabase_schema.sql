@@ -1037,14 +1037,37 @@ CREATE POLICY "Only super admins can modify settings"
 -- ==========================================
 -- 8. STORAGE BUCKET & POLICIES SETUP
 -- ==========================================
--- Insert standard media buckets securely
+-- Safely clean up any obsolete buckets and policies
+DELETE FROM storage.buckets WHERE id IN ('media', 'pdf-attachments');
+
+-- Insert standard, consolidated production-grade buckets
 INSERT INTO storage.buckets (id, name, public) VALUES
 ('avatars', 'avatars', true),
 ('heritage-images', 'heritage-images', true),
-('heritage-videos', 'heritage-videos', true),
+('heritage-audio', 'heritage-audio', true),
+('heritage-video', 'heritage-video', true),
+('event-media', 'event-media', true),
 ('documents', 'documents', true),
-('event-media', 'event-media', true)
+('system-assets', 'system-assets', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- Clean existing policies for these buckets to prevent conflicts
+DROP POLICY IF EXISTS "Public Read for avatars" ON storage.objects;
+DROP POLICY IF EXISTS "Upload own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Public Read for heritage-images" ON storage.objects;
+DROP POLICY IF EXISTS "Upload heritage images" ON storage.objects;
+DROP POLICY IF EXISTS "Public Read for heritage-audio" ON storage.objects;
+DROP POLICY IF EXISTS "Upload heritage audio" ON storage.objects;
+DROP POLICY IF EXISTS "Public Read for heritage-video" ON storage.objects;
+DROP POLICY IF EXISTS "Upload heritage video" ON storage.objects;
+DROP POLICY IF EXISTS "Public Read for heritage-videos" ON storage.objects;
+DROP POLICY IF EXISTS "Upload heritage videos" ON storage.objects;
+DROP POLICY IF EXISTS "Public Read for documents" ON storage.objects;
+DROP POLICY IF EXISTS "Upload heritage documents" ON storage.objects;
+DROP POLICY IF EXISTS "Public Read for event-media" ON storage.objects;
+DROP POLICY IF EXISTS "Upload event media" ON storage.objects;
+DROP POLICY IF EXISTS "Public Read for system-assets" ON storage.objects;
+DROP POLICY IF EXISTS "Upload system assets" ON storage.objects;
 
 -- Storage RLS Enablement & Policies
 CREATE POLICY "Public Read for avatars" ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
@@ -1055,9 +1078,13 @@ CREATE POLICY "Public Read for heritage-images" ON storage.objects FOR SELECT US
 CREATE POLICY "Upload heritage images" ON storage.objects FOR INSERT 
     WITH CHECK (bucket_id = 'heritage-images' AND public.has_permission('upload_media'));
 
-CREATE POLICY "Public Read for heritage-videos" ON storage.objects FOR SELECT USING (bucket_id = 'heritage-videos');
-CREATE POLICY "Upload heritage videos" ON storage.objects FOR INSERT 
-    WITH CHECK (bucket_id = 'heritage-videos' AND public.has_permission('upload_media'));
+CREATE POLICY "Public Read for heritage-audio" ON storage.objects FOR SELECT USING (bucket_id = 'heritage-audio');
+CREATE POLICY "Upload heritage audio" ON storage.objects FOR INSERT 
+    WITH CHECK (bucket_id = 'heritage-audio' AND public.has_permission('upload_media'));
+
+CREATE POLICY "Public Read for heritage-video" ON storage.objects FOR SELECT USING (bucket_id = 'heritage-video');
+CREATE POLICY "Upload heritage video" ON storage.objects FOR INSERT 
+    WITH CHECK (bucket_id = 'heritage-video' AND public.has_permission('upload_media'));
 
 CREATE POLICY "Public Read for documents" ON storage.objects FOR SELECT USING (bucket_id = 'documents');
 CREATE POLICY "Upload heritage documents" ON storage.objects FOR INSERT 
@@ -1065,7 +1092,11 @@ CREATE POLICY "Upload heritage documents" ON storage.objects FOR INSERT
 
 CREATE POLICY "Public Read for event-media" ON storage.objects FOR SELECT USING (bucket_id = 'event-media');
 CREATE POLICY "Upload event media" ON storage.objects FOR INSERT 
-    WITH CHECK (bucket_id = 'event-media' AND public.has_permission('create_events'));
+    WITH CHECK (bucket_id = 'event-media' AND (public.has_permission('create_events') OR public.has_permission('upload_media')));
+
+CREATE POLICY "Public Read for system-assets" ON storage.objects FOR SELECT USING (bucket_id = 'system-assets');
+CREATE POLICY "Upload system assets" ON storage.objects FOR INSERT 
+    WITH CHECK (bucket_id = 'system-assets' AND public.is_super_admin());
 
 
 -- ==========================================

@@ -455,6 +455,33 @@ export async function deleteArticle(id: string): Promise<{ success: boolean; err
 // UNIFIED STORAGE SERVICES (EMULATED & REAL)
 // ==========================================
 
+function getBucketNameForFile(file: File, type?: string): string {
+  const nameLower = file.name.toLowerCase();
+  const mimeLower = file.type.toLowerCase();
+
+  if (type === 'avatars') {
+    return 'avatars';
+  }
+  if (type === 'event-media' || nameLower.includes('event') || nameLower.includes('flyer') || nameLower.includes('poster')) {
+    return 'event-media';
+  }
+  if (type === 'pdfs' || mimeLower === 'application/pdf' || nameLower.endsWith('.pdf')) {
+    return 'documents';
+  }
+  if (mimeLower.startsWith('audio/') || nameLower.match(/\.(mp3|wav|webm|ogg|m4a)$/)) {
+    return 'heritage-audio';
+  }
+  if (mimeLower.startsWith('video/') || nameLower.match(/\.(mp4|mov|avi|mkv)$/)) {
+    return 'heritage-video';
+  }
+  if (type === 'system-assets') {
+    return 'system-assets';
+  }
+  
+  // Default fallback is heritage-images for all general images or files
+  return 'heritage-images';
+}
+
 export async function uploadMedia(file: File, type: 'images' | 'pdfs'): Promise<{ url: string; error: Error | null }> {
   const client = getSupabase();
   if (!client) {
@@ -462,7 +489,7 @@ export async function uploadMedia(file: File, type: 'images' | 'pdfs'): Promise<
   }
 
   try {
-    const bucketName = type === 'images' ? 'media' : 'pdf-attachments';
+    const bucketName = getBucketNameForFile(file, type);
     const fileExt = file.name.split('.').pop();
     const uniqueId = Math.random().toString(36).substring(2, 10);
     
@@ -496,7 +523,7 @@ export async function uploadAudioFile(blob: Blob, fileName: string): Promise<{ u
   }
 
   try {
-    const bucketName = 'media';
+    const bucketName = 'heritage-audio';
     
     // Fetch authenticated user id to isolate path
     const { data: { session } } = await client.auth.getSession();
@@ -507,7 +534,7 @@ export async function uploadAudioFile(blob: Blob, fileName: string): Promise<{ u
     
     const { data, error } = await client.storage.from(bucketName).upload(filePath, file);
     if (error) {
-      console.warn(`Storage upload of audio failed, falling back to Base64:`, error);
+      console.warn(`Storage upload of audio to ${bucketName} failed, falling back to Base64:`, error);
       return emulateFileUpload(file);
     }
 
