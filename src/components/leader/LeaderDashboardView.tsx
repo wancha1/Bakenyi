@@ -9,7 +9,7 @@ import {
   MapPin, Clock4, Users, Radio, ArrowLeft, ArrowRight
 } from 'lucide-react';
 import { getSupabase } from '../../lib/supabaseClient';
-import { generateUUID } from '../../lib/supabase';
+import { generateUUID, uploadMedia } from '../../lib/supabase';
 
 // ==========================================
 // DATA MODELS & SCHEMAS
@@ -405,6 +405,8 @@ export default function LeaderDashboardView({ user }: { user: any }) {
   const [mediaType, setMediaType] = useState<'image' | 'video' | 'audio'>('image');
   const [mediaAlbum, setMediaAlbum] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaFileUploading, setMediaFileUploading] = useState(false);
+  const [posterUploading, setPosterUploading] = useState(false);
 
   const submitMedia = (status: 'draft' | 'pending') => {
     if (!mediaTitle || !mediaDesc) {
@@ -1580,14 +1582,83 @@ export default function LeaderDashboardView({ user }: { user: any }) {
                     </div>
 
                     <div>
-                      <label className="block text-[9px] font-black uppercase text-heritage-brown/40 dark:text-slate-500 mb-1 font-semibold">Flyer / Poster Image URL</label>
-                      <input 
-                        type="text" 
-                        placeholder="https://..."
-                        value={formData.eventPoster}
-                        onChange={(e) => setFormData(prev => ({ ...prev, eventPoster: e.target.value }))}
-                        className="w-full px-3.5 py-2 rounded-xl border border-heritage-brown/15 bg-transparent text-xs font-semibold focus:border-heritage-terracotta focus:outline-none dark:border-slate-850"
-                      />
+                      <label className="block text-[9px] font-black uppercase text-heritage-brown/40 dark:text-slate-500 mb-1 font-semibold">Event Flyer / Poster Image</label>
+                      <div className="flex flex-col gap-2">
+                        <div className="relative border-2 border-dashed border-heritage-brown/15 dark:border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center bg-stone-50/50 dark:bg-slate-950/25 hover:border-heritage-terracotta transition-colors group">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              setPosterUploading(true);
+                              try {
+                                const { url, error } = await uploadMedia(file, 'images');
+                                if (error) {
+                                  triggerToast(error.message || 'Failed to upload event flyer image.');
+                                } else {
+                                  setFormData(prev => ({ ...prev, eventPoster: url }));
+                                  triggerToast('Flyer image uploaded successfully.');
+                                }
+                              } catch (err) {
+                                triggerToast('An error occurred during image upload.');
+                              } finally {
+                                setPosterUploading(false);
+                              }
+                            }}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            disabled={posterUploading}
+                          />
+                          
+                          {posterUploading ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="w-5 h-5 rounded-full border-2 border-heritage-terracotta/20 border-t-heritage-terracotta animate-spin" />
+                              <span className="text-[10px] font-bold text-heritage-brown/60 dark:text-slate-400">Uploading flyer image...</span>
+                            </div>
+                          ) : formData.eventPoster ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <img src={formData.eventPoster} className="w-16 h-16 object-cover rounded-lg border border-heritage-brown/10 shadow-sm" alt="Flyer Preview" referrerPolicy="no-referrer" />
+                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                <Check className="w-3.5 h-3.5" /> Flyer Ready & Linked
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFormData(prev => ({ ...prev, eventPoster: '' }));
+                                }}
+                                className="text-[9px] font-black uppercase text-red-500 hover:underline cursor-pointer z-20"
+                              >
+                                Remove Flyer
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1.5 text-center pointer-events-none">
+                              <Upload className="w-5 h-5 text-heritage-brown/40 dark:text-slate-500 group-hover:text-heritage-terracotta transition-colors" />
+                              <p className="text-[10px] font-bold text-heritage-brown/70 dark:text-slate-400">
+                                Drag & drop or <span className="text-heritage-terracotta hover:underline">browse flyers</span>
+                              </p>
+                              <p className="text-[8px] text-heritage-brown/40 dark:text-slate-500">
+                                PNG, JPG, WEBP up to 10MB
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Manual fallback URL */}
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                            <span className="text-[9px] font-black text-heritage-brown/30 dark:text-slate-600 uppercase">URL:</span>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="https://..."
+                            value={formData.eventPoster}
+                            onChange={(e) => setFormData(prev => ({ ...prev, eventPoster: e.target.value }))}
+                            className="w-full pl-12 pr-4 py-2 rounded-xl border border-heritage-brown/15 bg-transparent text-xs font-semibold focus:border-heritage-terracotta focus:outline-none dark:border-slate-850"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1815,15 +1886,88 @@ export default function LeaderDashboardView({ user }: { user: any }) {
 
               <div>
                 <label className="block text-[9px] font-black uppercase text-heritage-brown/50 dark:text-slate-400 mb-1">
-                  Upload Resource URL (or direct streaming link)
+                  Resource File Attachment
                 </label>
-                <input 
-                  type="text" 
-                  value={mediaUrl}
-                  onChange={(e) => setMediaUrl(e.target.value)}
-                  placeholder="e.g. https://images.unsplash.com/..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-heritage-brown/15 bg-transparent text-xs font-bold focus:border-heritage-terracotta focus:outline-none dark:border-slate-850"
-                />
+                <div className="flex flex-col gap-2">
+                  <div className="relative border-2 border-dashed border-heritage-brown/15 dark:border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center bg-stone-50/50 dark:bg-slate-950/25 hover:border-heritage-terracotta transition-colors group">
+                    <input
+                      type="file"
+                      accept={mediaType === 'image' ? 'image/*' : mediaType === 'audio' ? 'audio/*' : 'video/*'}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setMediaFileUploading(true);
+                        try {
+                          const { url, error } = await uploadMedia(file, 'images');
+                          if (error) {
+                            triggerToast(error.message || 'Failed to upload media asset.');
+                          } else {
+                            setMediaUrl(url);
+                            triggerToast('Media asset uploaded successfully.');
+                          }
+                        } catch (err) {
+                          triggerToast('An error occurred during file upload.');
+                        } finally {
+                          setMediaFileUploading(false);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      disabled={mediaFileUploading}
+                    />
+                    
+                    {mediaFileUploading ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-5 h-5 rounded-full border-2 border-heritage-terracotta/20 border-t-heritage-terracotta animate-spin" />
+                        <span className="text-[10px] font-bold text-heritage-brown/60 dark:text-slate-400">Uploading to registry storage...</span>
+                      </div>
+                    ) : mediaUrl ? (
+                      <div className="flex flex-col items-center gap-2">
+                        {mediaType === 'image' && (
+                          <img src={mediaUrl} className="w-16 h-16 object-cover rounded-lg border border-heritage-brown/10 shadow-sm" alt="Preview" referrerPolicy="no-referrer" />
+                        )}
+                        {mediaType === 'audio' && <Volume2 className="w-8 h-8 text-heritage-terracotta" />}
+                        {mediaType === 'video' && <Play className="w-8 h-8 text-heritage-terracotta" />}
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5" /> File Ready & Linked
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMediaUrl('');
+                          }}
+                          className="text-[9px] font-black uppercase text-red-500 hover:underline cursor-pointer z-20"
+                        >
+                          Remove Asset
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5 text-center pointer-events-none">
+                        <Upload className="w-5 h-5 text-heritage-brown/40 dark:text-slate-500 group-hover:text-heritage-terracotta transition-colors" />
+                        <p className="text-[10px] font-bold text-heritage-brown/70 dark:text-slate-400">
+                          Drag & drop or <span className="text-heritage-terracotta hover:underline">browse files</span>
+                        </p>
+                        <p className="text-[8px] text-heritage-brown/40 dark:text-slate-500">
+                          {mediaType === 'image' ? 'PNG, JPG, WEBP up to 10MB' : mediaType === 'audio' ? 'MP3, WAV, WEBM up to 20MB' : 'MP4, WEBM up to 50MB'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Manual fallback URL */}
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                      <span className="text-[9px] font-black text-heritage-brown/30 dark:text-slate-600 uppercase">URL:</span>
+                    </div>
+                    <input 
+                      type="text" 
+                      value={mediaUrl}
+                      onChange={(e) => setMediaUrl(e.target.value)}
+                      placeholder="Or paste direct external streaming/image link here"
+                      className="w-full pl-12 pr-4 py-2 rounded-xl border border-heritage-brown/15 bg-transparent text-xs font-bold focus:border-heritage-terracotta focus:outline-none dark:border-slate-850"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>

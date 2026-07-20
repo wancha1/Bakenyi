@@ -17,8 +17,11 @@ import {
   getUserNotifications, 
   markNotificationAsRead as apiMarkAsRead, 
   markAllNotificationsAsRead as apiMarkAllAsRead,
-  getUnreadNotificationsCount as apiGetUnreadCount
+  getUnreadNotificationsCount as apiGetUnreadCount,
+  getArticles,
+  getContributions
 } from '../lib/supabase';
+import { getNews, getEvents, getStatuses, getAnnouncements } from '../lib/heritageService';
 
 // Types for the Member Dashboard Workspace
 interface SavedItem {
@@ -449,20 +452,70 @@ export default function MemberDashboard() {
       localStorage.setItem('bakenyi_search_history', JSON.stringify(defaultHistory));
     }
 
-    // Community Updates
-    setCommunityUpdates(DEFAULT_COMMUNITY_UPDATES);
+    // Fetch live backend data to keep dashboard functional and aligned with backend
+    async function loadBackendData() {
+      try {
+        const [newsData, eventsData, contributionsData] = await Promise.all([
+          getNews(),
+          getEvents(),
+          getContributions()
+        ]);
 
-    // Events
-    const storedEvents = localStorage.getItem('bakenyi_member_events');
-    if (storedEvents) {
-      setEvents(JSON.parse(storedEvents));
-    } else {
-      setEvents(DEFAULT_EVENTS);
-      localStorage.setItem('bakenyi_member_events', JSON.stringify(DEFAULT_EVENTS));
+        // Map News/Articles to Community Updates
+        if (newsData && newsData.length > 0) {
+          const mappedUpdates: CommunityUpdateItem[] = newsData.map(n => ({
+            id: n.id,
+            title: n.title,
+            body: n.content || n.summary || '',
+            author: 'Bakenyi Reporter',
+            category: 'news',
+            publishedAt: n.published_at ? new Date(n.published_at).toLocaleDateString() : new Date().toLocaleDateString(),
+            likes: 0,
+            image: n.cover_image
+          }));
+          setCommunityUpdates(mappedUpdates);
+        } else {
+          setCommunityUpdates([]);
+        }
+
+        // Map Events
+        if (eventsData && eventsData.length > 0) {
+          const mappedEvents: HeritageEvent[] = eventsData.map(e => ({
+            id: e.id,
+            title: e.title,
+            description: e.description,
+            date: e.start_datetime ? new Date(e.start_datetime).toLocaleDateString() : 'Upcoming',
+            time: e.start_datetime ? new Date(e.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'All day',
+            location: e.location,
+            elder: e.organizer || 'Bakenyi Leader',
+            isJoined: false,
+            category: 'Assembly'
+          }));
+          setEvents(mappedEvents);
+        } else {
+          setEvents([]);
+        }
+
+        // Map Contributions to Media
+        if (contributionsData && contributionsData.length > 0) {
+          const mappedMedia: MediaItem[] = contributionsData.filter(c => c.status === 'approved' && c.imageUrl).map(c => ({
+            id: c.id,
+            title: c.title,
+            type: (c.type === 'video' || c.type === 'audio' || c.type === 'pdf') ? c.type as any : 'image',
+            category: c.type || 'Upload',
+            url: c.imageUrl,
+            thumbnail: c.imageUrl,
+            description: c.description
+          }));
+          setMediaItems(mappedMedia);
+        } else {
+          setMediaItems([]);
+        }
+      } catch (err) {
+        console.error('Failed to load backend data for member dashboard:', err);
+      }
     }
-
-    // Media Items
-    setMediaItems(DEFAULT_MEDIA);
+    loadBackendData();
 
     // Profile preferences
     const storedProfileName = localStorage.getItem('bakenyi_profile_name');

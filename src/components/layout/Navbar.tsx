@@ -4,7 +4,7 @@ import {
   Menu, X, Globe, Search, Shield, User, Clock, BookOpen, Volume2, 
   ArrowRight, Sun, Moon, SlidersHorizontal, ChevronDown, LogOut, 
   LayoutDashboard, LogIn, FileText, Users, PenTool, Smartphone, Download,
-  Calendar, Bookmark
+  Calendar, Bookmark, Newspaper
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getSupabase, checkIsAdmin } from '../../lib/supabaseClient';
@@ -18,6 +18,13 @@ const heritageItems = [
     path: '/history', 
     icon: Clock, 
     color: 'text-amber-600 bg-amber-500/10' 
+  },
+  { 
+    name: 'Community News', 
+    desc: 'Council dispatches, system announcements, and community updates.', 
+    path: '/news', 
+    icon: Newspaper, 
+    color: 'text-rose-600 bg-rose-500/10' 
   },
   { 
     name: 'Lukenye Language', 

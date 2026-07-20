@@ -1,6 +1,6 @@
 import { Article } from '../types/article';
 import { bakenyiArticles } from '../data/articlesData';
-import { getSupabase } from './supabaseClient';
+import { getSupabase, fetchUsers } from './supabaseClient';
 
 /**
  * Generates an RFC4122-compliant version 4 UUID.
@@ -20,6 +20,31 @@ export const isSupabaseConfigured = (): boolean => {
 
 // Supabase client direct reference
 export const supabase = getSupabase();
+
+export async function filterRealArticles(items: any[]): Promise<any[]> {
+  try {
+    const users = await fetchUsers();
+    const realUserIds = new Set(users.map(u => u.id));
+    return items.filter(item => {
+      const creatorId = item.created_by;
+      return creatorId && realUserIds.has(creatorId);
+    });
+  } catch (e) {
+    console.error('Failed to filter real articles:', e);
+    return [];
+  }
+}
+
+export async function filterRealContributions(items: any[]): Promise<any[]> {
+  try {
+    const users = await fetchUsers();
+    const realUserIds = new Set(users.map(u => u.id));
+    return items.filter(item => item.userId && realUserIds.has(item.userId));
+  } catch (e) {
+    console.error('Failed to filter real contributions:', e);
+    return [];
+  }
+}
 
 // ==========================================
 // UNIFIED AUTHENTICATION SERVICES (SUPABASE)
@@ -120,23 +145,21 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
   const client = getSupabase();
   if (!client) {
     console.warn('Supabase client is not configured.');
-    const staticArticles = onlyPublished ? bakenyiArticles.filter(a => a.status === 'published') : bakenyiArticles;
-    const merged = [...localList, ...staticArticles];
-    const unique = merged.filter((item, index, self) => self.findIndex(t => t.id === item.id) === index);
-    return onlyPublished ? unique.filter(a => a.status === 'published') : unique;
+    const filtered = onlyPublished ? localList.filter(a => a.status === 'published') : localList;
+    return filterRealArticles(filtered);
   }
 
   try {
     let { data, error } = await client
       .from('heritage_articles')
-      .select('id, title, content, status, created_at, updated_at, published_at, summary')
+      .select('id, title, content, status, created_at, updated_at, published_at, summary, created_by')
       .order('published_at', { ascending: false });
 
     if (error) {
       // Fallback to legacy articles table
       const fallbackRes = await client
         .from('articles')
-        .select('id, title, content, status, created_at, updated_at, published_at, summary')
+        .select('id, title, content, status, created_at, updated_at, published_at, summary, created_by')
         .order('published_at', { ascending: false });
       
       data = fallbackRes.data;
@@ -155,12 +178,14 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
       publishedAt: row.published_at || row.created_at || new Date().toISOString().split('T')[0],
       status: row.status || 'published',
       views: 0,
-      tags: ['Heritage']
+      tags: ['Heritage'],
+      created_by: row.created_by
     }));
 
     const merged = [...localList, ...dbArticles];
     const unique = merged.filter((item, index, self) => self.findIndex(t => t.id === item.id) === index);
-    return onlyPublished ? unique.filter(a => a.status === 'published') : unique;
+    const filtered = onlyPublished ? unique.filter(a => a.status === 'published') : unique;
+    return filterRealArticles(filtered);
   } catch (err) {
     console.warn('Supabase fetch articles failed:', err);
     return [];
@@ -173,18 +198,21 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
 export async function getArticleById(id: string): Promise<Article | null> {
   const localList = getLocalArticles();
   const localMatch = localList.find(a => a.id === id);
-  if (localMatch) return localMatch;
+  if (localMatch) {
+    const isReal = await filterRealArticles([localMatch]);
+    return isReal.length > 0 ? isReal[0] : null;
+  }
 
   const client = getSupabase();
   if (!client) {
     console.warn('Supabase client is not configured.');
-    return bakenyiArticles.find(a => a.id === id) || null;
+    return null;
   }
 
   try {
     let { data, error } = await client
       .from('heritage_articles')
-      .select('id, title, content, status, created_at, updated_at, published_at, summary')
+      .select('id, title, content, status, created_at, updated_at, published_at, summary, created_by')
       .eq('id', id)
       .maybeSingle();
 
@@ -192,7 +220,7 @@ export async function getArticleById(id: string): Promise<Article | null> {
       // Fallback to legacy articles table
       const fallbackRes = await client
         .from('articles')
-        .select('id, title, content, status, created_at, updated_at, published_at, summary')
+        .select('id, title, content, status, created_at, updated_at, published_at, summary, created_by')
         .eq('id', id)
         .maybeSingle();
       data = fallbackRes.data;
@@ -202,7 +230,7 @@ export async function getArticleById(id: string): Promise<Article | null> {
     if (error) throw error;
 
     if (data) {
-      return {
+      const art = {
         id: data.id,
         title: data.title,
         excerpt: data.summary || '',
@@ -212,8 +240,11 @@ export async function getArticleById(id: string): Promise<Article | null> {
         publishedAt: data.published_at || data.created_at || new Date().toISOString().split('T')[0],
         status: data.status || 'published',
         views: 0,
-        tags: ['Heritage']
+        tags: ['Heritage'],
+        created_by: data.created_by
       };
+      const isReal = await filterRealArticles([art]);
+      return isReal.length > 0 ? isReal[0] : null;
     }
   } catch (err) {
     console.warn(`Supabase read for ID ${id} failed:`, err);
@@ -521,7 +552,9 @@ export async function getContributions(userId?: string): Promise<Contribution[]>
   const client = getSupabase();
   if (!client) {
     const stored = localStorage.getItem('supabase_emulated_contributions') || '[]';
-    return JSON.parse(stored);
+    const localList = JSON.parse(stored);
+    const filtered = userId ? localList.filter((item: any) => item.userId === userId) : localList;
+    return filterRealContributions(filtered);
   }
 
   try {
@@ -553,18 +586,14 @@ export async function getContributions(userId?: string): Promise<Contribution[]>
       };
     });
 
-    if (userId) {
-      return list.filter(item => item.userId === userId);
-    }
-    return list;
+    const filtered = userId ? list.filter(item => item.userId === userId) : list;
+    return filterRealContributions(filtered);
   } catch (err) {
     console.error('getContributions failed, falling back to local emulated storage:', err);
     const stored = localStorage.getItem('supabase_emulated_contributions') || '[]';
     const localList = JSON.parse(stored);
-    if (userId) {
-      return localList.filter((item: any) => item.userId === userId);
-    }
-    return localList;
+    const filtered = userId ? localList.filter((item: any) => item.userId === userId) : localList;
+    return filterRealContributions(filtered);
   }
 }
 

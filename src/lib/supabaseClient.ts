@@ -56,10 +56,16 @@ export const getSupabaseConfig = () => {
   return { url, key, isConfigured };
 };
 
+export let isSupabaseOffline = false;
+export const markSupabaseOffline = () => {
+  isSupabaseOffline = true;
+};
+
 // Lazy Initialized Client
 let supabaseInstance: any = null;
 
 export const getSupabase = () => {
+  if (isSupabaseOffline) return null;
   const { url, key, isConfigured } = getSupabaseConfig();
   if (!isConfigured) return null;
   
@@ -229,7 +235,12 @@ export const fetchUsers = async (): Promise<UserProfile[]> => {
   if (client) {
     try {
       const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
-      if (!error && data) {
+      if (error) {
+        console.warn('Supabase fetchUsers query failed, using local fallback:', error);
+        if (error.message?.includes('fetch') || error.message?.includes('Failed') || error.message?.includes('Network')) {
+          markSupabaseOffline();
+        }
+      } else if (data) {
         // Map database records to UserProfile format (ensuring full_name is populated from name)
         const dbUsers: UserProfile[] = data.map((row: any) => ({
           id: row.id,
@@ -247,9 +258,11 @@ export const fetchUsers = async (): Promise<UserProfile[]> => {
         const unique = merged.filter((item, index, self) => self.findIndex(t => t.id === item.id) === index);
         return unique;
       }
-      console.warn('Supabase fetchUsers query failed, using local fallback:', error);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Supabase fetchUsers exception, using local fallback:', err);
+      if (err?.message?.includes('fetch') || err?.message?.includes('Failed') || err?.message?.includes('Network')) {
+        markSupabaseOffline();
+      }
     }
   }
   return localList;

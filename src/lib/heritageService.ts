@@ -1,8 +1,22 @@
-import { getSupabase } from './supabaseClient';
+import { getSupabase, fetchUsers } from './supabaseClient';
 import { generateUUID } from './supabase';
 import { Status, News, Announcement, Event, CommunityHighlight, Notice, ContentRegistryItem, ContentRevision, AnalyticsMetric } from '../types/heritage';
 
 const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
+
+async function filterRealUsers<T extends { author_id?: string; created_by?: string }>(items: T[]): Promise<T[]> {
+  try {
+    const users = await fetchUsers();
+    const realUserIds = new Set(users.map(u => u.id));
+    return items.filter(item => {
+      const authorId = item.author_id || item.created_by;
+      return authorId && realUserIds.has(authorId);
+    });
+  } catch (e) {
+    console.error('Failed to filter real users:', e);
+    return [];
+  }
+}
 
 async function resolveUserUUID(client: any, userId?: string): Promise<string> {
   if (userId && isUUID(userId)) {
@@ -155,16 +169,16 @@ const mockEvents: Event[] = [
 // Initialize local storage fallbacks if empty
 const initializeLocalStorage = () => {
   if (!localStorage.getItem('bakenye_statuses')) {
-    localStorage.setItem('bakenye_statuses', JSON.stringify(mockStatuses));
+    localStorage.setItem('bakenye_statuses', JSON.stringify([]));
   }
   if (!localStorage.getItem('bakenye_news')) {
-    localStorage.setItem('bakenye_news', JSON.stringify(mockNews));
+    localStorage.setItem('bakenye_news', JSON.stringify([]));
   }
   if (!localStorage.getItem('bakenye_announcements')) {
-    localStorage.setItem('bakenye_announcements', JSON.stringify(mockAnnouncements));
+    localStorage.setItem('bakenye_announcements', JSON.stringify([]));
   }
   if (!localStorage.getItem('bakenye_events')) {
-    localStorage.setItem('bakenye_events', JSON.stringify(mockEvents));
+    localStorage.setItem('bakenye_events', JSON.stringify([]));
   }
 };
 
@@ -181,9 +195,10 @@ export async function getStatuses(onlyApproved = true): Promise<Status[]> {
     initializeLocalStorage();
     const localList = JSON.parse(localStorage.getItem('bakenye_statuses') || '[]');
     const now = new Date();
-    return onlyApproved
+    const filtered = onlyApproved
       ? localList.filter((s: any) => s.status === 'approved' && !s.is_archived && (!s.expires_at || new Date(s.expires_at) > now))
       : localList;
+    return filterRealUsers(filtered);
   }
 
   try {
@@ -213,9 +228,10 @@ export async function getStatuses(onlyApproved = true): Promise<Status[]> {
     }));
 
     const now = new Date();
-    return onlyApproved
+    const filtered = onlyApproved
       ? mapped.filter(s => s.status === 'approved' && !s.is_archived && (!s.expires_at || new Date(s.expires_at) > now))
       : mapped;
+    return filterRealUsers(filtered);
   } catch (err: any) {
     console.warn('Supabase fetch statuses failed:', err);
     return [];
@@ -345,7 +361,8 @@ export async function getNews(onlyPublished = true): Promise<News[]> {
   if (!client) {
     initializeLocalStorage();
     const localList = JSON.parse(localStorage.getItem('bakenye_news') || '[]');
-    return onlyPublished ? localList.filter((n: any) => n.status === 'published') : localList;
+    const filtered = onlyPublished ? localList.filter((n: any) => n.status === 'published') : localList;
+    return filterRealUsers(filtered);
   }
 
   try {
@@ -375,7 +392,8 @@ export async function getNews(onlyPublished = true): Promise<News[]> {
       updated_at: row.updated_at
     }));
 
-    return onlyPublished ? mapped.filter(n => n.status === 'published') : mapped;
+    const filtered = onlyPublished ? mapped.filter(n => n.status === 'published') : mapped;
+    return filterRealUsers(filtered);
   } catch (err: any) {
     console.warn('Supabase fetch news failed:', err);
     return [];
@@ -509,9 +527,10 @@ export async function getAnnouncements(onlyApproved = true): Promise<Announcemen
     initializeLocalStorage();
     const localList = JSON.parse(localStorage.getItem('bakenye_announcements') || '[]');
     const now = new Date();
-    return onlyApproved
+    const filtered = onlyApproved
       ? localList.filter((a: any) => a.status === 'approved' && (!a.start_date || new Date(a.start_date) <= now) && (!a.end_date || new Date(a.end_date) >= now))
       : localList;
+    return filterRealUsers(filtered);
   }
 
   try {
@@ -539,9 +558,10 @@ export async function getAnnouncements(onlyApproved = true): Promise<Announcemen
     }));
 
     const now = new Date();
-    return onlyApproved
+    const filtered = onlyApproved
       ? mapped.filter(a => a.status === 'approved' && (!a.start_date || new Date(a.start_date) <= now) && (!a.end_date || new Date(a.end_date) >= now))
       : mapped;
+    return filterRealUsers(filtered);
   } catch (err: any) {
     console.warn('Supabase fetch announcements failed:', err);
     return [];
@@ -668,13 +688,14 @@ export async function getEvents(onlyApproved = true): Promise<Event[]> {
   if (!client) {
     initializeLocalStorage();
     const localList = JSON.parse(localStorage.getItem('bakenye_events') || '[]');
-    return onlyApproved ? localList.filter((e: any) => e.status === 'approved') : localList;
+    const filtered = onlyApproved ? localList.filter((e: any) => e.status === 'approved') : localList;
+    return filterRealUsers(filtered);
   }
 
   try {
     const { data, error } = await client
       .from('events')
-      .select('id, title, description, location, start_datetime, end_datetime, cover_image, organizer, status, created_at, updated_at')
+      .select('id, title, description, location, start_datetime, end_datetime, cover_image, organizer, status, created_at, updated_at, created_by')
       .order('start_datetime', { ascending: true });
 
     if (error) throw error;
@@ -691,14 +712,15 @@ export async function getEvents(onlyApproved = true): Promise<Event[]> {
       contact: '',
       rsvp_settings: { enabled: false, limit: null },
       map_location: { latitude: null, longitude: null },
-      created_by: '',
+      created_by: row.created_by || '',
       approved_by: '',
       status: row.status,
       created_at: row.created_at,
       updated_at: row.updated_at
     }));
 
-    return onlyApproved ? mapped.filter(e => e.status === 'approved') : mapped;
+    const filtered = onlyApproved ? mapped.filter(e => e.status === 'approved') : mapped;
+    return filterRealUsers(filtered);
   } catch (err: any) {
     console.warn('Supabase fetch events failed:', err);
     return [];
@@ -829,7 +851,7 @@ export async function getCommunityHighlights(onlyPublished = true): Promise<Comm
     }
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+    return filterRealUsers(data || []);
   } catch (err) {
     console.error('Supabase fetch community highlights failed:', err);
     return [];
@@ -891,7 +913,7 @@ export async function getNotices(onlyApproved = true): Promise<Notice[]> {
     }
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+    return filterRealUsers(data || []);
   } catch (err) {
     console.error('Supabase fetch notices failed:', err);
     return [];

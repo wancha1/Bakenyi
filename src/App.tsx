@@ -26,6 +26,7 @@ const Leadership = lazy(() => import('./pages/Leadership'));
 const Gallery = lazy(() => import('./pages/Gallery'));
 const Language = lazy(() => import('./pages/Language'));
 const Articles = lazy(() => import('./pages/Articles'));
+const News = lazy(() => import('./pages/News'));
 const Contribute = lazy(() => import('./pages/Contribute'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Search = lazy(() => import('./pages/Search'));
@@ -429,6 +430,7 @@ export default function App() {
               <Route path="/language" element={<Language />} />
               <Route path="/articles" element={<Articles />} />
               <Route path="/articles/:id" element={<Articles />} />
+              <Route path="/news" element={<News />} />
               <Route path="/clans/:id" element={<ContentDetail defaultType="clan" />} />
               <Route path="/leadership/:id" element={<ContentDetail defaultType="leader" />} />
               <Route path="/oral-history/:id" element={<ContentDetail defaultType="oral-history" />} />

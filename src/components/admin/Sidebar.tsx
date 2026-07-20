@@ -58,8 +58,6 @@ export default function Sidebar({
     { id: 'media', label: (resolvedRole === 'reporter' || resolvedRole === 'historian') ? 'My Media' : (isElder ? 'Sacred Media Library' : 'Media Library'), icon: Image },
     { id: 'reports', label: 'Reports', icon: BarChart2 },
     { id: 'activity_logs', label: 'Activity Logs', icon: Activity },
-    { id: 'settings', label: 'Settings', icon: Settings },
-    { id: 'system_health', label: 'System Health', icon: Heart },
   ];
 
   // Filter based on normalized role
