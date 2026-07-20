@@ -150,21 +150,10 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
   }
 
   try {
-    let { data, error } = await client
+    const { data, error } = await client
       .from('heritage_articles')
       .select('id, title, content, status, created_at, updated_at, published_at, summary, created_by')
       .order('published_at', { ascending: false });
-
-    if (error) {
-      // Fallback to legacy articles table
-      const fallbackRes = await client
-        .from('articles')
-        .select('id, title, content, status, created_at, updated_at, published_at, summary, created_by')
-        .order('published_at', { ascending: false });
-      
-      data = fallbackRes.data;
-      error = fallbackRes.error;
-    }
 
     if (error) throw error;
 
@@ -210,22 +199,11 @@ export async function getArticleById(id: string): Promise<Article | null> {
   }
 
   try {
-    let { data, error } = await client
+    const { data, error } = await client
       .from('heritage_articles')
       .select('id, title, content, status, created_at, updated_at, published_at, summary, created_by')
       .eq('id', id)
       .maybeSingle();
-
-    if (error) {
-      // Fallback to legacy articles table
-      const fallbackRes = await client
-        .from('articles')
-        .select('id, title, content, status, created_at, updated_at, published_at, summary, created_by')
-        .eq('id', id)
-        .maybeSingle();
-      data = fallbackRes.data;
-      error = fallbackRes.error;
-    }
 
     if (error) throw error;
 
@@ -305,32 +283,18 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
       console.warn('Could not retrieve user ID for created_by field:', userErr);
     }
 
-    // Try inserting into heritage_articles first
-    let { data: insertedData, error } = await client
+    // Try inserting into heritage_articles
+    const { data: insertedData, error } = await client
       .from('heritage_articles')
       .insert(dbRecord)
       .select('id')
       .maybeSingle();
 
+    if (error) throw error;
+
     let assignedId = generatedId;
     if (insertedData?.id) {
       assignedId = insertedData.id;
-    }
-
-    if (error) {
-      // Fallback to legacy articles table
-      const fallbackRes = await client.from('articles').insert({
-        id: generatedId,
-        title: article.title,
-        content: article.content || '',
-        status: article.status || 'draft',
-        published_at: article.publishedAt || new Date().toISOString().split('T')[0],
-        summary: article.excerpt || '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-      error = fallbackRes.error;
-      if (error) throw error;
     }
 
     const savedArticle: Article = {
@@ -394,23 +358,9 @@ export async function updateArticle(id: string, articleUpdates: Partial<Article>
     if (articleUpdates.publishedAt !== undefined) dbRecord.published_at = articleUpdates.publishedAt;
     if (articleUpdates.excerpt !== undefined) dbRecord.summary = articleUpdates.excerpt;
 
-    // Try updating heritage_articles first
-    let { error } = await client.from('heritage_articles').update(dbRecord).eq('id', id);
-    if (error) {
-      // Fallback to legacy articles table
-      const legacyRecord: any = {
-        updated_at: new Date().toISOString()
-      };
-      if (articleUpdates.title !== undefined) legacyRecord.title = articleUpdates.title;
-      if (articleUpdates.content !== undefined) legacyRecord.content = articleUpdates.content;
-      if (articleUpdates.status !== undefined) legacyRecord.status = articleUpdates.status;
-      if (articleUpdates.publishedAt !== undefined) legacyRecord.published_at = articleUpdates.publishedAt;
-      if (articleUpdates.excerpt !== undefined) legacyRecord.summary = articleUpdates.excerpt;
-
-      const fallbackRes = await client.from('articles').update(legacyRecord).eq('id', id);
-      error = fallbackRes.error;
-      if (error) throw error;
-    }
+    // Update heritage_articles
+    const { error } = await client.from('heritage_articles').update(dbRecord).eq('id', id);
+    if (error) throw error;
 
     return { data: updated, error: null };
   } catch (err: any) {
@@ -437,13 +387,8 @@ export async function deleteArticle(id: string): Promise<{ success: boolean; err
   }
 
   try {
-    let { error } = await client.from('heritage_articles').delete().eq('id', id);
-    if (error) {
-      // Fallback to legacy articles table
-      const fallbackRes = await client.from('articles').delete().eq('id', id);
-      error = fallbackRes.error;
-      if (error) throw error;
-    }
+    const { error } = await client.from('heritage_articles').delete().eq('id', id);
+    if (error) throw error;
     return { success: true, error: null };
   } catch (err: any) {
     console.warn(`Supabase delete article ${id} failed, but successfully deleted from offline/localStorage cache.`, err);

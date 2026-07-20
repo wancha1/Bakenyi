@@ -180,7 +180,7 @@ export default function UserProfileModule({ user }: { user: any }) {
         const { count, error: countErr } = await client
           .from('oral_history')
           .select('*', { count: 'exact', head: true })
-          .eq('narrator_id', user.id);
+          .eq('narrator', profileData?.full_name || user.user_metadata?.full_name || '');
         if (!countErr && count !== null) oralCount = count;
       }
 

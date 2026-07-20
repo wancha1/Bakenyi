@@ -142,16 +142,20 @@ Preserving the original Lukenye nouns for these natural elements is critical. Th
           } else {
             // Fallback direct query
             if (client) {
-              const { data: directArt } = await client.from('heritage_articles').select('*').eq('id', id).maybeSingle();
+              const { data: directArt } = await client
+                .from('heritage_articles')
+                .select('*, profiles:created_by(name)')
+                .eq('id', id)
+                .maybeSingle();
               if (directArt) {
                 setData({
                   id: directArt.id,
                   title: directArt.title,
                   summary: directArt.summary,
                   content: directArt.content,
-                  category: directArt.category || 'Culture',
+                  category: (directArt as any).category || 'Culture',
                   coverImage: directArt.cover_image,
-                  author: directArt.author_name || 'Bakenyi Scribe',
+                  author: (directArt as any).profiles?.name || 'Bakenyi Scribe',
                   publishedAt: directArt.published_at || directArt.created_at
                 });
               } else {
