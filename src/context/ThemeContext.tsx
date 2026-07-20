@@ -15,8 +15,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem('bakenyi-theme');
     if (saved === 'dark') return 'dark';
     if (saved === 'cream' || saved === 'light') return 'light';
-    // Default to dark mode
-    return 'dark';
+    // Default to light mode (cream)
+    return 'light';
   });
 
   useEffect(() => {
