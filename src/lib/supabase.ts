@@ -26,6 +26,9 @@ export async function filterRealArticles(items: any[]): Promise<any[]> {
     const users = await fetchUsers();
     const realUserIds = new Set(users.map(u => u.id));
     return items.filter(item => {
+      if (item.status === 'approved' || item.status === 'published') {
+        return true;
+      }
       const creatorId = item.created_by;
       return creatorId && realUserIds.has(creatorId);
     });
@@ -39,7 +42,12 @@ export async function filterRealContributions(items: any[]): Promise<any[]> {
   try {
     const users = await fetchUsers();
     const realUserIds = new Set(users.map(u => u.id));
-    return items.filter(item => item.userId && realUserIds.has(item.userId));
+    return items.filter(item => {
+      if (item.status === 'approved' || item.status === 'published') {
+        return true;
+      }
+      return item.userId && realUserIds.has(item.userId);
+    });
   } catch (e) {
     console.error('Failed to filter real contributions:', e);
     return [];
@@ -1593,7 +1601,7 @@ export async function getUserNotifications(
 ): Promise<{ data: DBNotification[]; count: number; error: Error | null }> {
   const client = getSupabase();
   if (!client) {
-    const stored = localStorage.getItem('bakenyi_notifications') || '[]';
+    const stored = localStorage.getItem('bakenye_notifications') || '[]';
     try {
       const all = JSON.parse(stored);
       const sliced = all.slice(offset, offset + limit);
@@ -1622,7 +1630,7 @@ export async function getUserNotifications(
 export async function markNotificationAsRead(notificationId: string): Promise<boolean> {
   const client = getSupabase();
   if (!client) {
-    const stored = localStorage.getItem('bakenyi_notifications') || '[]';
+    const stored = localStorage.getItem('bakenye_notifications') || '[]';
     try {
       const all = JSON.parse(stored);
       const updated = all.map((n: any) => n.id === notificationId ? { ...n, isRead: true } : n);
@@ -1649,7 +1657,7 @@ export async function markNotificationAsRead(notificationId: string): Promise<bo
 export async function markAllNotificationsAsRead(userId: string): Promise<boolean> {
   const client = getSupabase();
   if (!client) {
-    const stored = localStorage.getItem('bakenyi_notifications') || '[]';
+    const stored = localStorage.getItem('bakenye_notifications') || '[]';
     try {
       const all = JSON.parse(stored);
       const updated = all.map((n: any) => ({ ...n, isRead: true }));
@@ -1677,7 +1685,7 @@ export async function markAllNotificationsAsRead(userId: string): Promise<boolea
 export async function getUnreadNotificationsCount(userId: string): Promise<number> {
   const client = getSupabase();
   if (!client) {
-    const stored = localStorage.getItem('bakenyi_notifications') || '[]';
+    const stored = localStorage.getItem('bakenye_notifications') || '[]';
     try {
       const all = JSON.parse(stored);
       return all.filter((n: any) => !n.isRead).length;

@@ -20,7 +20,6 @@ import {
   updateEvent 
 } from '../lib/heritageService';
 import { Status, News, Announcement, Event } from '../types/heritage';
-import { dailySpotlights } from '../data/dailyHeritage';
 import SEO from '../components/SEO';
 import { Modal, Button, Input } from '../components/ui';
 
@@ -53,14 +52,66 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  // Daily seed for "Today in Bakenyi Heritage"
+  // Construct dynamic spotlights from the database records
+  const dynamicSpotlights = useMemo(() => {
+    const list: any[] = [];
+    
+    // Add approved clans to spotlight rotation
+    clans.forEach((c) => {
+      list.push({
+        id: `clan-${c.id}`,
+        type: 'Clan',
+        title: c.name,
+        subtitle: `Clan ${c.name}`,
+        desc: c.description || `The proud Bakenyi clan of ${c.name} with totem ${c.totem}.`,
+        image: c.image_url || 'https://images.unsplash.com/photo-1591824438708-ce405f36ba3d?auto=format&fit=crop&q=80&w=800',
+        metadata: `Totem: ${c.totem} | Dialect Name: ${c.name_meaning || 'Traditional Lineage'}`,
+        path: '/clans',
+        lukenye: c.motto || undefined
+      });
+    });
+
+    // Add approved vocabulary to spotlight rotation
+    vocabulary.forEach((v) => {
+      list.push({
+        id: `vocab-${v.id}`,
+        type: 'Language',
+        title: v.lukenye,
+        subtitle: v.english,
+        desc: v.sentence_english || `Learn Lukenye: "${v.lukenye}" means "${v.english}". Part of speech: ${v.part_of_speech || 'noun'}.`,
+        image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800',
+        metadata: `Category: ${v.category || 'General Vocabulary'}`,
+        path: '/language',
+        lukenye: `${v.lukenye} — ${v.sentence_lukenye || ''}`
+      });
+    });
+
+    // Add approved clan stories to spotlight rotation
+    recentStories.forEach((s) => {
+      list.push({
+        id: `story-${s.id}`,
+        type: 'Oral Story',
+        title: s.title,
+        subtitle: s.title,
+        desc: s.summary || s.content_preview || s.content || '',
+        image: s.banner_image || s.image_url || 'https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7?auto=format&fit=crop&q=80&w=800',
+        metadata: `By Elder ${s.author_name || 'Traditional Guardian'}`,
+        path: '/clans',
+        lukenye: undefined
+      });
+    });
+
+    return list;
+  }, [clans, vocabulary, recentStories]);
+
+  // Daily seed for "Today in Bakenyi Heritage" dynamically loaded
   const dailySpotlight = useMemo(() => {
+    if (dynamicSpotlights.length === 0) return null;
     const date = new Date();
-    // Deterministic seed based on year, month, and day
     const dateSeed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
-    const index = dateSeed % dailySpotlights.length;
-    return dailySpotlights[index];
-  }, []);
+    const index = dateSeed % dynamicSpotlights.length;
+    return dynamicSpotlights[index];
+  }, [dynamicSpotlights]);
 
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
     try {
@@ -455,6 +506,7 @@ export default function Home() {
       {/* 3. DAILY SPOTLIGHT */}
       <DailySpotlight 
         dailySpotlight={dailySpotlight}
+        dynamicSpotlights={dynamicSpotlights}
         shareNotification={shareNotification}
         bookmarks={bookmarks}
         toggleBookmark={toggleBookmark}

@@ -224,7 +224,7 @@ export default function Clans() {
   };
 
   return (
-    <div className="pt-20 min-h-screen bg-[#faf8f5] text-stone-900 selection:bg-heritage-terracotta/10">
+    <div className="pt-20 min-h-screen bg-heritage-cream text-heritage-ink transition-colors duration-300 selection:bg-heritage-terracotta/10">
       <SEO 
         title="Clans Directory & Totem Exhibition"
         description="Explore the sovereign clans, respective totems, regional lineages, and traditional navigators of the Bakenye digital museum."
@@ -504,15 +504,15 @@ export default function Clans() {
       )}
 
       {/* CLANS GALLERY (INTERACTIVE DIRECTORY) */}
-      <section id="clans-grid" className="py-20 px-4 bg-[#f4f1ea] border-y border-stone-200/50">
+      <section id="clans-grid" className="py-20 px-4 bg-[#f4f1ea] dark:bg-stone-900/40 border-y border-stone-200/50 dark:border-stone-800/50">
         <div className="max-w-7xl mx-auto">
           
           {/* Controls Bar (Filter, Sort, Search stats) */}
-          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-10 bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-stone-200/60 shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-10 bg-white/60 dark:bg-stone-900/60 backdrop-blur-md p-4 rounded-2xl border border-stone-200/60 dark:border-stone-800/60 shadow-sm">
             
             {/* Filter buttons */}
             <div className="flex flex-wrap items-center gap-2 text-left">
-              <span className="text-xs font-bold text-stone-600 uppercase tracking-wider flex items-center gap-1.5 px-2">
+              <span className="text-xs font-bold text-stone-600 dark:text-stone-300 uppercase tracking-wider flex items-center gap-1.5 px-2">
                 <Filter className="w-4 h-4 text-heritage-terracotta" />
                 <span>Filter Territory:</span>
               </span>
@@ -524,7 +524,7 @@ export default function Clans() {
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     selectedRegion === region
                       ? 'bg-heritage-brown text-white shadow-md'
-                      : 'bg-white hover:bg-stone-50 text-stone-700 border border-stone-200/80'
+                      : 'bg-white dark:bg-stone-850 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200/80 dark:border-stone-800'
                   }`}
                 >
                   {region === 'All' ? 'All Territories' : region}
@@ -533,9 +533,9 @@ export default function Clans() {
             </div>
 
             {/* Sort & Stats */}
-            <div className="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 pt-3 md:pt-0 border-stone-200/60">
+            <div className="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 pt-3 md:pt-0 border-stone-200/60 dark:border-stone-850">
               <div className="flex items-center gap-2 text-left">
-                <span className="text-xs font-bold text-stone-600 uppercase tracking-wider flex items-center gap-1">
+                <span className="text-xs font-bold text-stone-600 dark:text-stone-300 uppercase tracking-wider flex items-center gap-1">
                   <ArrowUpDown className="w-3.5 h-3.5" />
                   <span>Sort:</span>
                 </span>
@@ -543,7 +543,7 @@ export default function Clans() {
                 <select
                   value={selectedSort}
                   onChange={(e) => setSelectedSort(e.target.value)}
-                  className="bg-white border border-stone-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
+                  className="bg-white dark:bg-stone-850 border border-stone-200 dark:border-stone-800 rounded-lg px-2.5 py-1.5 text-xs font-bold text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
                 >
                   <option value="alphabetical">A-Z (Alphabetical)</option>
                   <option value="totem">Totem Name</option>
@@ -551,7 +551,7 @@ export default function Clans() {
                 </select>
               </div>
 
-              <div className="text-xs font-mono font-bold text-stone-500 px-3 py-1.5 bg-stone-100 rounded-lg shrink-0">
+              <div className="text-xs font-mono font-bold text-stone-500 dark:text-stone-300 px-3 py-1.5 bg-stone-100 dark:bg-stone-800 rounded-lg shrink-0">
                 Found: {sortedClans.length}
               </div>
             </div>
@@ -564,15 +564,15 @@ export default function Clans() {
                 <div className="absolute inset-0 border-4 border-heritage-terracotta/10 rounded-full"></div>
                 <div className="absolute inset-0 border-4 border-t-heritage-terracotta border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
               </div>
-              <p className="mt-5 text-xs font-black text-heritage-brown/60 tracking-widest uppercase animate-pulse">
+              <p className="mt-5 text-xs font-black text-heritage-brown/60 dark:text-stone-300 tracking-widest uppercase animate-pulse">
                 Accessing Bakenyi Lineage Registries...
               </p>
             </div>
           ) : clans.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-[32px] border border-stone-200 max-w-3xl mx-auto px-6 shadow-xs">
-              <Shield className="w-16 h-16 text-stone-300 mx-auto mb-6" />
-              <h3 className="text-2xl font-serif font-black text-heritage-brown mb-2">No Registered Lineages Found</h3>
-              <p className="text-sm text-stone-500 max-w-md mx-auto mb-6">
+            <div className="text-center py-20 bg-white dark:bg-stone-900 rounded-[32px] border border-stone-200 dark:border-stone-800 max-w-3xl mx-auto px-6 shadow-xs">
+              <Shield className="w-16 h-16 text-stone-300 dark:text-stone-600 mx-auto mb-6" />
+              <h3 className="text-2xl font-serif font-black text-heritage-brown dark:text-white mb-2">No Registered Lineages Found</h3>
+              <p className="text-sm text-stone-500 dark:text-stone-400 max-w-md mx-auto mb-6">
                 Our cultural registrars have not published any clans to this portal wing. Please verify your connection or check back later.
               </p>
             </div>
@@ -595,7 +595,7 @@ export default function Clans() {
                       key={clan.id || clan.name}
                       exit={{ opacity: 0, scale: 0.9 }}
                       onClick={() => setSelectedClan(clan)}
-                      className="bg-white rounded-[28px] overflow-hidden border border-stone-200/80 hover:border-heritage-terracotta/35 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-xl flex flex-col justify-between min-h-[460px]"
+                      className="bg-white dark:bg-stone-900 rounded-[28px] overflow-hidden border border-stone-200/80 dark:border-stone-800/80 hover:border-heritage-terracotta/35 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-xl flex flex-col justify-between min-h-[460px]"
                     >
                       <div>
                         {/* Header Image Cover */}
@@ -696,8 +696,8 @@ export default function Clans() {
                             title="Spotlight this clan on top page"
                             className={`p-2 rounded-lg border transition-all cursor-pointer ${
                               isSpotlighted 
-                                ? 'bg-amber-100 border-amber-400 text-amber-700' 
-                                : 'bg-stone-50 hover:bg-stone-100 border-stone-200 text-stone-500 hover:text-stone-700'
+                                ? 'bg-amber-100 dark:bg-amber-950/40 border-amber-400 dark:border-amber-900 text-amber-700 dark:text-amber-300' 
+                                : 'bg-stone-50 dark:bg-stone-850 hover:bg-stone-100 dark:hover:bg-stone-800 border-stone-200 dark:border-stone-800 text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'
                             }`}
                           >
                             <Sparkles className="w-4 h-4" />
@@ -710,10 +710,10 @@ export default function Clans() {
               </AnimatePresence>
             </motion.div>
           ) : (
-            <div className="text-center py-20 bg-white rounded-[32px] border border-stone-200 max-w-2xl mx-auto px-6">
-              <Search className="w-12 h-12 text-stone-300 mx-auto mb-4" />
-              <p className="text-stone-700 text-lg font-serif font-black">No Lineages Found Matching "{searchTerm}"</p>
-              <p className="text-xs text-stone-500 max-w-sm mx-auto mt-1 mb-6">
+            <div className="text-center py-20 bg-white dark:bg-stone-900 rounded-[32px] border border-stone-200 dark:border-stone-800 max-w-2xl mx-auto px-6">
+              <Search className="w-12 h-12 text-stone-300 dark:text-stone-600 mx-auto mb-4" />
+              <p className="text-stone-700 dark:text-stone-200 text-lg font-serif font-black">No Lineages Found Matching "{searchTerm}"</p>
+              <p className="text-xs text-stone-500 dark:text-stone-400 max-w-sm mx-auto mt-1 mb-6">
                 Verify the spelling or adjust your geographical region filter to discover different branches.
               </p>
               <button 
@@ -732,20 +732,20 @@ export default function Clans() {
       </section>
 
       {/* INTER-CLAN COVENANTS & PROTOCOLS (CULTURAL RELATIONSHIPS) */}
-      <section className="py-24 px-4 bg-white text-stone-900 relative">
-        <div className="absolute inset-0 bg-stone-50/50 pointer-events-none" />
+      <section className="py-24 px-4 bg-white dark:bg-stone-950 text-stone-900 dark:text-white relative">
+        <div className="absolute inset-0 bg-stone-50/50 dark:bg-stone-900/10 pointer-events-none" />
         <div className="absolute top-1/2 left-1/4 w-80 h-80 bg-rose-500/5 rounded-full blur-3xl pointer-events-none" />
         
         <div className="max-w-5xl mx-auto relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <div className="inline-flex items-center space-x-1 bg-rose-50 border border-rose-100 px-3 py-1 rounded-full mb-3">
-              <Layers className="w-4 h-4 text-rose-500" />
-              <span className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">
+            <div className="inline-flex items-center space-x-1 bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40 px-3 py-1 rounded-full mb-3">
+              <Layers className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+              <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest">
                 Inter-Clan Kinships & Treaties
               </span>
             </div>
             
-            <h2 className="text-3xl md:text-5xl font-serif font-black text-stone-900 tracking-tight leading-tight">
+            <h2 className="text-3xl md:text-5xl font-serif font-black text-stone-900 dark:text-white tracking-tight leading-tight">
               Kinship, Covenants & <span className="font-light italic text-heritage-terracotta">Inter-Clan Protocols</span>
             </h2>
             
@@ -764,8 +764,8 @@ export default function Clans() {
                   onClick={() => setActiveRelationTab(rel.id)}
                   className={`p-5 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-4 ${
                     activeRelationTab === rel.id
-                      ? 'bg-stone-950 border-stone-950 text-white shadow-xl'
-                      : 'bg-[#faf8f5] hover:bg-stone-50 border-stone-200 text-stone-800'
+                      ? 'bg-stone-950 dark:bg-stone-900 border-stone-950 dark:border-stone-800 text-white shadow-xl'
+                      : 'bg-[#faf8f5] dark:bg-stone-900/60 hover:bg-stone-50 dark:hover:bg-stone-850 border-stone-200 dark:border-stone-800 text-stone-800 dark:text-stone-200'
                   }`}
                 >
                   <div className="p-2.5 rounded-xl bg-white/10 shrink-0 shadow-sm border border-stone-200/5 dark:border-white/5">
@@ -796,48 +796,48 @@ export default function Clans() {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -15 }}
                       transition={{ duration: 0.3 }}
-                      className="bg-[#faf8f5] rounded-3xl border border-stone-200 p-8 md:p-10 flex flex-col justify-between h-full relative"
+                      className="bg-[#faf8f5] dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 p-8 md:p-10 flex flex-col justify-between h-full relative"
                     >
                       <div className="space-y-6">
                         <div className="flex flex-wrap gap-2 items-center justify-between">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20 uppercase tracking-wider">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 dark:border-amber-900/30 uppercase tracking-wider">
                             Alliance Covenants ({rel.protocolType})
                           </span>
-                          <span className="text-xs font-mono font-bold text-stone-400">
+                          <span className="text-xs font-mono font-bold text-stone-400 dark:text-stone-500">
                             ID: {rel.id}
                           </span>
                         </div>
 
                         <div className="space-y-2">
-                          <h3 className="text-2xl md:text-3xl font-serif font-black text-stone-900 tracking-tight leading-tight">
+                          <h3 className="text-2xl md:text-3xl font-serif font-black text-stone-900 dark:text-white tracking-tight leading-tight">
                             {rel.title}
                           </h3>
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-stone-500">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-stone-500 dark:text-stone-400">
                             <span>Involved Lineages:</span>
                             {rel.clansInvolved.map((c, i) => (
-                              <span key={i} className="text-heritage-terracotta bg-white px-2.5 py-0.5 rounded border border-stone-200/60 shadow-2xs">
+                              <span key={i} className="text-heritage-terracotta bg-white dark:bg-stone-800 px-2.5 py-0.5 rounded border border-stone-200/60 dark:border-stone-700 shadow-2xs">
                                 {c}
                               </span>
                             ))}
                           </div>
                         </div>
 
-                        <p className="text-stone-600 leading-relaxed text-sm md:text-base font-medium">
+                        <p className="text-stone-600 dark:text-stone-300 leading-relaxed text-sm md:text-base font-medium">
                           {rel.description}
                         </p>
 
-                        <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-3xs space-y-2.5">
-                          <h4 className="text-xs font-bold text-stone-800 uppercase tracking-wider flex items-center gap-2">
+                        <div className="bg-white dark:bg-stone-850 p-5 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-3xs space-y-2.5">
+                          <h4 className="text-xs font-bold text-stone-800 dark:text-stone-200 uppercase tracking-wider flex items-center gap-2">
                             <Scale className="w-4 h-4 text-heritage-terracotta" />
                             <span>Traditional Ritual Practices</span>
                           </h4>
-                          <p className="text-xs md:text-sm text-stone-500 leading-relaxed font-medium">
+                          <p className="text-xs md:text-sm text-stone-500 dark:text-stone-400 leading-relaxed font-medium">
                             {rel.ritualDetails}
                           </p>
                         </div>
                       </div>
 
-                      <div className="pt-6 border-t border-stone-200 flex gap-3 items-start text-[11px] text-stone-500 leading-normal mt-8 font-medium">
+                      <div className="pt-6 border-t border-stone-200 dark:border-stone-800 flex gap-3 items-start text-[11px] text-stone-500 dark:text-stone-400 leading-normal mt-8 font-medium">
                         <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                         <span>
                           Inter-clan alliances are highly sacred. Breaking a shoreline covenant is believed to bring ecological imbalance to the offender's marine channel.
@@ -854,13 +854,13 @@ export default function Clans() {
       </section>
 
       {/* SACRED LAWS & ENVIRONMENTAL SANCTUARIES */}
-      <section className="py-24 px-4 bg-[#f4f1ea] border-t border-stone-200/60">
+      <section className="py-24 px-4 bg-[#f4f1ea] dark:bg-stone-900/40 border-t border-stone-200/60 dark:border-stone-800/60">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-serif font-black text-stone-900 tracking-tight leading-tight">
+            <h2 className="text-3xl md:text-4xl font-serif font-black text-stone-900 dark:text-white tracking-tight leading-tight">
               Traditional Aquatic Laws <span className="font-light italic text-heritage-terracotta">& Sanctuaries</span>
             </h2>
-            <p className="text-stone-500 text-xs md:text-sm max-w-xl mx-auto mt-2 font-medium">
+            <p className="text-stone-500 dark:text-stone-400 text-xs md:text-sm max-w-xl mx-auto mt-2 font-medium">
               Environmental conservation of the Lake Kyoga wetlands was written directly into the spiritual laws of Bakenye clans.
             </p>
           </div>
@@ -1050,12 +1050,12 @@ export default function Clans() {
                 </div>
 
                 {/* Right Column - Story & Chronicles Narrative */}
-                <div className="md:w-3/5 p-8 md:p-10 flex flex-col justify-between max-h-[80vh] md:max-h-[640px] overflow-y-auto space-y-8 bg-white text-left relative">
+                <div className="md:w-3/5 p-8 md:p-10 flex flex-col justify-between max-h-[80vh] md:max-h-[640px] overflow-y-auto space-y-8 bg-white dark:bg-stone-900 text-left relative">
                   
                   {/* Close Button on Desktop */}
                   <button 
                     onClick={() => setSelectedClan(null)}
-                    className="hidden md:block absolute top-6 right-8 text-stone-400 hover:text-stone-700 hover:bg-stone-100 p-2 rounded-xl transition-all cursor-pointer font-bold"
+                    className="hidden md:block absolute top-6 right-8 text-stone-400 hover:text-stone-700 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800 p-2 rounded-xl transition-all cursor-pointer font-bold"
                     aria-label="Close panel"
                   >
                     <X className="w-5 h-5" />
@@ -1064,7 +1064,7 @@ export default function Clans() {
                   <div className="space-y-6">
                     {/* Motto if registered */}
                     {selectedClan.motto && (
-                      <div className="bg-[#faf8f5] border-l-4 border-heritage-terracotta p-5 rounded-r-2xl italic text-stone-700 font-medium text-sm shadow-2xs">
+                      <div className="bg-[#faf8f5] dark:bg-stone-950 border-l-4 border-heritage-terracotta p-5 rounded-r-2xl italic text-stone-700 dark:text-stone-200 font-medium text-sm shadow-2xs">
                         "{selectedClan.motto}"
                       </div>
                     )}
@@ -1075,33 +1075,33 @@ export default function Clans() {
                         <BookOpen className="w-4.5 h-4.5" />
                         <span>Lineage Chronicle & Specialized Duty</span>
                       </h4>
-                      <p className="text-sm text-stone-700 leading-relaxed font-medium">
+                      <p className="text-sm text-stone-700 dark:text-stone-200 leading-relaxed font-medium">
                         {exhibition.heritageStory}
                       </p>
                     </div>
 
                     {/* Detailed History chronicles */}
                     {selectedClan.history && (
-                      <div className="space-y-2.5 pt-6 border-t border-stone-100">
+                      <div className="space-y-2.5 pt-6 border-t border-stone-100 dark:border-stone-800">
                         <h4 className="text-xs font-sans font-black uppercase tracking-widest text-heritage-terracotta flex items-center gap-2">
                           <Calendar className="w-4.5 h-4.5" />
                           <span>Sacred History & Oral Records</span>
                         </h4>
-                        <p className="text-xs md:text-sm text-stone-600 leading-relaxed whitespace-pre-wrap font-medium">
+                        <p className="text-xs md:text-sm text-stone-600 dark:text-stone-300 leading-relaxed whitespace-pre-wrap font-medium">
                           {selectedClan.history}
                         </p>
                       </div>
                     )}
 
                     {/* Duties bullet points inside modal */}
-                    <div className="space-y-3.5 pt-6 border-t border-stone-100">
+                    <div className="space-y-3.5 pt-6 border-t border-stone-100 dark:border-stone-800">
                       <h4 className="text-xs font-sans font-black uppercase tracking-widest text-heritage-terracotta flex items-center gap-2">
                         <Award className="w-4.5 h-4.5" />
                         <span>Preserved Guild Duties</span>
                       </h4>
                       <ul className="grid grid-cols-1 gap-2.5">
                         {exhibition.sacredDuties.map((duty, idx) => (
-                          <li key={idx} className="flex items-start gap-2 text-xs text-stone-600 font-medium leading-relaxed">
+                          <li key={idx} className="flex items-start gap-2 text-xs text-stone-600 dark:text-stone-300 font-medium leading-relaxed">
                             <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                             <span>{duty}</span>
                           </li>
@@ -1110,7 +1110,7 @@ export default function Clans() {
                     </div>
 
                     {/* Open Full Archive Button inside Modal */}
-                    <div className="pt-6 border-t border-stone-100">
+                    <div className="pt-6 border-t border-stone-100 dark:border-stone-800">
                       <Link
                         to={`/clans/${selectedClan.id}`}
                         onClick={() => setSelectedClan(null)}
@@ -1124,7 +1124,7 @@ export default function Clans() {
                   </div>
 
                   {/* Disclaimer/Advisory block */}
-                  <div className="pt-6 border-t border-stone-100 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 text-[10px] text-stone-400 font-bold mt-8">
+                  <div className="pt-6 border-t border-stone-100 dark:border-stone-800 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 text-[10px] text-stone-400 dark:text-stone-500 font-bold mt-8">
                     <div className="flex gap-2 items-start max-w-sm">
                       <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                       <span className="font-sans leading-normal">
@@ -1132,7 +1132,7 @@ export default function Clans() {
                       </span>
                     </div>
 
-                    <div className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg border border-emerald-100 text-[10px] font-black uppercase tracking-wider text-center">
+                    <div className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-900/30 text-[10px] font-black uppercase tracking-wider text-center">
                       Seal Verified
                     </div>
                   </div>

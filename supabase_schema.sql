@@ -832,9 +832,9 @@ CREATE POLICY "Authorized users can create articles"
         public.has_permission('create_articles')
         AND created_by = auth.uid()
         AND (
-            -- Regular historians insert as pending draft
-            (status IN ('draft', 'pending') AND NOT public.is_super_admin())
-            -- Elders can publish instantly
+            -- All authorized users can insert as draft or pending
+            status IN ('draft', 'pending')
+            -- Respected Elders (super admins) can additionally publish instantly
             OR (status = 'published' AND public.is_super_admin())
         )
     );
@@ -868,7 +868,9 @@ CREATE POLICY "Authenticated users can upload media"
         auth.role() = 'authenticated'
         AND created_by = auth.uid()
         AND (
-            (status = 'pending' AND NOT public.is_super_admin())
+            -- All authenticated users can upload with pending status
+            status = 'pending'
+            -- Respected Elders (super admins) can additionally upload directly approved media
             OR (status = 'approved' AND public.is_super_admin())
         )
     );
@@ -1315,51 +1317,40 @@ BEGIN
         v_submitted_at := NEW.created_at;
     END IF;
 
-    IF TG_OP = 'INSERT' THEN
-        INSERT INTO public.content_registry (content_type, table_name, record_id, title, status, author_id, submitted_at, approved_by, approved_at, published_at)
-        VALUES (
-            CASE 
-                WHEN TG_TABLE_NAME = 'heritage_articles' THEN 'article'
-                WHEN TG_TABLE_NAME = 'news' THEN 'news'
-                WHEN TG_TABLE_NAME = 'events' THEN 'event'
-                WHEN TG_TABLE_NAME = 'announcements' THEN 'announcement'
-                WHEN TG_TABLE_NAME = 'community_highlights' THEN 'highlight'
-                WHEN TG_TABLE_NAME = 'notices' THEN 'notice'
-                WHEN TG_TABLE_NAME = 'clans' THEN 'clan'
-                WHEN TG_TABLE_NAME = 'leaders' THEN 'leader'
-                WHEN TG_TABLE_NAME = 'vocabulary' THEN 'vocabulary'
-                WHEN TG_TABLE_NAME = 'oral_history' THEN 'oral_history'
-                WHEN TG_TABLE_NAME = 'timeline_events' THEN 'timeline_event'
-                ELSE TG_TABLE_NAME
-            END,
-            TG_TABLE_NAME,
-            NEW.id,
-            v_title,
-            v_status,
-            v_author_id,
-            v_submitted_at,
-            v_approved_by,
-            v_approved_at,
-            v_published_at
-        ) ON CONFLICT (record_id) DO UPDATE
-        SET 
-            title = EXCLUDED.title,
-            status = EXCLUDED.status,
-            approved_by = EXCLUDED.approved_by,
-            approved_at = EXCLUDED.approved_at,
-            published_at = EXCLUDED.published_at,
-            updated_at = NOW();
-    ELSIF TG_OP = 'UPDATE' THEN
-        UPDATE public.content_registry
-        SET 
-            title = v_title,
-            status = v_status,
-            approved_by = v_approved_by,
-            approved_at = v_approved_at,
-            published_at = v_published_at,
-            updated_at = NOW()
-        WHERE record_id = NEW.id;
-    END IF;
+    -- Standardize registry item sync using absolute upserts
+    INSERT INTO public.content_registry (content_type, table_name, record_id, title, status, author_id, submitted_at, approved_by, approved_at, published_at)
+    VALUES (
+        CASE 
+            WHEN TG_TABLE_NAME = 'heritage_articles' THEN 'article'
+            WHEN TG_TABLE_NAME = 'news' THEN 'news'
+            WHEN TG_TABLE_NAME = 'events' THEN 'event'
+            WHEN TG_TABLE_NAME = 'announcements' THEN 'announcement'
+            WHEN TG_TABLE_NAME = 'community_highlights' THEN 'highlight'
+            WHEN TG_TABLE_NAME = 'notices' THEN 'notice'
+            WHEN TG_TABLE_NAME = 'clans' THEN 'clan'
+            WHEN TG_TABLE_NAME = 'leaders' THEN 'leader'
+            WHEN TG_TABLE_NAME = 'vocabulary' THEN 'vocabulary'
+            WHEN TG_TABLE_NAME = 'oral_history' THEN 'oral_history'
+            WHEN TG_TABLE_NAME = 'timeline_events' THEN 'timeline_event'
+            ELSE TG_TABLE_NAME
+        END,
+        TG_TABLE_NAME,
+        NEW.id,
+        v_title,
+        v_status,
+        v_author_id,
+        v_submitted_at,
+        v_approved_by,
+        v_approved_at,
+        v_published_at
+    ) ON CONFLICT (record_id) DO UPDATE
+    SET 
+        title = EXCLUDED.title,
+        status = EXCLUDED.status,
+        approved_by = EXCLUDED.approved_by,
+        approved_at = EXCLUDED.approved_at,
+        published_at = EXCLUDED.published_at,
+        updated_at = NOW();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

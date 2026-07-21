@@ -46,80 +46,7 @@ const categories = ["All", "Landscape", "Tradition", "Craft", "History"];
 const mediaTypes = ["All", "Images", "Audio", "Video"];
 
 // Rich fallback items for high fidelity offline rendering or empty tables
-const DEFAULT_MEDIA_ITEMS: UnifiedMediaItem[] = [
-  {
-    id: 'm-1',
-    title: 'Nile Vista Sunset',
-    fileUrl: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800',
-    fileType: 'image',
-    category: 'Landscape',
-    description: 'A stunning sunset reflecting off the waters of the river Nile near Bakenye historical settlement.',
-    created_at: new Date('2026-01-15').toISOString(),
-    authorName: 'Elder Christopher Kyega'
-  },
-  {
-    id: 'm-2',
-    title: 'Traditional Fishing Canoe',
-    fileUrl: 'https://images.unsplash.com/photo-1501535033-a593e6afb94d?auto=format&fit=crop&q=80&w=800',
-    fileType: 'image',
-    category: 'Craft',
-    description: 'Handcrafted wooden canoe used by the Bakenyi fishermen for centuries on the Nile marshes.',
-    created_at: new Date('2026-01-20').toISOString(),
-    authorName: 'Jackson Mukasa'
-  },
-  {
-    id: 'm-3',
-    title: 'Ebiswa Floating Gardens',
-    fileUrl: 'https://assets.mixkit.co/videos/preview/mixkit-sunset-over-a-lake-43093-large.mp4',
-    fileType: 'video',
-    category: 'Landscape',
-    description: 'Breathtaking drone footage of the unique floating islands (Ebiswa) agricultural setups along Lake Kyoga.',
-    created_at: new Date('2026-02-01').toISOString(),
-    authorName: 'Digital Historian Scribe'
-  },
-  {
-    id: 'm-4',
-    title: 'Ancestral Paddle Song Recording',
-    fileUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    fileType: 'audio',
-    category: 'Tradition',
-    description: 'Communal canoe rowing audio recording passed down through generations of Kyoga oarsmen.',
-    created_at: new Date('2026-02-15').toISOString(),
-    duration: '6:12',
-    authorName: 'Elder Christopher Kyega'
-  },
-  {
-    id: 'm-5',
-    title: 'Wetland Papyrus Harvesting',
-    fileUrl: 'https://images.unsplash.com/photo-1523805009345-7448845a9e53?auto=format&fit=crop&q=80&w=800',
-    fileType: 'image',
-    category: 'Craft',
-    description: 'Bakenyi artisans collecting wild papyrus reeds to weave traditional mats and housing components.',
-    created_at: new Date('2026-02-05').toISOString(),
-    authorName: 'Florence Nabakooza'
-  },
-  {
-    id: 'm-6',
-    title: 'Kyoga Waterway Regatta',
-    fileUrl: 'https://assets.mixkit.co/videos/preview/mixkit-waves-breaking-on-a-sandy-beach-42993-large.mp4',
-    fileType: 'video',
-    category: 'History',
-    description: 'Historic video highlighting the annual cultural boat race and aquatic assembling near the Victoria Nile confluence.',
-    created_at: new Date('2026-02-28').toISOString(),
-    authorName: 'Scribe Council Team'
-  },
-  {
-    id: 'm-7',
-    title: 'Elder Wisdom Pronunciation',
-    fileUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    fileType: 'audio',
-    category: 'Tradition',
-    description: 'High-fidelity recording demonstrating specific Lukenye proverbs and floating island geographical terminologies.',
-    created_at: new Date('2026-03-01').toISOString(),
-    duration: '7:05',
-    authorName: 'Florence Nabakooza'
-  }
-];
+const DEFAULT_MEDIA_ITEMS: UnifiedMediaItem[] = [];
 
 export default function Gallery() {
   const supabase = getSupabase();
@@ -242,24 +169,13 @@ export default function Gallery() {
         }
       }
 
-      // If database returned nothing, pre-populate fallback records so page looks spectacular
-      if (combinedList.length === 0) {
-        setMediaItems(DEFAULT_MEDIA_ITEMS);
-      } else {
-        // Ensure some variety and defaults exist
-        const uniqueIds = new Set(combinedList.map(item => item.fileUrl));
-        DEFAULT_MEDIA_ITEMS.forEach(d => {
-          if (!uniqueIds.has(d.fileUrl)) {
-            combinedList.push(d);
-          }
-        });
-        combinedList.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setMediaItems(combinedList);
-      }
+      // Sort and set strict live items
+      combinedList.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setMediaItems(combinedList);
 
     } catch (err) {
-      console.warn("Database fetching failed, using fallback mock catalog:", err);
-      setMediaItems(DEFAULT_MEDIA_ITEMS);
+      console.warn("Database fetching failed:", err);
+      setMediaItems([]);
     } finally {
       setLoading(false);
     }
@@ -492,7 +408,7 @@ export default function Gallery() {
             {/* Left side: media types and search */}
             <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
               {/* Media Type toggles */}
-              <div className="flex bg-heritage-cream dark:bg-stone-950 p-1.5 rounded-2xl border border-heritage-brown/5 self-start">
+              <div className="flex bg-heritage-cream dark:bg-stone-950 p-1.5 rounded-2xl border border-heritage-brown/5 dark:border-stone-800 self-start">
                 {mediaTypes.map(type => (
                   <button
                     key={type}
@@ -500,7 +416,7 @@ export default function Gallery() {
                     className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                       selectedMediaType === type
                         ? 'bg-heritage-terracotta text-white shadow-sm'
-                        : 'text-heritage-brown/60 dark:text-stone-400 hover:text-heritage-brown'
+                        : 'text-heritage-brown/60 dark:text-stone-400 hover:text-heritage-brown dark:hover:text-stone-100'
                     }`}
                   >
                     {type}
@@ -517,9 +433,9 @@ export default function Gallery() {
                   placeholder="Search titles, descriptions..."
                   className="w-full bg-heritage-cream dark:bg-stone-950 border border-heritage-brown/10 dark:border-stone-800 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-heritage-brown dark:text-white focus:outline-none focus:border-heritage-terracotta"
                 />
-                <Search className="w-4 h-4 text-heritage-brown/40 absolute left-3.5 top-3.5" />
+                <Search className="w-4 h-4 text-heritage-brown/40 dark:text-stone-500 absolute left-3.5 top-3.5" />
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery("")} className="absolute right-3.5 top-3.5 text-xs text-heritage-brown/40 hover:text-heritage-brown font-bold cursor-pointer">&times;</button>
+                  <button onClick={() => setSearchQuery("")} className="absolute right-3.5 top-3.5 text-xs text-heritage-brown/40 dark:text-stone-500 hover:text-heritage-brown dark:hover:text-stone-100 font-bold cursor-pointer">&times;</button>
                 )}
               </div>
             </div>
@@ -529,14 +445,14 @@ export default function Gallery() {
               <div className="flex items-center gap-2 border-r border-heritage-brown/10 dark:border-stone-800 pr-4">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-xl transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-heritage-brown/10 text-heritage-brown dark:text-heritage-sand' : 'text-heritage-brown/30'}`}
+                  className={`p-2 rounded-xl transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-heritage-brown/10 text-heritage-brown dark:text-heritage-sand' : 'text-heritage-brown/30 dark:text-stone-600'}`}
                   title="Grid View"
                 >
                   <Grid className="w-4.5 h-4.5" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-xl transition-all cursor-pointer ${viewMode === 'list' ? 'bg-heritage-brown/10 text-heritage-brown dark:text-heritage-sand' : 'text-heritage-brown/30'}`}
+                  className={`p-2 rounded-xl transition-all cursor-pointer ${viewMode === 'list' ? 'bg-heritage-brown/10 text-heritage-brown dark:text-heritage-sand' : 'text-heritage-brown/30 dark:text-stone-600'}`}
                   title="List View"
                 >
                   <List className="w-4.5 h-4.5" />
@@ -555,7 +471,7 @@ export default function Gallery() {
             </div>
           </div>
 
-          {/* Bottom row: Category Filters */}
+          {/* Category Filters */}
           <div className="flex flex-wrap gap-2.5 pt-4 border-t border-heritage-brown/5 dark:border-stone-800">
             {categories.map(cat => (
               <button
@@ -564,7 +480,7 @@ export default function Gallery() {
                 className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all cursor-pointer ${
                   selectedCategory === cat 
                     ? 'bg-heritage-olive border-heritage-olive text-white shadow-sm' 
-                    : 'bg-heritage-cream/40 dark:bg-stone-950 border-heritage-brown/10 text-heritage-brown dark:text-stone-300 hover:border-heritage-olive/30'
+                    : 'bg-heritage-cream/40 dark:bg-stone-950 border-heritage-brown/10 dark:border-stone-800 text-heritage-brown dark:text-stone-300 hover:border-heritage-olive/30'
                 }`}
               >
                 {cat}
@@ -575,14 +491,14 @@ export default function Gallery() {
 
         {/* LOADING STATE */}
         {loading ? (
-          <div className="py-24 flex flex-col items-center justify-center bg-white dark:bg-stone-900 border border-heritage-brown/5 rounded-[32px] shadow-sm">
+          <div className="py-24 flex flex-col items-center justify-center bg-white dark:bg-stone-900 border border-heritage-brown/5 dark:border-stone-800 rounded-[32px] shadow-sm">
             <Loader2 className="w-10 h-10 text-heritage-terracotta animate-spin mb-4" />
-            <p className="text-xs font-black uppercase tracking-widest text-heritage-brown/40">Querying Digital Vault...</p>
+            <p className="text-xs font-black uppercase tracking-widest text-heritage-brown/40 dark:text-stone-400">Querying Digital Vault...</p>
           </div>
         ) : filteredItems.length === 0 ? (
           /* EMPTY STATE */
-          <div className="py-24 text-center bg-white dark:bg-stone-900 border border-heritage-brown/5 rounded-[32px] shadow-sm">
-            <Tag className="w-12 h-12 text-heritage-brown/20 mx-auto mb-4" />
+          <div className="py-24 text-center bg-white dark:bg-stone-900 border border-heritage-brown/5 dark:border-stone-800 rounded-[32px] shadow-sm">
+            <Tag className="w-12 h-12 text-heritage-brown/20 dark:text-stone-700 mx-auto mb-4" />
             <h3 className="text-xl font-serif font-black text-heritage-brown dark:text-white mb-2">No Archives Unveiled</h3>
             <p className="text-xs text-heritage-brown/60 dark:text-stone-400 font-bold uppercase tracking-wider">Try adjusting your filters or search keywords</p>
           </div>
@@ -779,13 +695,13 @@ export default function Gallery() {
               </div>
 
               {/* Right Side: Descriptive metadata */}
-              <div className="md:w-2/5 p-8 flex flex-col justify-between bg-white dark:bg-stone-900">
+              <div className="md:w-2/5 p-8 flex flex-col justify-between bg-white dark:bg-stone-900 border-l border-heritage-brown/10 dark:border-stone-800">
                 <div>
                   <div className="flex items-center gap-2 mb-4">
-                    <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-heritage-olive/10 text-heritage-olive dark:bg-stone-800 dark:text-heritage-sand">
+                    <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-heritage-olive/10 text-heritage-olive dark:bg-stone-850 dark:text-heritage-sand">
                       {previewItem.category}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-heritage-brown/5 text-heritage-brown/60 dark:bg-stone-800 dark:text-stone-300">
+                    <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-heritage-brown/5 text-heritage-brown/60 dark:bg-stone-850 dark:text-stone-300">
                       {previewItem.fileType}
                     </span>
                   </div>
@@ -798,7 +714,7 @@ export default function Gallery() {
                     {previewItem.description}
                   </p>
 
-                  <div className="mt-6 space-y-2 text-[10px] font-bold text-heritage-brown/40 dark:text-stone-500">
+                  <div className="mt-6 space-y-2 text-[10px] font-bold text-heritage-brown/40 dark:text-stone-400">
                     <p>Uploaded by: {previewItem.authorName || 'Heritage Scribe'}</p>
                     <p>Date Published: {new Date(previewItem.created_at).toLocaleDateString()}</p>
                   </div>
@@ -832,11 +748,11 @@ export default function Gallery() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-stone-900 rounded-[32px] p-8 max-w-2xl w-full shadow-2xl relative text-left border border-heritage-brown/10"
+              className="bg-white dark:bg-stone-900 rounded-[32px] p-8 max-w-2xl w-full shadow-2xl relative text-left border border-heritage-brown/10 dark:border-stone-800"
             >
               <button 
                 onClick={() => { setShowUploadModal(false); setUploadedFiles([]); }}
-                className="absolute right-6 top-6 p-2 text-heritage-brown/40 hover:text-heritage-brown rounded-full cursor-pointer"
+                className="absolute right-6 top-6 p-2 text-heritage-brown/40 dark:text-stone-400 hover:text-heritage-brown dark:hover:text-stone-100 rounded-full cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -846,7 +762,7 @@ export default function Gallery() {
               <form onSubmit={handleAddImage} className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Asset Category</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-heritage-brown/60 dark:text-stone-400 ml-1">Asset Category</label>
                     <select
                       value={uploadCategory}
                       onChange={(e) => setUploadCategory(e.target.value)}
@@ -860,7 +776,7 @@ export default function Gallery() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Media Type</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-heritage-brown/60 dark:text-stone-400 ml-1">Media Type</label>
                     <select
                       value={uploadType}
                       onChange={(e) => setUploadType(e.target.value as any)}
@@ -873,7 +789,7 @@ export default function Gallery() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-heritage-brown/60 ml-1">Select File</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-heritage-brown/60 dark:text-stone-400 ml-1">Select File</label>
                     <div className="relative">
                       <input
                         type="file"
@@ -895,10 +811,10 @@ export default function Gallery() {
                 </div>
 
                 {uploadedFiles.length > 0 && (
-                  <div className="space-y-4 max-h-72 overflow-y-auto pr-1 border-t border-b border-heritage-brown/5 py-4">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-heritage-brown/60 ml-1 block">Uploaded Assets ({uploadedFiles.length})</label>
+                  <div className="space-y-4 max-h-72 overflow-y-auto pr-1 border-t border-b border-heritage-brown/5 dark:border-stone-800 py-4">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-heritage-brown/60 dark:text-stone-400 ml-1 block">Uploaded Assets ({uploadedFiles.length})</label>
                     {uploadedFiles.map((file, idx) => (
-                      <div key={idx} className="flex gap-4 p-3 bg-heritage-cream/10 rounded-xl border border-heritage-brown/5 relative items-start">
+                      <div key={idx} className="flex gap-4 p-3 bg-heritage-cream/10 dark:bg-stone-850 rounded-xl border border-heritage-brown/5 dark:border-stone-800 relative items-start">
                         {file.type === 'image' && (
                           <img src={file.url} className="w-16 h-16 object-cover rounded-xl border border-heritage-brown/5 shrink-0" alt="Preview" />
                         )}
@@ -913,7 +829,7 @@ export default function Gallery() {
                               setUploadedFiles(copy);
                             }}
                             placeholder="Asset Title"
-                            className="w-full px-3 py-1.5 bg-white border border-heritage-brown/10 focus:border-heritage-olive/20 rounded-xl outline-none text-xs font-bold text-heritage-brown"
+                            className="w-full px-3 py-1.5 bg-white dark:bg-stone-900 border border-heritage-brown/10 dark:border-stone-800 focus:border-heritage-olive/20 rounded-xl outline-none text-xs font-bold text-heritage-brown dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500"
                           />
                           <input
                             type="text"
@@ -924,13 +840,13 @@ export default function Gallery() {
                               setUploadedFiles(copy);
                             }}
                             placeholder="Asset Description (optional)"
-                            className="w-full px-3 py-1.5 bg-white border border-heritage-brown/10 focus:border-heritage-olive/20 rounded-xl outline-none text-xs font-medium text-heritage-brown/70"
+                            className="w-full px-3 py-1.5 bg-white dark:bg-stone-900 border border-heritage-brown/10 dark:border-stone-800 focus:border-heritage-olive/20 rounded-xl outline-none text-xs font-medium text-heritage-brown/70 dark:text-stone-300 placeholder-stone-400 dark:placeholder-stone-500"
                           />
                         </div>
                         <button
                           type="button"
                           onClick={() => setUploadedFiles(prev => prev.filter((_, i) => i !== idx))}
-                          className="p-1 hover:bg-rose-50 rounded-lg text-rose-500 cursor-pointer self-center"
+                          className="p-1 hover:bg-rose-50 dark:hover:bg-stone-800 rounded-lg text-rose-500 cursor-pointer self-center"
                         >
                           <X className="w-4 h-4" />
                         </button>

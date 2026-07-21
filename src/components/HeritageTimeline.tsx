@@ -31,127 +31,6 @@ export interface TimelineEvent {
   year_order?: number;
 }
 
-// Handcrafted, richly detailed history collection for fallback and enrichment
-const FALLBACK_EVENTS: TimelineEvent[] = [
-  {
-    id: 'timeline-early-beginnings',
-    period: '14th Century',
-    title: 'Early Riverine Settlements',
-    desc: 'The ancestors of the Bakenyi people began settling along the marshlands of major river basins in Eastern Uganda.',
-    detailedDesc: 'During the early 14th century, the ancestors of the Bakenyi people settled along the rivers of eastern and central Uganda. Moving along waterways, they developed highly specialized riverine skills, including deep-water fishing and building stable platforms over marshy land. This lifestyle allowed them to remain secure from landlocked conflicts, establishing their unique identity as the "Water People" of Uganda.',
-    category: 'Pre-Colonial',
-    image: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800',
-    location: 'Victoria Nile & Eastern River basins',
-    elderQuote: '“Our ancestors did not walk on the dust; they carved their pathways into the blue rivers and marshy bays.” — Traditional Lineage Record',
-    iconName: 'Map',
-    year_order: 1300
-  },
-  {
-    id: 'timeline-clan-formation',
-    period: '15th–16th Century',
-    title: 'Emergence of Water-Based Clans',
-    desc: 'Bakenyi river groups migrated northward and diverged into structured, lineage-based clans with aquatic totems.',
-    detailedDesc: 'As families multiplied, they migrated towards the vast wetlands and established distinct clans. Each clan took on key duties for the community—from canoe construction to net crafting. They adopted sacred totems based on river creatures, like the Crested Crane (Nnali), the lungfish, and the water lily, cementing their ecological bonds and creating a tight social safety net.',
-    category: 'Pre-Colonial',
-    image: 'https://images.unsplash.com/photo-1501535033-a593e6afb94d?auto=format&fit=crop&q=80&w=800',
-    location: 'Lake Kyoga Basins',
-    elderQuote: '“Every clan is a rib of the canoe. If one breaks, the boat of our tribe sinks.” — Elder Christopher Kyega',
-    iconName: 'Shield',
-    year_order: 1500
-  },
-  {
-    id: 'timeline-ebiswa-settlements',
-    period: 'c. 1650s',
-    title: 'Pioneering "Ebiswa" Sanctuaries',
-    desc: 'Bakenyi groups developed the technique of building stable temporary shelters on floating papyrus reed islands.',
-    detailedDesc: 'To guard against rising conflicts on mainland shores, Bakenyi families pioneered building shelters on "Ebiswa"—mobile floating islands composed of dense papyrus root structures. These giant natural rafts drifted across Lake Kyoga, functioning as floating fortresses that could be cut loose to float away from danger, making Bakenyi settlements virtually unreachable by land warriors.',
-    category: 'Pre-Colonial',
-    image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&q=80&w=800',
-    location: 'Lake Kyoga Floating Islands',
-    elderQuote: '“The reed islands are our shields. They bend with the storm but they never sink under our feet.”',
-    iconName: 'Home',
-    year_order: 1650
-  },
-  {
-    id: 'timeline-nile-crossing',
-    period: '1720',
-    title: 'The Great Crossing of the Victoria Nile',
-    desc: 'Led by legendary lineage chiefs, a great fleet of dugout canoes crossed the mists of the Nile to establish Namasale.',
-    detailedDesc: 'In the year 1720, a heavy regional drought led several water clans to search for deeper waters. Led by historic lineage commanders, a great flotilla of heart-shaped dugout canoes (Eisiga) navigated the heavy morning mists of the Victoria Nile, successfully crossing into Lake Kyoga to establish the first permanent Bakenyi fishing settlements in Namasale and Kagwara.',
-    category: 'Pre-Colonial',
-    image: 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?auto=format&fit=crop&q=80&w=800',
-    location: 'Victoria Nile Crossing / Namasale Peninsula',
-    elderQuote: '“A fleet of mists, a heart of wood. That day, Lake Kyoga welcomed the paddle of our grandfathers.” — Namasale Storyteller',
-    iconName: 'Compass',
-    year_order: 1720
-  },
-  {
-    id: 'timeline-lukenye-codification',
-    period: '1800s',
-    title: 'Flourishing of the Lukenye Language',
-    desc: 'The Lukenye language solidified as a distinct Bantu dialect, preserved via traditional storytelling and rhythmic paddle chants.',
-    detailedDesc: 'During the 1800s, the Lukenye language fully emerged as a distinct, expressive Bantu dialect. Isolated from deep inland tribes, Bakenyi communities preserved Lukenye by embedding grammar, historical records, and moral laws into rhythmic paddling chants and lakeside melodies that could travel across the quiet water.',
-    category: 'Pre-Colonial',
-    image: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&q=80&w=800',
-    location: 'Lakeside Communes',
-    elderQuote: '“We did not write our words in stone. We sang them to the winds, and the water carried them to our children.”',
-    iconName: 'Volume2',
-    year_order: 1800
-  },
-  {
-    id: 'timeline-colonial-resistance',
-    period: '1890s',
-    title: 'Colonial Shore boundaries & Autonomy',
-    desc: 'Bakenyi clans resisted colonial administration boundaries, maintaining absolute autonomy over Lake Kyoga’s waterways.',
-    detailedDesc: 'When colonial surveyors arrived in East Africa and attempted to divide land and waterways into districts, Bakenyi chiefs stood firm. They refused to recognize administrative borders that restricted their fishing and canoe trade, maintaining their age-old autonomy over Lake Kyoga’s waters through strategic mobility and passive resistance.',
-    category: 'Colonial',
-    image: 'https://images.unsplash.com/photo-1523805009345-7448845a9e53?auto=format&fit=crop&q=80&w=800',
-    location: 'Kyoga Waterway Lines',
-    elderQuote: '“How do you draw lines on the water? The lake belongs to the birds and the canoes, not to the ink of your papers.” — Chief of the Baise-Mugosa',
-    iconName: 'FileText',
-    year_order: 1890
-  },
-  {
-    id: 'timeline-water-trade-boom',
-    period: '1940s–1950s',
-    title: 'The Great Lake Kyoga Trade Boom',
-    desc: 'Bakenyi boat builders and fishermen became the primary trading link across Lake Kyoga, connecting major regional markets.',
-    detailedDesc: 'During the mid-20th century, Bakenyi merchants became essential to the region’s economy. Utilizing large freight dugout boats, they ferried cotton, fish, hand-braided papyrus mats, and metalwork between the Langi, Basoga, and Bagwere peoples, transforming Lake Kyoga from a natural barrier into a highly active trade highway.',
-    category: 'Colonial',
-    image: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&q=80&w=800',
-    location: 'Kagwara and Namasale Docks',
-    elderQuote: '“Our canoes were the bridges of Uganda. We carried the harvest of three tribes on our wooden backs.”',
-    iconName: 'Users',
-    year_order: 1940
-  },
-  {
-    id: 'timeline-ecological-changes',
-    period: '1980s',
-    title: 'Ecological Shifts & Preservation Push',
-    desc: 'Introduction of the Nile Perch and rising water levels altered lake lifestyles, sparking the first oral archive initiatives.',
-    detailedDesc: 'The 1980s brought rapid changes. The introduction of the Nile Perch altered Lake Kyoga’s ecosystem, and climate-induced water level shifts flooded traditional shoreline ports. Recognizing these environmental pressures and the migration of youth to cities, community elders began holding formal storytelling circles to transcribe oral records and preserve Lukenye vocabulary.',
-    category: 'Modern',
-    image: 'https://images.unsplash.com/photo-1534482421-64566f976cfa?auto=format&fit=crop&q=80&w=800',
-    location: 'Kyoga Shores',
-    elderQuote: '“The fish changed, the water rose, and our old paths vanished. But the words of our ancestors remain dry and safe in our minds.”',
-    iconName: 'Activity',
-    year_order: 1980
-  },
-  {
-    id: 'timeline-digital-renaissance',
-    period: 'Present Day',
-    title: 'The Digital Bakenyi Heritage Project',
-    desc: 'A modern renaissance powered by digital archives, keeping ancestral lineages and language alive for generations.',
-    detailedDesc: 'Today, the Bakenyi people are undergoing a powerful digital renaissance. By launching cultural portals, digital audio maps, and clan registries, Bakenyi youth and elders are ensuring that their ancient riverine history, the Lukenye language, and the lineage structures are preserved and accessible to the entire world, bridging the gap between historical water islands and global digital networks.',
-    category: 'Modern',
-    image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800',
-    location: 'Global Community Hubs',
-    elderQuote: '“The modern computer screen is our new canoe. We sail it to ensure that the memory of Namasale never washes away.” — Elder Council Youth Representative',
-    iconName: 'Sparkles',
-    year_order: 2026
-  }
-];
-
 interface HeritageTimelineProps {
   dynamicEvents?: any[];
   onSelectOralTrack?: (trackId: string) => void;
@@ -169,33 +48,27 @@ export default function HeritageTimeline({ dynamicEvents = [], onSelectOralTrack
   const [scrollLeft, setScrollLeft] = useState(0);
 
   // Combine dynamic Supabase events with the detailed fallback data
-  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(FALLBACK_EVENTS);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
 
   useEffect(() => {
     if (dynamicEvents && dynamicEvents.length > 0) {
       // Blend Supabase events into our structured events
       const blended = dynamicEvents.map((row: any, idx: number) => {
-        // Try to match with our fallback list to get rich details (images, long desc, etc.)
-        const match = FALLBACK_EVENTS.find(
-          fe => fe.title.toLowerCase().includes(row.title.toLowerCase()) || 
-                row.title.toLowerCase().includes(fe.title.toLowerCase())
-        );
-
         const yearNum = parseInt(row.period || row.year || '0') || 1000 + idx * 100;
         const era: 'Pre-Colonial' | 'Colonial' | 'Modern' = 
           yearNum < 1890 ? 'Pre-Colonial' : yearNum < 1960 ? 'Colonial' : 'Modern';
 
         return {
           id: row.id ? String(row.id) : `dynamic-${idx}`,
-          period: row.period || row.year || match?.period || 'Unknown Era',
-          title: row.title || match?.title || 'Historical Event',
-          desc: row.desc || row.description || match?.desc || 'No description provided.',
-          detailedDesc: match?.detailedDesc || row.desc || row.description || 'No further details cataloged.',
-          category: match?.category || era,
-          image: match?.image || 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800',
-          location: match?.location || 'Lake Kyoga Region',
-          elderQuote: match?.elderQuote || '“We carry the memories of the waters.”',
-          year_order: row.year_order || match?.year_order || yearNum
+          period: row.period || row.year || 'Unknown Era',
+          title: row.title || 'Historical Event',
+          desc: row.desc || row.description || 'No description provided.',
+          detailedDesc: row.desc || row.description || 'No further details cataloged.',
+          category: era,
+          image: row.image_url || 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800',
+          location: row.location || 'Lake Kyoga Region',
+          elderQuote: row.elder_quote || '“We carry the memories of the waters.”',
+          year_order: row.year_order || yearNum
         };
       });
 
@@ -203,7 +76,7 @@ export default function HeritageTimeline({ dynamicEvents = [], onSelectOralTrack
       blended.sort((a, b) => (a.year_order || 0) - (b.year_order || 0));
       setTimelineEvents(blended);
     } else {
-      setTimelineEvents(FALLBACK_EVENTS);
+      setTimelineEvents([]);
     }
   }, [dynamicEvents]);
 

@@ -147,7 +147,7 @@ export default function Leadership() {
   const categoriesList = ['All', 'History', 'Traditions', 'Language', 'Social Laws'];
 
   return (
-    <div className="pt-24 min-h-screen bg-heritage-cream">
+    <div className="pt-24 min-h-screen bg-heritage-cream dark:bg-stone-950 transition-colors duration-300">
       <SEO 
         title="Community Custodians & Elder Council"
         description="Meet the honourable Elders, spiritual guardians, and story keepers of the Bakenye community preserving our cultural laws and knowledge."
@@ -178,7 +178,7 @@ export default function Leadership() {
               <input
                 type="text"
                 placeholder="Search elders by name, role, expertise..."
-                className="w-full pl-12 pr-4 py-4 rounded-full bg-white dark:bg-stone-900 border border-stone-200/10 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 focus:outline-none text-stone-900 dark:text-white transition-all font-medium text-sm"
+                className="w-full pl-12 pr-4 py-4 rounded-full bg-white dark:bg-stone-900 border border-stone-200/10 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 focus:outline-none text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-stone-500 transition-all font-medium text-sm"
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
               />
@@ -190,7 +190,7 @@ export default function Leadership() {
               <input
                 type="text"
                 placeholder="Search answered questions or topics..."
-                className="w-full pl-12 pr-4 py-4 rounded-full bg-white dark:bg-stone-900 border border-stone-200/10 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 focus:outline-none text-stone-900 dark:text-white transition-all font-medium text-sm"
+                className="w-full pl-12 pr-4 py-4 rounded-full bg-white dark:bg-stone-900 border border-stone-200/10 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 focus:outline-none text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-stone-500 transition-all font-medium text-sm"
                 value={qnaSearch}
                 onChange={(e) => setQnaSearch(e.target.value)}
               />
@@ -201,13 +201,13 @@ export default function Leadership() {
 
       {/* Tabs Selector */}
       <div className="flex justify-center pt-16 pb-4 px-4">
-        <div className="inline-flex bg-white/85 dark:bg-stone-900/95 p-1.5 rounded-2xl border border-heritage-brown/10 shadow-xs max-w-full overflow-x-auto scrollbar-none">
+        <div className="inline-flex bg-white/85 dark:bg-stone-900/95 p-1.5 rounded-2xl border border-heritage-brown/10 dark:border-stone-800 shadow-xs max-w-full overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('custodians')}
             className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer flex items-center space-x-2 shrink-0 ${
               activeTab === 'custodians'
                 ? 'bg-heritage-terracotta text-white shadow-sm'
-                : 'text-heritage-brown hover:text-heritage-terracotta'
+                : 'text-heritage-brown dark:text-stone-300 hover:text-heritage-terracotta dark:hover:text-[#f4a261]'
             }`}
           >
             <Users className="w-4 h-4" />
@@ -218,7 +218,7 @@ export default function Leadership() {
             className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer flex items-center space-x-2 shrink-0 ${
               activeTab === 'qna'
                 ? 'bg-heritage-terracotta text-white shadow-sm'
-                : 'text-heritage-brown hover:text-heritage-terracotta'
+                : 'text-heritage-brown dark:text-stone-300 hover:text-heritage-terracotta dark:hover:text-[#f4a261]'
             }`}
           >
             <MessageSquare className="w-4 h-4" />
@@ -244,23 +244,23 @@ export default function Leadership() {
                 </p>
               </div>
             ) : leaders.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-[32px] border-2 border-dashed border-heritage-brown/10 max-w-3xl mx-auto px-6">
-                <Users className="w-16 h-16 text-heritage-brown/20 mx-auto mb-6" />
-                <h3 className="text-xl font-serif font-bold text-heritage-brown mb-2">No cultural leaders found</h3>
-                <p className="text-sm text-heritage-brown/50 max-w-md mx-auto">
+              <div className="text-center py-20 bg-white dark:bg-stone-900 rounded-[32px] border-2 border-dashed border-heritage-brown/10 dark:border-stone-800 max-w-3xl mx-auto px-6">
+                <Users className="w-16 h-16 text-heritage-brown/20 dark:text-stone-700 mx-auto mb-6" />
+                <h3 className="text-xl font-serif font-bold text-heritage-brown dark:text-stone-100 mb-2">No cultural leaders found</h3>
+                <p className="text-sm text-heritage-brown/50 dark:text-stone-400 max-w-md mx-auto">
                   No verified cultural council custodians have been registered to the platform.
                 </p>
               </div>
             ) : filteredLeaders.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-[32px] border-2 border-dashed border-heritage-brown/10 max-w-3xl mx-auto px-6">
-                <Search className="w-16 h-16 text-heritage-brown/20 mx-auto mb-6" />
-                <h3 className="text-xl font-serif font-bold text-heritage-brown mb-2">No matches found</h3>
-                <p className="text-sm text-heritage-brown/50 max-w-md mx-auto mb-4">
+              <div className="text-center py-20 bg-white dark:bg-stone-900 rounded-[32px] border-2 border-dashed border-heritage-brown/10 dark:border-stone-800 max-w-3xl mx-auto px-6">
+                <Search className="w-16 h-16 text-heritage-brown/20 dark:text-stone-700 mx-auto mb-6" />
+                <h3 className="text-xl font-serif font-bold text-heritage-brown dark:text-stone-100 mb-2">No matches found</h3>
+                <p className="text-sm text-heritage-brown/50 dark:text-stone-400 max-w-md mx-auto mb-4">
                   No verified elders matched your search query "{searchTerm}".
                 </p>
                 <button 
                   onClick={() => handleSearchChange('')}
-                  className="text-heritage-terracotta font-bold text-xs uppercase tracking-wider hover:underline cursor-pointer"
+                  className="text-heritage-terracotta dark:text-[#f4a261] font-bold text-xs uppercase tracking-wider hover:underline cursor-pointer"
                 >
                   Clear Search
                 </button>
@@ -276,7 +276,7 @@ export default function Leadership() {
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
                       transition={{ delay: i * 0.1 }}
-                      className={`heritage-card flex flex-col items-center p-8 bg-white relative transition-all duration-500 ${
+                      className={`heritage-card flex flex-col items-center p-8 bg-white dark:bg-stone-900 border border-stone-200/10 dark:border-stone-800 rounded-3xl relative transition-all duration-500 ${
                         isHighlighted ? 'ring-4 ring-heritage-terracotta border-heritage-terracotta shadow-2xl scale-105 z-10' : ''
                       }`}
                     >
@@ -285,7 +285,7 @@ export default function Leadership() {
                           Search Match
                         </span>
                       )}
-                      <div className="w-32 h-32 rounded-full bg-heritage-cream mb-6 overflow-hidden flex items-center justify-center border-4 border-heritage-terracotta/20 shrink-0">
+                      <div className="w-32 h-32 rounded-full bg-heritage-cream dark:bg-stone-800 mb-6 overflow-hidden flex items-center justify-center border-4 border-heritage-terracotta/20 shrink-0">
                         {leader.photo_url || leader.imageUrl ? (
                           <img 
                             src={leader.photo_url || leader.imageUrl} 
@@ -294,29 +294,29 @@ export default function Leadership() {
                             referrerPolicy="no-referrer"
                           />
                         ) : (
-                          <User className="w-16 h-16 text-heritage-brown/20" />
+                          <User className="w-16 h-16 text-heritage-brown/20 dark:text-stone-600" />
                         )}
                       </div>
-                      <h3 className="text-xl font-serif font-bold text-heritage-brown text-center mb-1">{leader.name}</h3>
-                      <p className="text-heritage-terracotta text-xs font-bold uppercase tracking-widest mb-4 text-center">{leader.role || 'Committee Member'}</p>
-                      <p className="text-heritage-brown/60 text-sm text-center mb-6 leading-relaxed flex-grow font-medium">
+                      <h3 className="text-xl font-serif font-bold text-heritage-brown dark:text-stone-100 text-center mb-1">{leader.name}</h3>
+                      <p className="text-heritage-terracotta dark:text-[#f4a261] text-xs font-bold uppercase tracking-widest mb-4 text-center">{leader.role || 'Committee Member'}</p>
+                      <p className="text-heritage-brown/60 dark:text-stone-300 text-sm text-center mb-6 leading-relaxed flex-grow font-medium">
                         {leader.bio || 'Verifying authentic oral narratives and supervising digital language programs.'}
                       </p>
-                      <div className="w-full pt-4 border-t border-heritage-brown/5 flex flex-col items-center">
-                        <div className="flex items-center text-heritage-olive text-[10px] font-bold uppercase tracking-wider mb-3">
+                      <div className="w-full pt-4 border-t border-heritage-brown/5 dark:border-stone-800 flex flex-col items-center">
+                        <div className="flex items-center text-heritage-olive dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider mb-3">
                           <Award className="w-3 h-3 mr-1" />
                           {leader.expertise || 'Cultural Custodian'}
                         </div>
                         
                         {leader.clan && (
-                          <div className="text-[10px] text-heritage-brown/40 font-bold uppercase tracking-wider mb-3">
+                          <div className="text-[10px] text-heritage-brown/40 dark:text-stone-400 font-bold uppercase tracking-wider mb-3">
                             Clan: {leader.clan}
                           </div>
                         )}
 
                         <Link 
                           to={`/leadership/${leader.id}`}
-                          className="w-full py-2 px-4 bg-heritage-terracotta hover:bg-heritage-terracotta/90 text-white rounded-xl text-xs font-bold text-center transition-all duration-200 mb-4 hover:shadow-md block"
+                          className="w-full py-2 px-4 bg-heritage-terracotta hover:bg-[#b04f35] dark:hover:bg-[#d86a4f] text-white rounded-xl text-xs font-bold text-center transition-all duration-200 mb-4 hover:shadow-md block"
                         >
                           Explore Chronicle
                         </Link>
@@ -325,7 +325,7 @@ export default function Leadership() {
                           {leader.contact_email ? (
                             <a 
                               href={`mailto:${leader.contact_email}`}
-                              className="p-2 rounded-full bg-heritage-cream text-heritage-brown hover:bg-heritage-terracotta hover:text-white transition-colors cursor-pointer"
+                              className="p-2 rounded-full bg-heritage-cream dark:bg-stone-850 text-heritage-brown dark:text-stone-300 hover:bg-heritage-terracotta hover:text-white dark:hover:bg-heritage-terracotta transition-colors cursor-pointer"
                               title={`Email ${leader.name}`}
                             >
                               <Mail className="w-4 h-4" />
@@ -333,13 +333,13 @@ export default function Leadership() {
                           ) : (
                             <button 
                               disabled 
-                              className="p-2 rounded-full bg-heritage-cream text-heritage-brown/20 cursor-not-allowed"
+                              className="p-2 rounded-full bg-heritage-cream dark:bg-stone-850 text-heritage-brown/20 dark:text-stone-600 cursor-not-allowed"
                               title="No email registered"
                             >
                               <Mail className="w-4 h-4" />
                             </button>
                           )}
-                          <button className="p-2 rounded-full bg-heritage-cream text-heritage-brown hover:bg-heritage-terracotta hover:text-white transition-colors cursor-pointer">
+                          <button className="p-2 rounded-full bg-heritage-cream dark:bg-stone-850 text-heritage-brown dark:text-stone-300 hover:bg-heritage-terracotta hover:text-white dark:hover:bg-heritage-terracotta transition-colors cursor-pointer">
                             <Linkedin className="w-4 h-4" />
                           </button>
                         </div>
@@ -360,18 +360,18 @@ export default function Leadership() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
               
               {/* Left Form Panel: Ask Question */}
-              <div className="lg:col-span-5 bg-white p-8 rounded-[32px] border border-heritage-brown/10 shadow-xs sticky top-32">
+              <div className="lg:col-span-5 bg-white dark:bg-stone-900 p-8 rounded-[32px] border border-heritage-brown/10 dark:border-stone-800 shadow-xs sticky top-32">
                 <div className="flex items-center space-x-3 mb-4">
                   <div className="p-2 bg-heritage-terracotta/10 text-heritage-terracotta rounded-xl">
                     <HelpCircle className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-serif font-bold text-heritage-brown">Consult Bakenyi Elders</h3>
-                    <p className="text-xs text-heritage-brown/40 font-bold uppercase tracking-wider">Direct Q&A Gateway</p>
+                    <h3 className="text-xl font-serif font-bold text-heritage-brown dark:text-stone-100">Consult Bakenyi Elders</h3>
+                    <p className="text-xs text-heritage-brown/40 dark:text-stone-400 font-bold uppercase tracking-wider">Direct Q&A Gateway</p>
                   </div>
                 </div>
 
-                <p className="text-heritage-brown/70 text-xs leading-relaxed mb-6 font-medium">
+                <p className="text-heritage-brown/70 dark:text-stone-300 text-xs leading-relaxed mb-6 font-medium">
                   The Elder Council welcomes inquiries on lineages, historical migrations, vocabulary, and sacred traditions. Your question will be vetted, archived, and replied to by verified custodians.
                 </p>
 
@@ -379,11 +379,11 @@ export default function Leadership() {
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-emerald-50 border border-emerald-150 p-6 rounded-2xl text-center"
+                    className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-150 dark:border-emerald-800 p-6 rounded-2xl text-center"
                   >
-                    <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-3 animate-bounce" />
-                    <h4 className="text-emerald-900 font-serif font-bold text-lg mb-2">Question Submitted!</h4>
-                    <p className="text-emerald-700 text-xs leading-relaxed font-medium mb-4">
+                    <CheckCircle2 className="w-12 h-12 text-emerald-600 dark:text-emerald-400 mx-auto mb-3 animate-bounce" />
+                    <h4 className="text-emerald-900 dark:text-emerald-200 font-serif font-bold text-lg mb-2">Question Submitted!</h4>
+                    <p className="text-emerald-700 dark:text-emerald-400 text-xs leading-relaxed font-medium mb-4">
                       Your inquiry has been queued in the Elder Council registry. Once approved and answered by a council historian, it will be published in this portal.
                     </p>
                     <button
@@ -396,14 +396,14 @@ export default function Leadership() {
                 ) : (
                   <form onSubmit={handleAskSubmit} className="space-y-4">
                     {submitError && (
-                      <div className="bg-rose-50 border border-rose-150 p-3.5 rounded-xl text-rose-700 text-[11px] font-bold flex items-center gap-2">
+                      <div className="bg-rose-50 dark:bg-rose-950/25 border border-rose-150 dark:border-rose-900 p-3.5 rounded-xl text-rose-700 dark:text-rose-350 text-[11px] font-bold flex items-center gap-2">
                         <AlertCircle className="w-4 h-4 shrink-0" />
                         <span>{submitError}</span>
                       </div>
                     )}
 
                     <div>
-                      <label className="block text-[10px] font-black uppercase tracking-wider text-heritage-brown/60 mb-1.5">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-heritage-brown/60 dark:text-stone-300 mb-1.5">
                         Your Full Name
                       </label>
                       <input
@@ -412,12 +412,12 @@ export default function Leadership() {
                         required
                         value={askerName}
                         onChange={(e) => setAskerName(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-heritage-cream/40 border border-heritage-brown/15 focus:outline-none focus:border-heritage-terracotta text-xs font-medium text-heritage-ink"
+                        className="w-full px-4 py-3 rounded-xl bg-heritage-cream/40 dark:bg-stone-850 border border-heritage-brown/15 dark:border-stone-750 focus:outline-none focus:border-heritage-terracotta text-xs font-medium text-heritage-ink dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black uppercase tracking-wider text-heritage-brown/60 mb-1.5">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-heritage-brown/60 dark:text-stone-300 mb-1.5">
                         Your Email Address
                       </label>
                       <input
@@ -426,18 +426,18 @@ export default function Leadership() {
                         required
                         value={askerEmail}
                         onChange={(e) => setAskerEmail(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-heritage-cream/40 border border-heritage-brown/15 focus:outline-none focus:border-heritage-terracotta text-xs font-medium text-heritage-ink"
+                        className="w-full px-4 py-3 rounded-xl bg-heritage-cream/40 dark:bg-stone-850 border border-heritage-brown/15 dark:border-stone-750 focus:outline-none focus:border-heritage-terracotta text-xs font-medium text-heritage-ink dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black uppercase tracking-wider text-heritage-brown/60 mb-1.5">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-heritage-brown/60 dark:text-stone-300 mb-1.5">
                         Inquiry Category
                       </label>
                       <select
                         value={askerCategory}
                         onChange={(e) => setAskerCategory(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-heritage-cream/40 border border-heritage-brown/15 focus:outline-none focus:border-heritage-terracotta text-xs font-bold text-heritage-ink"
+                        className="w-full px-4 py-3 rounded-xl bg-heritage-cream/40 dark:bg-stone-850 border border-heritage-brown/15 dark:border-stone-750 focus:outline-none focus:border-heritage-terracotta text-xs font-bold text-heritage-ink dark:text-stone-100"
                       >
                         <option value="History">History & Origins</option>
                         <option value="Traditions">Traditions & Totems</option>
@@ -448,7 +448,7 @@ export default function Leadership() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black uppercase tracking-wider text-heritage-brown/60 mb-1.5">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-heritage-brown/60 dark:text-stone-300 mb-1.5">
                         Your Question
                       </label>
                       <textarea
@@ -458,14 +458,14 @@ export default function Leadership() {
                         maxLength={1000}
                         value={askerQuestion}
                         onChange={(e) => setAskerQuestion(e.target.value)}
-                        className="w-full p-4 rounded-xl bg-heritage-cream/40 border border-heritage-brown/15 focus:outline-none focus:border-heritage-terracotta text-xs font-medium text-heritage-ink leading-relaxed"
+                        className="w-full p-4 rounded-xl bg-heritage-cream/40 dark:bg-stone-850 border border-heritage-brown/15 dark:border-stone-750 focus:outline-none focus:border-heritage-terracotta text-xs font-medium text-heritage-ink dark:text-stone-100 leading-relaxed placeholder-stone-400 dark:placeholder-stone-500"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={submittingQuestion}
-                      className="w-full py-3.5 bg-heritage-terracotta hover:bg-heritage-terracotta/95 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-50"
+                      className="w-full py-3.5 bg-heritage-terracotta hover:bg-[#b04f35] dark:hover:bg-[#d86a4f] text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-50"
                     >
                       {submittingQuestion ? (
                         <>
@@ -495,7 +495,7 @@ export default function Leadership() {
                       className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
                         qnaFilter === cat
                           ? 'bg-heritage-olive text-white border-heritage-olive shadow-xs'
-                          : 'bg-white text-heritage-brown border-heritage-brown/10 hover:border-heritage-brown/20'
+                          : 'bg-white dark:bg-stone-900 text-heritage-brown dark:text-stone-300 border border-heritage-brown/10 dark:border-stone-800 hover:border-heritage-brown/20 dark:hover:border-stone-700'
                       }`}
                     >
                       {cat}
@@ -504,74 +504,71 @@ export default function Leadership() {
                 </div>
 
                 {loadingQuestions ? (
-                  <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-heritage-brown/10">
+                  <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-stone-900 rounded-3xl border border-heritage-brown/10 dark:border-stone-800">
                     <div className="w-10 h-10 border-4 border-heritage-terracotta/20 border-t-heritage-terracotta rounded-full animate-spin" />
-                    <p className="mt-4 text-xs font-bold text-heritage-brown/40 uppercase tracking-widest animate-pulse">
+                    <p className="mt-4 text-xs font-bold text-heritage-brown/40 dark:text-stone-400 uppercase tracking-widest animate-pulse">
                       Consulting elder archives...
                     </p>
                   </div>
                 ) : filteredQuestions.length === 0 ? (
-                  <div className="bg-white rounded-[32px] border-2 border-dashed border-heritage-brown/10 p-12 text-center">
-                    <MessageSquare className="w-12 h-12 text-heritage-brown/20 mx-auto mb-4" />
-                    <h4 className="text-lg font-serif font-bold text-heritage-brown mb-1">No Q&As matching filters</h4>
-                    <p className="text-xs text-heritage-brown/50 max-w-sm mx-auto">
+                  <div className="bg-white dark:bg-stone-900 rounded-[32px] border-2 border-dashed border-heritage-brown/10 dark:border-stone-800 p-12 text-center">
+                    <MessageSquare className="w-12 h-12 text-heritage-brown/20 dark:text-stone-600 mx-auto mb-4" />
+                    <h4 className="text-lg font-serif font-bold text-heritage-brown dark:text-stone-200 mb-1">No Q&As matching filters</h4>
+                    <p className="text-xs text-heritage-brown/50 dark:text-stone-400 max-w-sm mx-auto">
                       There are no answered questions matching your search "{qnaSearch}" or category "{qnaFilter}". Be the first to ask!
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-6">
                     {filteredQuestions.map((q, i) => (
-                      <motion.div
+                      <div
                         key={q.id || i}
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        className="bg-white rounded-3xl border border-heritage-brown/10 overflow-hidden shadow-xs hover:shadow-sm transition-all"
+                        className="bg-white dark:bg-stone-900 rounded-3xl border border-heritage-brown/10 dark:border-stone-800 overflow-hidden shadow-xs hover:shadow-sm transition-all"
                       >
                         {/* Question Top Section */}
-                        <div className="p-6 md:p-8 border-b border-heritage-brown/5">
+                        <div className="p-6 md:p-8 border-b border-heritage-brown/5 dark:border-stone-800">
                           <div className="flex items-center justify-between mb-4">
-                            <span className="bg-heritage-cream text-heritage-terracotta text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-heritage-brown/5">
+                            <span className="bg-heritage-cream dark:bg-stone-800 text-heritage-terracotta dark:text-[#f4a261] text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-heritage-brown/5 dark:border-stone-755">
                               {q.category}
                             </span>
-                            <div className="flex items-center text-heritage-brown/40 text-[10px] font-bold uppercase tracking-wider gap-1">
+                            <div className="flex items-center text-heritage-brown/40 dark:text-stone-400 text-[10px] font-bold uppercase tracking-wider gap-1">
                               <Clock className="w-3 h-3" />
                               <span>{new Date(q.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                             </div>
                           </div>
 
-                          <h4 className="text-md md:text-lg font-serif font-bold text-heritage-brown leading-snug">
+                          <h4 className="text-md md:text-lg font-serif font-bold text-heritage-brown dark:text-stone-100 leading-snug">
                             "{q.question}"
                           </h4>
-                          <p className="text-[10px] text-heritage-brown/50 font-bold uppercase tracking-wider mt-3">
-                            Inquired by: <span className="text-heritage-brown">{q.name}</span>
+                          <p className="text-[10px] text-heritage-brown/50 dark:text-stone-400 font-bold uppercase tracking-wider mt-3">
+                            Inquired by: <span className="text-heritage-brown dark:text-stone-200">{q.name}</span>
                           </p>
                         </div>
 
                         {/* Elder Response Section */}
-                        <div className="p-6 md:p-8 bg-[#faf7f3] border-l-4 border-heritage-terracotta">
-                          <div className="flex items-center space-x-2 text-heritage-terracotta text-[10px] font-black uppercase tracking-wider mb-3">
+                        <div className="p-6 md:p-8 bg-[#faf7f3] dark:bg-stone-850 border-l-4 border-heritage-terracotta">
+                          <div className="flex items-center space-x-2 text-heritage-terracotta dark:text-[#f4a261] text-[10px] font-black uppercase tracking-wider mb-3">
                             <ShieldCheck className="w-4 h-4" />
                             <span>Verified Elder Council Decree</span>
                           </div>
 
-                          <p className="text-heritage-brown/80 text-xs md:text-sm font-serif italic leading-relaxed mb-4">
+                          <p className="text-heritage-brown/80 dark:text-stone-200 text-xs md:text-sm font-serif italic leading-relaxed mb-4">
                             {q.answer}
                           </p>
 
-                          <div className="flex items-center justify-between border-t border-heritage-brown/5 pt-4 mt-2">
-                            <div className="text-[10px] text-heritage-brown/50 font-black uppercase tracking-wider">
-                              Spoken by: <span className="text-heritage-terracotta">{q.answered_by || 'Elder Council Custodian'}</span>
+                          <div className="flex items-center justify-between border-t border-heritage-brown/5 dark:border-stone-800 pt-4 mt-2">
+                            <div className="text-[10px] text-heritage-brown/50 dark:text-stone-400 font-black uppercase tracking-wider">
+                              Spoken by: <span className="text-heritage-terracotta dark:text-[#f4a261]">{q.answered_by || 'Elder Council Custodian'}</span>
                             </div>
                             {q.answered_at && (
-                              <span className="text-[9px] font-mono text-heritage-brown/30">
+                              <span className="text-[9px] font-mono text-heritage-brown/30 dark:text-stone-500">
                                 Ref: #{q.id.slice(0, 8).toUpperCase()}
                               </span>
                             )}
                           </div>
                         </div>
 
-                      </motion.div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -584,13 +581,13 @@ export default function Leadership() {
       )}
 
       {/* Organizational Structure */}
-      <section className="py-24 bg-white px-4 border-t border-heritage-brown/5">
+      <section className="py-24 bg-white dark:bg-stone-900 px-4 border-t border-heritage-brown/5 dark:border-stone-800">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             <div>
-              <span className="text-heritage-terracotta font-bold text-xs uppercase tracking-widest block mb-4">Our Structure</span>
-              <h2 className="text-3xl font-serif font-bold text-heritage-brown mb-8">Committed to Transparency and Heritage</h2>
-              <p className="text-heritage-brown/70 text-lg leading-relaxed mb-8">
+              <span className="text-heritage-terracotta dark:text-[#f4a261] font-bold text-xs uppercase tracking-widest block mb-4">Our Structure</span>
+              <h2 className="text-3xl font-serif font-bold text-heritage-brown dark:text-white mb-8">Committed to Transparency and Heritage</h2>
+              <p className="text-heritage-brown/70 dark:text-stone-300 text-lg leading-relaxed mb-8">
                 The Platform is governed by a multi-disciplinary committee including elders, academics, and community organizers. We ensure that every piece of documentation is verified for accuracy against known oral and written records.
               </p>
               <div className="space-y-4">
@@ -598,30 +595,30 @@ export default function Leadership() {
                   <div className="w-6 h-6 rounded-full bg-heritage-olive text-white flex items-center justify-center">
                     <ShieldCheck className="w-4 h-4" />
                   </div>
-                  <span className="text-heritage-brown font-medium">Verified Oral Research</span>
+                  <span className="text-heritage-brown dark:text-stone-200 font-medium">Verified Oral Research</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-6 h-6 rounded-full bg-heritage-olive text-white flex items-center justify-center">
                     <ShieldCheck className="w-4 h-4" />
                   </div>
-                  <span className="text-heritage-brown font-medium">Community-Led Governance</span>
+                  <span className="text-heritage-brown dark:text-stone-200 font-medium">Community-Led Governance</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-6 h-6 rounded-full bg-heritage-olive text-white flex items-center justify-center">
                     <ShieldCheck className="w-4 h-4" />
                   </div>
-                  <span className="text-heritage-brown font-medium">Youth Mentorship Programs</span>
+                  <span className="text-heritage-brown dark:text-stone-200 font-medium">Youth Mentorship Programs</span>
                 </div>
               </div>
             </div>
-            <div className="bg-heritage-cream p-12 rounded-3xl relative">
+            <div className="bg-heritage-cream dark:bg-stone-850 p-12 rounded-3xl border border-transparent dark:border-stone-800 relative">
               <div className="absolute inset-0 cultural-pattern opacity-10" />
               <div className="relative z-10 text-center">
-                <p className="text-lg text-heritage-brown/80 font-serif italic mb-8">
+                <p className="text-lg text-heritage-brown/80 dark:text-stone-100 font-serif italic mb-8">
                   "Leadership in Bakenyi culture has always been about service to the collective, ensuring that the legacy of those who walked before us is carried with dignity by those who come after us."
                 </p>
                 <div className="w-12 h-1 bg-heritage-terracotta mx-auto mb-4" />
-                <p className="text-xs font-bold uppercase tracking-widest text-heritage-brown">Cultural Council Manifesto</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-heritage-brown dark:text-stone-300">Cultural Council Manifesto</p>
               </div>
             </div>
           </div>

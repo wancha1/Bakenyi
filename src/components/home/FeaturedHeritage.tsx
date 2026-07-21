@@ -76,10 +76,10 @@ export default function FeaturedHeritage({ featuredItems }: FeaturedHeritageProp
                     Clan of the Week
                   </span>
                 </div>
-                <h3 className="font-serif font-bold text-2xl text-heritage-brown dark:text-white drop-shadow-xs">
+                <h3 className="font-serif font-extrabold text-2xl text-stone-900 dark:text-white drop-shadow-xs">
                   {featuredItems.clan.name}
                 </h3>
-                <div className="mt-2.5 inline-block px-3 py-1 bg-heritage-terracotta/10 border border-heritage-terracotta/30 text-heritage-terracotta dark:bg-heritage-sand/20 dark:border-heritage-sand/40 dark:text-heritage-sand text-[10px] font-extrabold rounded-lg font-mono uppercase tracking-wider">
+                <div className="mt-2.5 inline-block px-3 py-1 bg-orange-50 border border-orange-200 text-orange-800 dark:bg-orange-950/40 dark:border-orange-800/40 dark:text-orange-300 text-[10px] font-extrabold rounded-lg font-mono uppercase tracking-wider">
                   Totem: {featuredItems.clan.totem}
                 </div>
                 <p className="text-xs sm:text-sm text-heritage-brown/85 dark:text-stone-200 mt-4 leading-relaxed text-left font-medium">

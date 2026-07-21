@@ -139,7 +139,7 @@ export default function Contact() {
                   </span>
                 </div>
 
-                {/* Mock Map Visual Frame */}
+                {/* Base Map Visual Frame */}
                 <div className="h-28 w-full bg-stone-900 rounded-xl border border-stone-800 relative overflow-hidden flex items-center justify-center">
                   <div className="absolute inset-0 cultural-pattern opacity-20" />
                   <div className="absolute w-20 h-20 rounded-full bg-amber-500/10 blur-xl animate-pulse" />

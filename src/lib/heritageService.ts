@@ -4,11 +4,14 @@ import { Status, News, Announcement, Event, CommunityHighlight, Notice, ContentR
 
 const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
 
-async function filterRealUsers<T extends { author_id?: string; created_by?: string }>(items: T[]): Promise<T[]> {
+async function filterRealUsers<T extends { author_id?: string; created_by?: string; status?: string }>(items: T[]): Promise<T[]> {
   try {
     const users = await fetchUsers();
     const realUserIds = new Set(users.map(u => u.id));
     return items.filter(item => {
+      if (item.status === 'approved' || item.status === 'published') {
+        return true;
+      }
       const authorId = item.author_id || item.created_by;
       return authorId && realUserIds.has(authorId);
     });
@@ -42,129 +45,9 @@ async function resolveUserUUID(client: any, userId?: string): Promise<string> {
 }
 
 // ==========================================
-// PRE-POPULATED SANDBOX/MOCK DATA
+// DYNAMIC HERITAGE SERVICE LAYER
 // ==========================================
 
-const mockStatuses: Status[] = [
-  {
-    id: 'status-1',
-    text: 'Preserving the Lukenye language, one word at a time! Check our vocabulary section.',
-    media_items: [
-      { url: 'https://images.unsplash.com/photo-1516280440614-37939bbacd6a?auto=format&fit=crop&q=80', type: 'image' }
-    ],
-    link: '/language',
-    author_id: 'mock-elder',
-    view_count: 42,
-    visibility: 'public',
-    status: 'approved',
-    reactions: { 'like': 12, 'love': 8 },
-    comments: [],
-    created_at: new Date().toISOString(),
-    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    is_archived: false
-  },
-  {
-    id: 'status-2',
-    text: 'Live demonstration of traditional canoe crafting starts in an hour!',
-    media_items: [
-      { url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80', type: 'image' }
-    ],
-    author_id: 'mock-reporter',
-    view_count: 27,
-    visibility: 'public',
-    status: 'approved',
-    reactions: { 'like': 5 },
-    comments: [],
-    created_at: new Date().toISOString(),
-    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    is_archived: false
-  }
-];
-
-const mockNews: News[] = [
-  {
-    id: 'news-1',
-    title: 'Lukenye Language Digitization Project Initiated',
-    slug: 'lukenye-language-digitization-project-initiated',
-    summary: 'The Bakenyi Cultural Heritage Committee has launched an initiative to record oral literature and proverbs to prevent linguistic erosion.',
-    content: 'The Bakenyi community has historically relied on oral traditions to pass down ancestral wisdom. In partnership with digital historians, our Council of Elders (super_admins) has greenlit a systematic campaign to build a comprehensive audio-visual repository of the Lukenye dialect, ensuring future generations can hear and learn their native tongue.',
-    cover_image: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=80',
-    author_id: 'mock-reporter',
-    category: 'Heritage',
-    tags: ['Linguistics', 'Digitization', 'Preservation'],
-    featured: true,
-    status: 'published',
-    published_at: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'news-2',
-    title: 'Elders Council Convenes on Ebiswa Farming Preservation',
-    slug: 'elders-council-convenes-on-ebiswa-farming-preservation',
-    summary: 'Elders meet to outline sustainable methods for defending and showcasing floating island agricultural techniques near Lake Kyoga.',
-    content: 'The floating island (Ebiswa) farming method of the Bakenyi is unique to Lake Kyoga and surrounding water channels. Highlighting ecological sustainability and ancestral ingenuity, the summit discussed ways to resist soil salinization and pass down these techniques through hands-on educational camps.',
-    cover_image: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&q=80',
-    author_id: 'mock-elder',
-    category: 'Culture',
-    tags: ['Ebiswa', 'Agriculture', 'Elders'],
-    featured: false,
-    status: 'published',
-    published_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }
-];
-
-const mockAnnouncements: Announcement[] = [
-  {
-    id: 'ann-1',
-    title: 'Annual Bakenyi Clan Leaders Gathering',
-    message: 'The supreme Council of Elders announces the upcoming annual summit of all Bakenyi clan leaders and custodians. We will discuss historical documentation, clan registers, and totem restoration.',
-    category: 'meetings',
-    priority: 'high',
-    start_date: new Date().toISOString(),
-    end_date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-    pinned: true,
-    created_by: 'mock-elder',
-    status: 'approved',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  },
-  {
-    id: 'ann-2',
-    title: 'Emergency: Protect Wetland Boundaries',
-    message: 'Urgent notice regarding encroachment on natural cultural conservation wetland reserves. All Bakenyi wardens and fishers are advised to monitor the Lake Kyoga banks.',
-    category: 'emergencies',
-    priority: 'emergency',
-    start_date: new Date().toISOString(),
-    pinned: false,
-    created_by: 'mock-admin',
-    status: 'approved',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }
-];
-
-const mockEvents: Event[] = [
-  {
-    id: 'eve-1',
-    title: 'Traditional Canoe Crafting Workshop',
-    description: 'A comprehensive, hands-on masterclass led by senior cultural craftsmen on the ancestral Bakenyi techniques of molding and stitching durable canoes from single logs.',
-    location: 'Lake Kyoga Shoreline Site, Nakasongola',
-    start_datetime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-    end_datetime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString(),
-    cover_image: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&q=80',
-    organizer: 'Elder Moses Mukasa',
-    contact: 'moses@bakenyiarchive.org',
-    rsvp_settings: { enabled: true, limit: 30, rsvps: [] },
-    map_location: { latitude: 1.345, longitude: 32.456 },
-    created_by: 'mock-elder',
-    status: 'approved',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }
-];
 
 // Initialize local storage fallbacks if empty
 const initializeLocalStorage = () => {

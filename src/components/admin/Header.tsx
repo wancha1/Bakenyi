@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Menu, 
   Sun, 
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { getSupabaseConfig } from '../../lib/supabaseClient';
+import { getNotifications, markAllNotificationsRead } from '../../lib/operations';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
@@ -55,12 +56,22 @@ export default function Header({ onMobileMenuToggle, activeTab, userEmail, userR
 
   const currentTitle = tabTitles[activeTab] || 'Admin Suite';
 
-  // Demo Alerts
-  const notifications = [
-    { id: 1, title: 'New Community Submission', desc: 'A new cultural artifact was submitted for review.', time: '1 hour ago' },
-    { id: 2, title: 'New Preserver SignUp', desc: 'sarah.nak@example.com signed up.', time: '3 hours ago' },
-    { id: 3, title: 'Role Grant Action', desc: 'Jane Nakiganda was granted Reporter access.', time: 'Yesterday' }
-  ];
+  const [liveNotifs, setLiveNotifs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const syncNotifs = () => {
+      setLiveNotifs(getNotifications());
+    };
+    syncNotifs();
+    window.addEventListener('bakenye_operations_updated', syncNotifs);
+    return () => window.removeEventListener('bakenye_operations_updated', syncNotifs);
+  }, []);
+
+  const unreadCount = liveNotifs.filter(n => !n.read).length;
+
+  const handleMarkAllRead = () => {
+    markAllNotificationsRead();
+  };
 
   const isElder = resolvedRole === 'super_admin';
 
@@ -114,7 +125,9 @@ export default function Header({ onMobileMenuToggle, activeTab, userEmail, userR
             className="p-2 rounded-xl border border-slate-100 dark:border-slate-700/60 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors relative"
           >
             <Bell className="w-4.5 h-4.5" />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse flex items-center justify-center border-2 border-white dark:border-slate-800" />
+            )}
           </button>
 
           {/* Notifications Dropdown menu */}
@@ -126,19 +139,32 @@ export default function Header({ onMobileMenuToggle, activeTab, userEmail, userR
               <div className="absolute right-0 mt-3.5 w-72 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 p-4 z-30 space-y-3 animation-slide-up text-left">
                 <div className="flex items-center justify-between pb-2 border-b dark:border-slate-700">
                   <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">Alert Center</h4>
-                  <span className="text-[10px] font-bold text-indigo-500 hover:underline cursor-pointer">Mark all read</span>
+                  {unreadCount > 0 && (
+                    <span 
+                      onClick={handleMarkAllRead}
+                      className="text-[10px] font-bold text-indigo-500 hover:underline cursor-pointer"
+                    >
+                      Mark all read
+                    </span>
+                  )}
                 </div>
 
-                <div className="divide-y divide-slate-100/50 dark:divide-slate-700/30">
-                  {notifications.map((n) => (
-                    <div key={n.id} className="py-2.5 space-y-0.5 text-xs">
-                      <div className="font-bold text-slate-800 dark:text-white flex justify-between">
-                        <span>{n.title}</span>
-                        <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">{n.time}</span>
+                <div className="divide-y divide-slate-100/50 dark:divide-slate-700/30 max-h-64 overflow-y-auto">
+                  {liveNotifs.length > 0 ? (
+                    liveNotifs.map((n) => (
+                      <div key={n.id} className={`py-2.5 space-y-0.5 text-xs ${!n.read ? 'bg-indigo-50/10 -mx-4 px-4' : ''}`}>
+                        <div className="font-bold text-slate-800 dark:text-white flex justify-between">
+                          <span>{n.title}</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
+                            {n.timestamp ? new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">{n.desc}</p>
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">{n.desc}</p>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <div className="py-4 text-center text-slate-400 text-xs">No notifications available.</div>
+                  )}
                 </div>
               </div>
             </>

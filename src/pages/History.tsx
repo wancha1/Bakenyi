@@ -38,16 +38,14 @@ import {
   AudioTrack, 
   MigrationNode, 
   HistoricalDocument,
-  FALLBACK_EVENTS,
-  FALLBACK_AUDIO_TRACKS,
   MIGRATION_NODES,
   HISTORICAL_DOCUMENTS
 } from '../data/historyData';
 
 export default function History() {
   const [searchParams] = useSearchParams();
-  const [oralHistoryTracks, setOralHistoryTracks] = useState<AudioTrack[]>(FALLBACK_AUDIO_TRACKS);
-  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(FALLBACK_EVENTS);
+  const [oralHistoryTracks, setOralHistoryTracks] = useState<AudioTrack[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter States
@@ -108,17 +106,7 @@ export default function History() {
         console.error('History: failed to load oral history table:', e);
       }
 
-      if (dbTracks.length > 0) {
-        const combined = [...dbTracks];
-        FALLBACK_AUDIO_TRACKS.forEach(fallback => {
-          if (!combined.some(t => t.id === fallback.id || t.title.toLowerCase() === fallback.title.toLowerCase())) {
-            combined.push(fallback);
-          }
-        });
-        setOralHistoryTracks(combined);
-      } else {
-        setOralHistoryTracks(FALLBACK_AUDIO_TRACKS);
-      }
+      setOralHistoryTracks(dbTracks);
 
       // 2. Fetch history timeline events
       let dbTimeline: any[] = [];
@@ -139,43 +127,32 @@ export default function History() {
 
       if (dbTimeline.length > 0) {
         const blended = dbTimeline.map((row: any, idx: number): TimelineEvent => {
-          const match = FALLBACK_EVENTS.find(
-            fe => fe.title.toLowerCase().includes(row.title.toLowerCase()) || 
-                  row.title.toLowerCase().includes(fe.title.toLowerCase())
-          );
-
           const yearNum = parseInt(row.period || row.year || '0') || 1000 + idx * 100;
           const era: 'Pre-Colonial' | 'Colonial' | 'Modern' = 
             yearNum < 1890 ? 'Pre-Colonial' : yearNum < 1960 ? 'Colonial' : 'Modern';
 
           return {
             id: row.id ? String(row.id) : `dynamic-${idx}`,
-            period: row.period || row.year || match?.period || 'Unknown Era',
-            title: row.title || match?.title || 'Historical Event',
-            desc: row.desc || row.description || match?.desc || 'No description provided.',
-            detailedDesc: match?.detailedDesc || row.desc || row.description || 'No further details cataloged.',
-            category: match?.category || era,
-            theme: match?.theme || 'Settlement',
-            location: match?.location || 'Lake Kyoga',
-            relatedClans: match?.relatedClans || ['Bakenyi Clans'],
-            relatedLeaders: match?.relatedLeaders || ['Elders Council'],
-            image: match?.image || 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800',
-            year_order: row.year_order || match?.year_order || yearNum,
-            elderQuote: match?.elderQuote || undefined,
-            relatedTrackId: match?.relatedTrackId || undefined
+            period: row.period || row.year || 'Unknown Era',
+            title: row.title || 'Historical Event',
+            desc: row.desc || row.description || 'No description provided.',
+            detailedDesc: row.desc || row.description || 'No further details cataloged.',
+            category: era,
+            theme: row.theme || 'Settlement',
+            location: row.location || 'Lake Kyoga',
+            relatedClans: row.related_clans || ['Bakenyi Clans'],
+            relatedLeaders: row.related_leaders || ['Elders Council'],
+            image: row.image_url || 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=800',
+            year_order: row.year_order || yearNum,
+            elderQuote: row.elder_quote || undefined,
+            relatedTrackId: row.related_track_id || undefined
           };
-        });
-
-        FALLBACK_EVENTS.forEach(fallback => {
-          if (!blended.some(e => e.title.toLowerCase() === fallback.title.toLowerCase())) {
-            blended.push(fallback);
-          }
         });
 
         blended.sort((a, b) => (a.year_order || 0) - (b.year_order || 0));
         setTimelineEvents(blended);
       } else {
-        setTimelineEvents(FALLBACK_EVENTS);
+        setTimelineEvents([]);
       }
 
       setLoading(false);
@@ -373,7 +350,7 @@ export default function History() {
   });
 
   return (
-    <div className="min-h-screen bg-[#fcfaf7] text-[#2c1d11] font-sans overflow-x-hidden selection:bg-heritage-terracotta/20 selection:text-heritage-terracotta">
+    <div className="min-h-screen bg-[#fcfaf7] dark:bg-stone-950 text-[#2c1d11] dark:text-stone-100 font-sans overflow-x-hidden selection:bg-heritage-terracotta/20 selection:text-heritage-terracotta">
       <SEO 
         title="Chronicles of the Waters: History & Timelines"
         description="Listen to direct recordings from community Elders and explore the chronological timeline of the migrations and settlements of Bakenye lake-dwelling societies."
@@ -491,11 +468,11 @@ export default function History() {
               <Map className="w-5 h-5" />
               <span className="text-xs font-bold uppercase tracking-widest">The Great Migration</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#2c1d11]">Migration from the Lakeshores</h2>
-            <p className="text-[#2c1d11]/80 leading-relaxed text-base md:text-lg">
+            <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#2c1d11] dark:text-white">Migration from the Lakeshores</h2>
+            <p className="text-[#2c1d11]/80 dark:text-stone-300 leading-relaxed text-base md:text-lg">
               Historical oral traditions suggest that the Bakenyi entered the Lake Kyoga region from multiple directions. One significant route traces ancestry to the ancestors of the Baganda and Basoga near Lake Victoria, while another branch shares lineage roots with the people of Bunyoro.
             </p>
-            <p className="text-[#2c1d11]/80 leading-relaxed text-base md:text-lg">
+            <p className="text-[#2c1d11]/80 dark:text-stone-300 leading-relaxed text-base md:text-lg">
               Known as the 'Water People', the Bakenyi were the master navigators long before modern exploration. They were recognized for their unique dugout canoes and their reliance on the papyrus floating islands, which acted as mobile homes and protective fortresses.
             </p>
           </motion.div>
@@ -510,11 +487,11 @@ export default function History() {
               <BookOpen className="w-5 h-5" />
               <span className="text-xs font-bold uppercase tracking-widest">Oral Tradition</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#2c1d11]">The Power of the Word</h2>
-            <p className="text-[#2c1d11]/80 leading-relaxed text-base md:text-lg">
+            <h2 className="text-3xl md:text-4xl font-serif font-bold text-[#2c1d11] dark:text-white">The Power of the Word</h2>
+            <p className="text-[#2c1d11]/80 dark:text-stone-300 leading-relaxed text-base md:text-lg">
               For centuries, Bakenyi history was preserved through 'Engero' (proverbs) and epic storytelling sessions around fires at night. Elders would recount the heroic acts of clan leaders who navigated the treacherous storms of Lake Kyoga and successfully negotiated peace with neighboring tribes.
             </p>
-            <div className="bg-[#5f6f52]/5 p-8 rounded-3xl border-l-4 border-[#5f6f52] italic text-[#2c1d11]/80 text-sm md:text-base leading-relaxed">
+            <div className="bg-[#5f6f52]/5 dark:bg-[#5f6f52]/10 p-8 rounded-3xl border-l-4 border-[#5f6f52] italic text-[#2c1d11]/80 dark:text-stone-300 text-sm md:text-base leading-relaxed">
               "We do not write on paper alone; we write on the hearts of our children. When an elder dies, it is as if a whole library has burned down." 
               <span className="block mt-4 font-bold text-xs uppercase not-italic text-[#5f6f52]">— Traditional Wisdom</span>
             </div>
@@ -523,7 +500,7 @@ export default function History() {
       </section>
 
       {/* 3. Interactive Vertical Alternating Timeline */}
-      <section id="vertical-timeline" className="py-24 bg-[#fbf9f4] border-b border-stone-200 relative">
+      <section id="vertical-timeline" className="py-24 bg-[#fbf9f4] dark:bg-stone-900/20 border-b border-stone-200 dark:border-stone-800/80 relative">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           
           {/* Section Header */}
@@ -532,15 +509,15 @@ export default function History() {
               <Clock className="w-3.5 h-3.5" />
               <span>Interactive Exhibition Chronicle</span>
             </div>
-            <h2 className="text-3xl sm:text-5xl font-serif font-black text-[#2c1d11] tracking-tight">The River of Time</h2>
-            <p className="text-stone-600 text-sm md:text-base leading-relaxed font-medium">
+            <h2 className="text-3xl sm:text-5xl font-serif font-black text-[#2c1d11] dark:text-white tracking-tight">The River of Time</h2>
+            <p className="text-stone-600 dark:text-stone-300 text-sm md:text-base leading-relaxed font-medium">
               Journey chronologically through Bakenyi history. Filter milestones by era, theme, location, or clan, and listen to first-hand accounts by clicking on events.
             </p>
           </div>
 
           {/* Timeline Multi-Criteria Filters Panel */}
-          <div className="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4 mb-12 max-w-6xl mx-auto text-left">
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-stone-100">
+          <div className="bg-white dark:bg-stone-900 p-6 rounded-3xl border border-stone-200/80 dark:border-stone-800 shadow-sm space-y-4 mb-12 max-w-6xl mx-auto text-left">
+            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
               <span className="text-xs font-black uppercase tracking-wider text-stone-400 flex items-center">
                 <Search className="w-4 h-4 mr-2 text-[#c2593f]" />
                 Interactive Search & Filters
@@ -572,7 +549,7 @@ export default function History() {
                     placeholder="Search titles, logs..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-[#fcfaf7] border border-stone-200 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-[#c2593f] transition-colors"
+                    className="w-full bg-[#fcfaf7] dark:bg-stone-850 border border-stone-200 dark:border-stone-800 rounded-xl pl-9 pr-4 py-2 text-xs text-stone-800 dark:text-stone-100 focus:outline-none focus:border-[#c2593f] transition-colors"
                   />
                 </div>
               </div>
@@ -583,7 +560,7 @@ export default function History() {
                 <select 
                   value={selectedEra}
                   onChange={(e) => setSelectedEra(e.target.value)}
-                  className="w-full bg-[#fcfaf7] border border-stone-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#c2593f] cursor-pointer"
+                  className="w-full bg-[#fcfaf7] dark:bg-stone-850 border border-stone-200 dark:border-stone-800 rounded-xl px-3 py-2 text-xs text-stone-800 dark:text-stone-100 focus:outline-none focus:border-[#c2593f] cursor-pointer"
                 >
                   <option value="All">All Eras</option>
                   <option value="Pre-Colonial">Pre-Colonial</option>
@@ -598,7 +575,7 @@ export default function History() {
                 <select 
                   value={selectedTheme}
                   onChange={(e) => setSelectedTheme(e.target.value)}
-                  className="w-full bg-[#fcfaf7] border border-stone-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#c2593f] cursor-pointer"
+                  className="w-full bg-[#fcfaf7] dark:bg-stone-850 border border-stone-200 dark:border-stone-800 rounded-xl px-3 py-2 text-xs text-stone-800 dark:text-stone-100 focus:outline-none focus:border-[#c2593f] cursor-pointer"
                 >
                   <option value="All">All Themes</option>
                   <option value="Migration">Migration</option>
@@ -614,7 +591,7 @@ export default function History() {
                 <select 
                   value={selectedClan}
                   onChange={(e) => setSelectedClan(e.target.value)}
-                  className="w-full bg-[#fcfaf7] border border-stone-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#c2593f] cursor-pointer"
+                  className="w-full bg-[#fcfaf7] dark:bg-stone-850 border border-stone-200 dark:border-stone-800 rounded-xl px-3 py-2 text-xs text-stone-800 dark:text-stone-100 focus:outline-none focus:border-[#c2593f] cursor-pointer"
                 >
                   <option value="All">All Clans</option>
                   <option value="Baise-Mugaya">Baise-Mugaya</option>
@@ -629,7 +606,7 @@ export default function History() {
                 <select 
                   value={selectedLocation}
                   onChange={(e) => setSelectedLocation(e.target.value)}
-                  className="w-full bg-[#fcfaf7] border border-stone-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#c2593f] cursor-pointer"
+                  className="w-full bg-[#fcfaf7] dark:bg-stone-850 border border-stone-200 dark:border-stone-800 rounded-xl px-3 py-2 text-xs text-stone-800 dark:text-stone-100 focus:outline-none focus:border-[#c2593f] cursor-pointer"
                 >
                   <option value="All">All Regions</option>
                   <option value="Victoria Nile">Victoria Nile</option>
@@ -648,10 +625,10 @@ export default function History() {
             <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-0.5 border-l-2 border-dashed border-[#dfc29a]/80 -translate-x-1/2 z-0" />
 
             {filteredTimeline.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-3xl border border-stone-200 shadow-sm max-w-2xl mx-auto px-6">
+              <div className="text-center py-20 bg-white dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800 shadow-sm max-w-2xl mx-auto px-6">
                 <AlertCircle className="w-12 h-12 text-[#c2593f]/60 mx-auto mb-4 animate-bounce" />
-                <h3 className="text-lg font-serif font-bold mb-1">No Milestones Found</h3>
-                <p className="text-sm text-stone-500 max-w-md mx-auto">
+                <h3 className="text-lg font-serif font-bold mb-1 dark:text-white">No Milestones Found</h3>
+                <p className="text-sm text-stone-500 dark:text-stone-400 max-w-md mx-auto">
                   No chronological events match your selected combination of era, theme, clan, and keyword filters.
                 </p>
                 <button 
@@ -684,17 +661,17 @@ export default function History() {
                       <div className="w-full hidden md:block" />
 
                       {/* Timeline Central Node Dot */}
-                      <div className="absolute left-8 md:left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-[#fcfaf7] border-4 border-[#c2593f] flex items-center justify-center shadow-md z-20 mt-6">
+                      <div className="absolute left-8 md:left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-[#fcfaf7] dark:bg-stone-900 border-4 border-[#c2593f] flex items-center justify-center shadow-md z-20 mt-6">
                         <div className="w-2.5 h-2.5 rounded-full bg-[#c2593f]" />
                       </div>
 
                       {/* Content Card Panel */}
                       <div className="w-full pl-16 md:pl-0 md:px-12">
                         <div 
-                          className="bg-white border border-stone-200/80 rounded-[32px] overflow-hidden hover:border-[#c2593f]/50 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col h-full hover:-translate-y-1"
+                          className="bg-white dark:bg-stone-900 border border-stone-200/80 dark:border-stone-800 rounded-[32px] overflow-hidden hover:border-[#c2593f]/50 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col h-full hover:-translate-y-1"
                         >
                           {/* Event Cover Image */}
-                          <div className="h-48 relative overflow-hidden bg-stone-100 shrink-0">
+                          <div className="h-48 relative overflow-hidden bg-stone-100 dark:bg-stone-950 shrink-0">
                             <img 
                               src={event.image} 
                               alt={event.title} 
@@ -717,33 +694,33 @@ export default function History() {
                                 <span className="text-[9px] font-black uppercase tracking-wider text-[#c2593f] bg-[#c2593f]/10 border border-[#c2593f]/10 px-2 py-0.5 rounded-md">
                                   {event.category}
                                 </span>
-                                <span className="text-[9px] font-black uppercase tracking-wider text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md flex items-center">
+                                <span className="text-[9px] font-black uppercase tracking-wider text-stone-500 dark:text-stone-400 bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-md flex items-center">
                                   <MapPin className="w-2.5 h-2.5 mr-0.5" />
                                   {event.location}
                                 </span>
-                                <span className="text-[9px] font-black uppercase tracking-wider text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md">
+                                <span className="text-[9px] font-black uppercase tracking-wider text-stone-500 dark:text-stone-400 bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-md">
                                   {event.theme}
                                 </span>
                               </div>
 
-                              <h3 className="text-xl sm:text-2xl font-serif font-black text-[#2c1d11]">
+                              <h3 className="text-xl sm:text-2xl font-serif font-black text-[#2c1d11] dark:text-white">
                                 {event.title}
                               </h3>
 
-                              <p className="text-sm text-stone-600 leading-relaxed font-sans line-clamp-3">
+                              <p className="text-sm text-stone-600 dark:text-stone-300 leading-relaxed font-sans line-clamp-3">
                                 {event.desc}
                               </p>
 
                               {/* Key Custodians & Clans badges */}
-                              <div className="pt-3 border-t border-stone-100 flex flex-wrap gap-2 items-center text-xs text-stone-500">
+                              <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex flex-wrap gap-2 items-center text-xs text-stone-500 dark:text-stone-400">
                                 <span className="font-mono text-[10px] text-stone-400">Related:</span>
                                 {event.relatedClans.map(clanName => (
-                                  <span key={clanName} className="bg-stone-50 border border-stone-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-[#2c1d11]/80">
+                                  <span key={clanName} className="bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-[#2c1d11]/80 dark:text-stone-200">
                                     {clanName}
                                   </span>
                                 ))}
                                 {event.relatedLeaders.map(leaderName => (
-                                  <span key={leaderName} className="bg-stone-50 border border-stone-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-stone-600 italic">
+                                  <span key={leaderName} className="bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-stone-600 dark:text-stone-300 italic">
                                     {leaderName}
                                   </span>
                                 ))}
@@ -751,10 +728,10 @@ export default function History() {
                             </div>
 
                             {/* Action Row */}
-                            <div className="pt-4 border-t border-stone-100 flex flex-wrap items-center justify-between gap-4">
+                            <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex flex-wrap items-center justify-between gap-4">
                               <button 
                                 onClick={() => setSelectedEvent(event)}
-                                className="inline-flex items-center space-x-1.5 text-xs font-black uppercase tracking-wider text-[#c2593f] hover:text-[#2c1d11] transition-colors"
+                                className="inline-flex items-center space-x-1.5 text-xs font-black uppercase tracking-wider text-[#c2593f] hover:text-[#2c1d11] dark:hover:text-white transition-colors"
                               >
                                 <span>Examine Archive</span>
                                 <ArrowRight className="w-3.5 h-3.5" />
@@ -1369,17 +1346,17 @@ export default function History() {
       </section>
 
       {/* 6. Historical Documents Section */}
-      <section id="historical-documents" className="py-24 bg-[#fbf9f4] border-b border-stone-200">
+      <section id="historical-documents" className="py-24 bg-[#fbf9f4] dark:bg-stone-900/40 border-b border-stone-200 dark:border-stone-800">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 bg-[#c2593f]/10 border border-[#c2593f]/20 text-[#c2593f] rounded-full text-[10px] font-black uppercase tracking-wider">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 bg-[#c2593f]/10 dark:bg-[#c2593f]/20 border border-[#c2593f]/20 dark:border-[#c2593f]/40 text-[#c2593f] dark:text-[#f4a261] rounded-full text-[10px] font-black uppercase tracking-wider">
               <FileText className="w-3.5 h-3.5" />
               <span>Chamber of Manuscripts</span>
             </div>
-            <h2 className="text-3xl sm:text-5xl font-serif font-black text-[#2c1d11] tracking-tight">Preserved Documents</h2>
-            <p className="text-stone-600 text-sm md:text-base leading-relaxed font-medium">
+            <h2 className="text-3xl sm:text-5xl font-serif font-black text-[#2c1d11] dark:text-white tracking-tight">Preserved Documents</h2>
+            <p className="text-stone-600 dark:text-stone-300 text-sm md:text-base leading-relaxed font-medium">
               Examine transcribes, colonial survey papers, structural maps, and grammatical registers certified by our heritage council experts.
             </p>
           </div>
@@ -1391,10 +1368,10 @@ export default function History() {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                className="bg-white border border-stone-200 rounded-[28px] p-6 hover:border-[#c2593f]/40 hover:shadow-xl transition-all flex flex-col justify-between text-left h-full group"
+                className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-[28px] p-6 hover:border-[#c2593f]/40 hover:shadow-xl transition-all flex flex-col justify-between text-left h-full group"
               >
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                  <div className="flex items-center justify-between border-b border-stone-100 dark:border-stone-800 pb-3">
                     <span className="text-[9px] font-black uppercase tracking-wider text-[#c2593f] bg-[#c2593f]/10 px-2 py-0.5 rounded-md">
                       {doc.category}
                     </span>
@@ -1403,34 +1380,34 @@ export default function History() {
                     </span>
                   </div>
 
-                  <h3 className="text-base font-serif font-black leading-snug text-[#2c1d11] group-hover:text-[#c2593f] transition-colors line-clamp-2">
+                  <h3 className="text-base font-serif font-black leading-snug text-[#2c1d11] dark:text-stone-100 group-hover:text-[#c2593f] dark:group-hover:text-[#f4a261] transition-colors line-clamp-2">
                     {doc.title}
                   </h3>
                   
-                  <p className="text-xs text-stone-500 font-sans leading-relaxed line-clamp-4">
+                  <p className="text-xs text-stone-500 dark:text-stone-400 font-sans leading-relaxed line-clamp-4">
                     {doc.excerpt}
                   </p>
 
                   <p className="text-[10px] font-medium text-stone-400">
-                    By: <span className="text-stone-600 font-semibold">{doc.author}</span>
+                    By: <span className="text-stone-600 dark:text-stone-300 font-semibold">{doc.author}</span>
                   </p>
                 </div>
 
-                <div className="pt-4 mt-6 border-t border-stone-100 flex items-center justify-between">
+                <div className="pt-4 mt-6 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
                   <span className="text-[10px] font-mono text-stone-400 font-bold">
                     {doc.downloadSize} File
                   </span>
                   {doc.permitted ? (
                     <button 
                       onClick={() => alert(`Beginning secure download of "${doc.title}"...`)}
-                      className="px-3.5 py-1.5 bg-[#c2593f] hover:bg-[#2c1d11] text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-md"
+                      className="px-3.5 py-1.5 bg-[#c2593f] hover:bg-[#2c1d11] dark:hover:bg-stone-850 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-md"
                       title="Download Certified PDF"
                     >
                       <Download className="w-3 h-3" />
                       <span>Examine</span>
                     </button>
                   ) : (
-                    <span className="text-[9px] font-black uppercase tracking-wider text-stone-400 bg-stone-100 px-2.5 py-1.5 rounded-xl border border-stone-200">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-stone-400 dark:text-stone-500 bg-stone-100 dark:bg-stone-850 px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-stone-800">
                       Restricted Access
                     </span>
                   )}
@@ -1455,30 +1432,30 @@ export default function History() {
       </section>
 
       {/* 8. Continue Exploring Footer Directory */}
-      <section className="py-24 bg-[#fcfaf7]">
+      <section className="py-24 bg-[#fcfaf7] dark:bg-stone-950">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           
           {/* Header */}
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-            <h3 className="text-2xl sm:text-4xl font-serif font-black text-[#2c1d11]">Continue Exploring the Platform</h3>
-            <p className="text-stone-500 text-sm leading-relaxed">
+            <h3 className="text-2xl sm:text-4xl font-serif font-black text-[#2c1d11] dark:text-white">Continue Exploring the Platform</h3>
+            <p className="text-stone-500 dark:text-stone-400 text-sm leading-relaxed">
               Continue your walkthrough journey across other sectors of Bakenyi cultural databases.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <Link to="/clans" className="group">
-              <div className="bg-white border border-stone-200 p-6 rounded-[32px] text-left space-y-4 hover:border-[#c2593f]/40 hover:shadow-xl transition-all h-full flex flex-col justify-between">
+              <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-6 rounded-[32px] text-left space-y-4 hover:border-[#c2593f]/40 hover:shadow-xl transition-all h-full flex flex-col justify-between">
                 <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#c2593f]/10 flex items-center justify-center text-[#c2593f]">
+                  <div className="w-10 h-10 rounded-2xl bg-[#c2593f]/10 dark:bg-[#c2593f]/20 flex items-center justify-center text-[#c2593f] dark:text-[#f4a261]">
                     <Globe className="w-5 h-5" />
                   </div>
-                  <h4 className="text-lg font-serif font-black text-[#2c1d11] group-hover:text-[#c2593f] transition-colors">Water-Based Clans</h4>
-                  <p className="text-xs text-stone-500 leading-relaxed font-sans">
+                  <h4 className="text-lg font-serif font-black text-[#2c1d11] dark:text-stone-100 group-hover:text-[#c2593f] dark:group-hover:text-[#f4a261] transition-colors">Water-Based Clans</h4>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed font-sans">
                     Inspect the registered lineages, mottos, and sacred aquatic totems of the Bakenyi people.
                   </p>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#c2593f] group-hover:gap-2 transition-all pt-2">
+                <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#c2593f] dark:text-[#f4a261] group-hover:gap-2 transition-all pt-2">
                   <span>Explore Clans</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </div>
@@ -1486,17 +1463,17 @@ export default function History() {
             </Link>
 
             <Link to="/leadership" className="group">
-              <div className="bg-white border border-stone-200 p-6 rounded-[32px] text-left space-y-4 hover:border-[#c2593f]/40 hover:shadow-xl transition-all h-full flex flex-col justify-between">
+              <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-6 rounded-[32px] text-left space-y-4 hover:border-[#c2593f]/40 hover:shadow-xl transition-all h-full flex flex-col justify-between">
                 <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#c2593f]/10 flex items-center justify-center text-[#c2593f]">
+                  <div className="w-10 h-10 rounded-2xl bg-[#c2593f]/10 dark:bg-[#c2593f]/20 flex items-center justify-center text-[#c2593f] dark:text-[#f4a261]">
                     <User className="w-5 h-5" />
                   </div>
-                  <h4 className="text-lg font-serif font-black text-[#2c1d11] group-hover:text-[#c2593f] transition-colors">Elder Councils</h4>
-                  <p className="text-xs text-stone-500 leading-relaxed font-sans">
+                  <h4 className="text-lg font-serif font-black text-[#2c1d11] dark:text-stone-100 group-hover:text-[#c2593f] dark:group-hover:text-[#f4a261] transition-colors">Elder Councils</h4>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed font-sans">
                     Read biography profiles of historical lineage chiefs and active community custodians.
                   </p>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#c2593f] group-hover:gap-2 transition-all pt-2">
+                <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#c2593f] dark:text-[#f4a261] group-hover:gap-2 transition-all pt-2">
                   <span>Explore Councils</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </div>
@@ -1504,17 +1481,17 @@ export default function History() {
             </Link>
 
             <Link to="/language" className="group">
-              <div className="bg-white border border-stone-200 p-6 rounded-[32px] text-left space-y-4 hover:border-[#c2593f]/40 hover:shadow-xl transition-all h-full flex flex-col justify-between">
+              <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-6 rounded-[32px] text-left space-y-4 hover:border-[#c2593f]/40 hover:shadow-xl transition-all h-full flex flex-col justify-between">
                 <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#c2593f]/10 flex items-center justify-center text-[#c2593f]">
+                  <div className="w-10 h-10 rounded-2xl bg-[#c2593f]/10 dark:bg-[#c2593f]/20 flex items-center justify-center text-[#c2593f] dark:text-[#f4a261]">
                     <Languages className="w-5 h-5" />
                   </div>
-                  <h4 className="text-lg font-serif font-black text-[#2c1d11] group-hover:text-[#c2593f] transition-colors">Lukenye Glossary</h4>
-                  <p className="text-xs text-stone-500 leading-relaxed font-sans">
+                  <h4 className="text-lg font-serif font-black text-[#2c1d11] dark:text-stone-100 group-hover:text-[#c2593f] dark:group-hover:text-[#f4a261] transition-colors">Lukenye Glossary</h4>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed font-sans">
                     Study the dictionary codes, maritime verbs, and phonological terms of our Bantu dialect.
                   </p>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#c2593f] group-hover:gap-2 transition-all pt-2">
+                <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#c2593f] dark:text-[#f4a261] group-hover:gap-2 transition-all pt-2">
                   <span>Study Glossary</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </div>
@@ -1522,17 +1499,17 @@ export default function History() {
             </Link>
 
             <Link to="/gallery" className="group">
-              <div className="bg-white border border-stone-200 p-6 rounded-[32px] text-left space-y-4 hover:border-[#c2593f]/40 hover:shadow-xl transition-all h-full flex flex-col justify-between">
+              <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-6 rounded-[32px] text-left space-y-4 hover:border-[#c2593f]/40 hover:shadow-xl transition-all h-full flex flex-col justify-between">
                 <div className="space-y-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#c2593f]/10 flex items-center justify-center text-[#c2593f]">
+                  <div className="w-10 h-10 rounded-2xl bg-[#c2593f]/10 dark:bg-[#c2593f]/20 flex items-center justify-center text-[#c2593f] dark:text-[#f4a261]">
                     <Sparkles className="w-5 h-5" />
                   </div>
-                  <h4 className="text-lg font-serif font-black text-[#2c1d11] group-hover:text-[#c2593f] transition-colors">Museum Gallery</h4>
-                  <p className="text-xs text-stone-500 leading-relaxed font-sans">
+                  <h4 className="text-lg font-serif font-black text-[#2c1d11] dark:text-stone-100 group-hover:text-[#c2593f] dark:group-hover:text-[#f4a261] transition-colors">Museum Gallery</h4>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed font-sans">
                     View photographic layouts of dugout crafts, ancient ritual drums, and wetland shore vistas.
                   </p>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#c2593f] group-hover:gap-2 transition-all pt-2">
+                <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#c2593f] dark:text-[#f4a261] group-hover:gap-2 transition-all pt-2">
                   <span>View Photos</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </div>
@@ -1561,7 +1538,7 @@ export default function History() {
               initial={{ opacity: 0, scale: 0.95, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 30 }}
-              className="bg-[#fcfaf7] w-full max-w-4xl rounded-[36px] border border-stone-200 shadow-2xl relative overflow-hidden z-10 max-h-[90vh] flex flex-col md:flex-row text-left"
+              className="bg-[#fcfaf7] dark:bg-stone-900 w-full max-w-4xl rounded-[36px] border border-stone-200 dark:border-stone-800 shadow-2xl relative overflow-hidden z-10 max-h-[90vh] flex flex-col md:flex-row text-left"
             >
               {/* Close Floating button */}
               <button 
@@ -1573,7 +1550,7 @@ export default function History() {
               </button>
 
               {/* Graphic Cover Column */}
-              <div className="md:w-[42%] relative h-60 md:h-auto shrink-0 border-r border-stone-200/40">
+              <div className="md:w-[42%] relative h-60 md:h-auto shrink-0 border-r border-stone-200/40 dark:border-stone-800">
                 <img 
                   src={selectedEvent.image} 
                   alt={selectedEvent.title} 
@@ -1594,37 +1571,37 @@ export default function History() {
               <div className="md:w-[58%] p-6 sm:p-10 overflow-y-auto max-h-[60vh] md:max-h-[90vh] flex flex-col justify-between scrollbar-thin space-y-6">
                 <div className="space-y-6">
                   {/* Top info tags */}
-                  <div className="hidden md:flex items-center justify-between pb-4 border-b border-stone-200/40">
+                  <div className="hidden md:flex items-center justify-between pb-4 border-b border-stone-200/40 dark:border-stone-800">
                     <span className="text-xs font-black text-white bg-[#c2593f] px-3.5 py-1 rounded-full uppercase tracking-wider">
                       {selectedEvent.period}
                     </span>
-                    <span className="text-xs font-black uppercase tracking-widest text-[#c2593f] bg-[#c2593f]/10 px-3 py-1 rounded-md">
+                    <span className="text-xs font-black uppercase tracking-widest text-[#c2593f] dark:text-[#f4a261] bg-[#c2593f]/10 dark:bg-[#c2593f]/20 px-3 py-1 rounded-md">
                       {selectedEvent.category} Era
                     </span>
                   </div>
 
                   {/* Title */}
                   <div className="hidden md:block">
-                    <h3 className="text-2xl sm:text-3xl font-serif font-black text-[#2c1d11] leading-tight">
+                    <h3 className="text-2xl sm:text-3xl font-serif font-black text-[#2c1d11] dark:text-white leading-tight">
                       {selectedEvent.title}
                     </h3>
                     <p className="text-xs text-stone-400 font-bold flex items-center mt-2 uppercase tracking-wider">
                       <MapPin className="w-4 h-4 mr-1 text-[#c2593f]" />
-                      Location: <span className="text-stone-600 ml-1">{selectedEvent.location}</span>
+                      Location: <span className="text-stone-600 dark:text-stone-300 ml-1">{selectedEvent.location}</span>
                     </p>
                   </div>
 
                   {/* Narratives */}
                   <div className="space-y-2">
                     <span className="text-[10px] font-mono font-black uppercase tracking-widest text-stone-400 block">Exhibition Narrative Logs</span>
-                    <p className="text-sm text-stone-600 leading-relaxed">
+                    <p className="text-sm text-stone-600 dark:text-stone-300 leading-relaxed">
                       {selectedEvent.detailedDesc}
                     </p>
                   </div>
 
                   {/* Quote block */}
                   {selectedEvent.elderQuote && (
-                    <div className="bg-[#c2593f]/5 border-l-4 border-[#c2593f] p-5 rounded-2xl italic text-sm text-stone-600 leading-relaxed">
+                    <div className="bg-[#c2593f]/5 dark:bg-[#c2593f]/10 border-l-4 border-[#c2593f] p-5 rounded-2xl italic text-sm text-stone-600 dark:text-stone-300 leading-relaxed">
                       {selectedEvent.elderQuote}
                     </div>
                   )}
@@ -1634,12 +1611,12 @@ export default function History() {
                     <span className="text-[10px] font-mono font-black uppercase tracking-widest text-stone-400 block">Lineages & Leaders Involved</span>
                     <div className="flex flex-wrap gap-2">
                       {selectedEvent.relatedClans.map(clanName => (
-                        <span key={clanName} className="bg-stone-100 border border-stone-200 px-3 py-1 rounded-full text-xs font-bold text-[#2c1d11]">
+                        <span key={clanName} className="bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 px-3 py-1 rounded-full text-xs font-bold text-[#2c1d11] dark:text-stone-200">
                           {clanName} Clan
                         </span>
                       ))}
                       {selectedEvent.relatedLeaders.map(leaderName => (
-                        <span key={leaderName} className="bg-stone-100 border border-stone-200 px-3 py-1 rounded-full text-xs font-bold text-stone-600 italic">
+                        <span key={leaderName} className="bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 px-3 py-1 rounded-full text-xs font-bold text-stone-600 dark:text-stone-300 italic">
                           {leaderName}
                         </span>
                       ))}
@@ -1648,7 +1625,7 @@ export default function History() {
                 </div>
 
                 {/* Footer and play actions */}
-                <div className="pt-6 border-t border-stone-200/40 flex flex-wrap items-center justify-between gap-4 shrink-0">
+                <div className="pt-6 border-t border-stone-200/40 dark:border-stone-800 flex flex-wrap items-center justify-between gap-4 shrink-0">
                   <span className="text-[10px] text-stone-400 flex items-center font-bold">
                     <BookOpen className="w-4 h-4 mr-1.5 text-[#c2593f]/60" />
                     Transcribed by Eldership Councils

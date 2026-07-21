@@ -2,11 +2,12 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { Clock, Share2, Bookmark, Check, ArrowRight, ChevronRight } from 'lucide-react';
-import { dailySpotlights, SpotlightItem } from '../../data/dailyHeritage';
+import { SpotlightItem } from '../../data/dailyHeritage';
 import { Button, Badge, FadeIn } from '../ui';
 
 interface DailySpotlightProps {
-  dailySpotlight: SpotlightItem;
+  dailySpotlight: SpotlightItem | null;
+  dynamicSpotlights?: SpotlightItem[];
   shareNotification: string | null;
   bookmarks: string[];
   toggleBookmark: (id: string) => void;
@@ -16,12 +17,30 @@ interface DailySpotlightProps {
 
 export default function DailySpotlight({
   dailySpotlight,
+  dynamicSpotlights = [],
   shareNotification,
   bookmarks,
   toggleBookmark,
   handleShare,
   addToRecentlyViewed,
 }: DailySpotlightProps) {
+  if (!dailySpotlight) {
+    return (
+      <section 
+        id="daily-spotlight-exhibit" 
+        className="py-20 bg-[#faf8f5] dark:bg-stone-950 border-b border-heritage-brown/5 dark:border-white/5 relative text-left"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center py-16">
+          <Clock className="w-12 h-12 text-heritage-brown/30 mx-auto mb-4" />
+          <h3 className="text-xl font-serif font-black text-heritage-brown dark:text-white mb-2">Today's Exhibit Preparing</h3>
+          <p className="text-sm text-stone-500 max-w-md mx-auto">
+            The Elder Council is currently reviewing and verifying cultural collections. Approved heritage articles, vocabulary, and clan records will rotate here daily.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section 
       id="daily-spotlight-exhibit" 
@@ -163,9 +182,10 @@ export default function DailySpotlight({
 
           {/* Right Block: Rotating curators list */}
           <div className="lg:col-span-4 flex flex-col gap-6 justify-between h-full">
-            {[1, 2].map((offset, idx) => {
-              const index = (new Date().getDate() + offset) % dailySpotlights.length;
-              const spotlight = dailySpotlights[index];
+            {(dynamicSpotlights.length > 1 ? [1, 2] : []).map((offset, idx) => {
+              const index = (new Date().getDate() + offset) % dynamicSpotlights.length;
+              const spotlight = dynamicSpotlights[index];
+              if (!spotlight) return null;
               return (
                 <FadeIn key={offset} direction="right" delay={idx * 0.15} className="flex-1">
                   <div

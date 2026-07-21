@@ -180,37 +180,6 @@ const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
   }
 ];
 
-const DEFAULT_COMMUNITY_UPDATES: CommunityUpdateItem[] = [
-  {
-    id: 'com-1',
-    title: 'Annual Canoe Craft Regatta Dates Finalized',
-    body: 'The Bakenyi Cultural Council is proud to announce that the annual gathering on Lake Kyoga is officially set for next month. Members are encouraged to register early to watch traditional boat races and enjoy live oral stories by campfire. There will be dedicated zones for children to learn basic vocabulary.',
-    author: 'Council Secretary',
-    category: 'event',
-    publishedAt: 'July 12, 2026',
-    likes: 42,
-    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=800'
-  },
-  {
-    id: 'com-2',
-    title: 'Elder Moses Musuusu Appointed Primary Language Custodian',
-    body: 'We celebrate the historic appointment of Elder Moses Musuusu as the Chief Linguist for the Lukenye Dialect Preservation Commission. His team will lead the effort to translate regional ancestral archives and record authentic audio vocabulary.',
-    author: 'Heritage Council Board',
-    category: 'news',
-    publishedAt: 'July 09, 2026',
-    likes: 78
-  },
-  {
-    id: 'com-3',
-    title: 'Traditional papyrus woven shields added to permanent vault',
-    body: 'Three well-preserved ceremonial shields, estimated to date back to 1895, have been donated back to the Bakenyi vault. High-definition scans and 3D photographs are currently being prepared for a digital exhibition in the member sanctuary.',
-    author: 'Archive Custodian',
-    category: 'highlight',
-    publishedAt: 'July 05, 2026',
-    likes: 56,
-    image: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&q=80&w=800'
-  }
-];
 
 const DEFAULT_EVENTS: HeritageEvent[] = [
   {
@@ -1676,19 +1645,25 @@ END:VCALENDAR`;
                   </h3>
 
                   <div className="space-y-4">
-                    {DEFAULT_COMMUNITY_UPDATES.filter(u => u.category === 'announcement' || u.category === 'news').slice(0, 2).map((upd) => (
-                      <div key={upd.id} className="border-b border-heritage-brown/5 dark:border-slate-800 pb-3 last:border-b-0 last:pb-0">
-                        <span className="text-[9px] font-black uppercase text-heritage-terracotta tracking-wider block mb-1">
-                          {upd.publishedAt} • By {upd.author}
-                        </span>
-                        <h4 className="font-serif font-black text-xs text-heritage-brown dark:text-white leading-snug">
-                          {upd.title}
-                        </h4>
-                        <p className="text-[11px] text-heritage-brown/60 dark:text-slate-400 line-clamp-2 leading-relaxed mt-1">
-                          {upd.body}
-                        </p>
-                      </div>
-                    ))}
+                    {communityUpdates && communityUpdates.length > 0 ? (
+                      communityUpdates.slice(0, 3).map((upd) => (
+                        <div key={upd.id} className="border-b border-heritage-brown/5 dark:border-slate-800 pb-3 last:border-b-0 last:pb-0">
+                          <span className="text-[9px] font-black uppercase text-heritage-terracotta tracking-wider block mb-1">
+                            {upd.publishedAt} • By {upd.author}
+                          </span>
+                          <h4 className="font-serif font-black text-xs text-heritage-brown dark:text-white leading-snug">
+                            {upd.title}
+                          </h4>
+                          <p className="text-[11px] text-heritage-brown/60 dark:text-slate-400 line-clamp-2 leading-relaxed mt-1">
+                            {upd.body}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-[11px] text-stone-500 italic py-4 text-center">
+                        No recent dispatches published by the Elder Council yet. Approved logs, language additions, and stories will list here.
+                      </p>
+                    )}
                   </div>
 
                   <div className="pt-4 mt-4 border-t border-heritage-brown/5 dark:border-slate-800">

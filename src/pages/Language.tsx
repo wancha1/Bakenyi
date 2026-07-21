@@ -177,7 +177,7 @@ export default function Language() {
 
 
   return (
-    <div className="pt-24 min-h-screen bg-heritage-cream">
+    <div className="pt-24 min-h-screen bg-heritage-cream dark:bg-stone-950 transition-colors duration-300">
       <SEO 
         title="Learn Lukenye Language"
         description="Learn the native tongue of the Bakenye people with our interactive vocabulary lists, common phrases, audio pronunciation guides, and linguistic dialects."
@@ -211,25 +211,25 @@ export default function Language() {
       {/* Intro Section */}
       <section className="py-24 px-4">
         <div className="max-w-4xl mx-auto text-center mb-16">
-          <span className="inline-flex items-center space-x-2 text-heritage-terracotta font-bold text-xs uppercase tracking-widest mb-4">
+          <span className="inline-flex items-center space-x-2 text-heritage-terracotta dark:text-[#f4a261] font-bold text-xs uppercase tracking-widest mb-4">
             <Book className="w-4 h-4" />
             <span>Linguistic Heritage</span>
           </span>
-          <h2 className="text-3xl md:text-4xl font-serif font-bold text-heritage-brown mb-8 leading-tight">
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-heritage-brown dark:text-stone-100 mb-8 leading-tight">
             Why Lukenye Matters
           </h2>
-          <p className="text-lg text-heritage-brown/70 leading-relaxed text-center mb-8">
+          <p className="text-lg text-heritage-brown/70 dark:text-stone-300 leading-relaxed text-center mb-8">
             Lukenye is a unique Bantu language spoken by the Bakenyi people. It shares similarities with neighboring languages like Lusoga and Lugwere but retains distinct phonetic patterns and vocabulary specifically related to riverine and lacustrine (lake-based) life.
           </p>
           <div className="flex justify-center space-x-6">
             <div className="flex flex-col items-center">
-              <span className="text-2xl font-bold text-heritage-brown">~50k</span>
-              <span className="text-xs text-heritage-brown/40 uppercase font-bold tracking-tighter">Native Speakers</span>
+              <span className="text-2xl font-bold text-heritage-brown dark:text-stone-100">~50k</span>
+              <span className="text-xs text-heritage-brown/40 dark:text-stone-400 uppercase font-bold tracking-tighter">Native Speakers</span>
             </div>
-            <div className="w-px h-10 bg-heritage-brown/10" />
+            <div className="w-px h-10 bg-heritage-brown/10 dark:bg-stone-800" />
             <div className="flex flex-col items-center">
-              <span className="text-2xl font-bold text-heritage-brown">4+</span>
-              <span className="text-xs text-heritage-brown/40 uppercase font-bold tracking-tighter">Major Regions</span>
+              <span className="text-2xl font-bold text-heritage-brown dark:text-stone-100">4+</span>
+              <span className="text-xs text-heritage-brown/40 dark:text-stone-400 uppercase font-bold tracking-tighter">Major Regions</span>
             </div>
           </div>
         </div>
@@ -237,20 +237,20 @@ export default function Language() {
         {/* Phrases Grid */}
         <div className="max-w-7xl mx-auto">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[32px] border border-heritage-brown/10 max-w-3xl mx-auto">
+            <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-stone-900 rounded-[32px] border border-heritage-brown/10 dark:border-stone-800 max-w-3xl mx-auto">
               <div className="relative w-12 h-12">
                 <div className="absolute top-0 left-0 w-full h-full border-4 border-heritage-terracotta/20 rounded-full"></div>
                 <div className="absolute top-0 left-0 w-full h-full border-4 border-t-heritage-terracotta border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
               </div>
-              <p className="mt-4 text-xs font-bold text-heritage-brown/60 tracking-wider uppercase animate-pulse">
+              <p className="mt-4 text-xs font-bold text-heritage-brown/60 dark:text-stone-400 tracking-wider uppercase animate-pulse">
                 Accessing Bakenyi Linguistic registers...
               </p>
             </div>
           ) : phrases.length === 0 && counts.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-[32px] border-2 border-dashed border-heritage-brown/10 max-w-3xl mx-auto px-6 shadow-sm">
-              <Volume2 className="w-16 h-16 text-heritage-brown/20 mx-auto mb-6" />
-              <h3 className="text-xl font-serif font-bold text-heritage-brown mb-2">No phrases have been added to the glossary yet</h3>
-              <p className="text-sm text-heritage-brown/50 max-w-md mx-auto">
+            <div className="text-center py-20 bg-white dark:bg-stone-900 rounded-[32px] border-2 border-dashed border-heritage-brown/10 dark:border-stone-800 max-w-3xl mx-auto px-6 shadow-sm">
+              <Volume2 className="w-16 h-16 text-heritage-brown/20 dark:text-stone-700 mx-auto mb-6" />
+              <h3 className="text-xl font-serif font-bold text-heritage-brown dark:text-stone-100 mb-2">No phrases have been added to the glossary yet</h3>
+              <p className="text-sm text-heritage-brown/50 dark:text-stone-400 max-w-md mx-auto">
                 Linguistic entries are currently being authenticated by our cultural council. Please check back soon.
               </p>
             </div>
@@ -261,18 +261,18 @@ export default function Language() {
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-heritage-brown/5"
+                className="bg-white dark:bg-stone-900 rounded-[40px] p-8 md:p-12 shadow-sm border border-heritage-brown/5 dark:border-stone-800"
               >
-                <h3 className="text-3xl font-serif font-bold text-heritage-brown mb-10 flex items-center">
-                  <MessageSquare className="w-8 h-8 mr-4 text-heritage-terracotta" />
+                <h3 className="text-3xl font-serif font-bold text-heritage-brown dark:text-stone-100 mb-10 flex items-center">
+                  <MessageSquare className="w-8 h-8 mr-4 text-heritage-terracotta dark:text-[#f4a261]" />
                   Common Phrases
                 </h3>
                 {phrases.length === 0 ? (
-                  <p className="text-sm text-heritage-brown/40 italic">No common conversational phrases published yet.</p>
+                  <p className="text-sm text-heritage-brown/40 dark:text-stone-500 italic">No common conversational phrases published yet.</p>
                 ) : (
                   <div className="space-y-4">
                     {phrases.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between p-5 bg-heritage-cream/30 rounded-2xl hover:bg-heritage-cream/60 transition-all group">
+                      <div key={p.id} className="flex items-center justify-between p-5 bg-heritage-cream/30 dark:bg-stone-850 rounded-2xl hover:bg-heritage-cream/60 dark:hover:bg-stone-800 transition-all group">
                         <div className="flex items-center space-x-4">
                           <div className="relative">
                             {playingId === p.id && (
@@ -288,19 +288,19 @@ export default function Language() {
                               className={`relative z-10 p-3 rounded-full transition-all duration-300 ${
                                 playingId === p.id 
                                 ? 'bg-heritage-terracotta text-white' 
-                                : 'bg-white text-heritage-brown group-hover:bg-heritage-brown group-hover:text-white shadow-sm cursor-pointer'
+                                : 'bg-white dark:bg-stone-900 text-heritage-brown dark:text-stone-200 group-hover:bg-heritage-brown dark:group-hover:bg-heritage-terracotta group-hover:text-white dark:group-hover:text-white shadow-sm cursor-pointer'
                               }`}
                             >
                               {playingId === p.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                             </button>
                           </div>
                           <div>
-                            <h4 className="font-bold text-heritage-brown text-lg">{p.lukenye}</h4>
-                            <p className="text-sm text-heritage-brown/50">{p.english}</p>
+                            <h4 className="font-bold text-heritage-brown dark:text-stone-100 text-lg">{p.lukenye}</h4>
+                            <p className="text-sm text-heritage-brown/50 dark:text-stone-400">{p.english}</p>
                           </div>
                         </div>
                         {p.usage && (
-                          <span className="hidden md:block text-[10px] uppercase font-black text-heritage-brown/20 tracking-[0.2em]">
+                          <span className="hidden md:block text-[10px] uppercase font-black text-heritage-brown/20 dark:text-stone-500 tracking-[0.2em]">
                             {p.usage}
                           </span>
                         )}
@@ -351,31 +351,31 @@ export default function Language() {
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  className="bg-white p-12 rounded-[40px] border border-heritage-brown/5 shadow-sm"
+                  className="bg-white dark:bg-stone-900 p-12 rounded-[40px] border border-heritage-brown/5 dark:border-stone-800 shadow-sm"
                 >
-                  <h3 className="text-2xl font-serif font-bold text-heritage-brown mb-8 flex items-center">
-                    <Headphones className="w-6 h-6 mr-3 text-heritage-terracotta" />
+                  <h3 className="text-2xl font-serif font-bold text-heritage-brown dark:text-stone-100 mb-8 flex items-center">
+                    <Headphones className="w-6 h-6 mr-3 text-heritage-terracotta dark:text-[#f4a261]" />
                     Pronunciation Tool
                   </h3>
                   <div className="space-y-8">
                     <div className="flex items-start space-x-5">
                       <div className="w-10 h-10 rounded-2xl bg-heritage-terracotta/10 text-heritage-terracotta flex items-center justify-center shrink-0 font-black text-sm border border-heritage-terracotta/20">A</div>
-                      <p className="text-heritage-brown/70 text-sm leading-relaxed">Vowels are generally 'pure' (like in Italian or Spanish). 'A' is always like 'father'.</p>
+                      <p className="text-heritage-brown/70 dark:text-stone-300 text-sm leading-relaxed">Vowels are generally 'pure' (like in Italian or Spanish). 'A' is always like 'father'.</p>
                     </div>
                     <div className="flex items-start space-x-5">
                       <div className="w-10 h-10 rounded-2xl bg-heritage-terracotta/10 text-heritage-terracotta flex items-center justify-center shrink-0 font-black text-sm border border-heritage-terracotta/20">DH</div>
-                      <p className="text-heritage-brown/70 text-sm leading-relaxed">The 'DH' sound is similar to the English 'th' in 'there', often found in words like 'Amadhi' (water).</p>
+                      <p className="text-heritage-brown/70 dark:text-stone-300 text-sm leading-relaxed">The 'DH' sound is similar to the English 'th' in 'there', often found in words like 'Amadhi' (water).</p>
                     </div>
                     
                     {/* Interactive Player Placeholder */}
-                    <div className="p-8 bg-heritage-cream/30 rounded-[30px] border border-heritage-brown/5 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="p-8 bg-heritage-cream/30 dark:bg-stone-850 rounded-[30px] border border-heritage-brown/5 dark:border-stone-800 flex flex-col md:flex-row items-center justify-between gap-6">
                       <div className="flex items-center text-left">
                         <div className="w-14 h-14 rounded-full bg-heritage-olive flex items-center justify-center text-white mr-4 shadow-lg shadow-heritage-olive/20">
                           <Volume2 className="w-7 h-7" />
                         </div>
                         <div>
-                          <h5 className="font-bold text-heritage-brown">Voice Archive</h5>
-                          <p className="text-xs text-heritage-brown/50 leading-relaxed">Click any phrase above to hear recordings from native speakers.</p>
+                          <h5 className="font-bold text-heritage-brown dark:text-stone-100">Voice Archive</h5>
+                          <p className="text-xs text-heritage-brown/50 dark:text-stone-400 leading-relaxed">Click any phrase above to hear recordings from native speakers.</p>
                         </div>
                       </div>
                       <div className="flex space-x-2">
@@ -430,11 +430,11 @@ export default function Language() {
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl p-8 max-w-lg w-full relative shadow-2xl border border-heritage-brown/10 text-left"
+              className="bg-white dark:bg-stone-900 rounded-3xl p-8 max-w-lg w-full relative shadow-2xl border border-heritage-brown/10 dark:border-stone-800 text-left"
             >
               <button 
                 onClick={() => setShowRecordModal(false)}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-heritage-cream/50 text-heritage-brown/50 hover:text-heritage-brown transition-colors cursor-pointer"
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-heritage-cream/50 dark:hover:bg-stone-800 text-heritage-brown/50 dark:text-stone-400 hover:text-heritage-brown dark:hover:text-stone-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -444,43 +444,43 @@ export default function Language() {
                   <Volume2 className="w-6 h-6 text-heritage-terracotta" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-serif font-bold text-heritage-brown">Record & Propose Phrase</h3>
-                  <p className="text-xs text-heritage-brown/50">Submit a Lukenye phrase for verification</p>
+                  <h3 className="text-2xl font-serif font-bold text-heritage-brown dark:text-stone-100">Record & Propose Phrase</h3>
+                  <p className="text-xs text-heritage-brown/50 dark:text-stone-400">Submit a Lukenye phrase for verification</p>
                 </div>
               </div>
 
               <form onSubmit={handleRecordSubmit} className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60">Lukenye Spelling</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60 dark:text-stone-300">Lukenye Spelling</label>
                   <input 
                     required
                     type="text"
                     placeholder="e.g. Amadhi gasinga omuliro"
                     value={newPhrase.lukenye}
                     onChange={e => setNewPhrase({...newPhrase, lukenye: e.target.value})}
-                    className="w-full px-4 py-3 bg-heritage-cream/30 border border-heritage-brown/10 rounded-xl outline-none text-heritage-brown font-semibold focus:border-heritage-terracotta transition-colors"
+                    className="w-full px-4 py-3 bg-heritage-cream/30 dark:bg-stone-850 border border-heritage-brown/10 dark:border-stone-850 rounded-xl outline-none text-heritage-brown dark:text-stone-100 font-semibold focus:border-heritage-terracotta transition-colors placeholder-stone-400 dark:placeholder-stone-500"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60">English Translation</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60 dark:text-stone-300">English Translation</label>
                   <input 
                     required
                     type="text"
                     placeholder="e.g. Water is stronger than fire"
                     value={newPhrase.english}
                     onChange={e => setNewPhrase({...newPhrase, english: e.target.value})}
-                    className="w-full px-4 py-3 bg-heritage-cream/30 border border-heritage-brown/10 rounded-xl outline-none text-heritage-brown font-semibold focus:border-heritage-terracotta transition-colors"
+                    className="w-full px-4 py-3 bg-heritage-cream/30 dark:bg-stone-850 border border-heritage-brown/10 dark:border-stone-850 rounded-xl outline-none text-heritage-brown dark:text-stone-100 font-semibold focus:border-heritage-terracotta transition-colors placeholder-stone-400 dark:placeholder-stone-500"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60">Category</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60 dark:text-stone-300">Category</label>
                     <select 
                       value={newPhrase.category}
                       onChange={e => setNewPhrase({...newPhrase, category: e.target.value})}
-                      className="w-full px-4 py-3 bg-heritage-cream/30 border border-heritage-brown/10 rounded-xl outline-none text-heritage-brown font-semibold focus:border-heritage-terracotta transition-colors"
+                      className="w-full px-4 py-3 bg-heritage-cream/30 dark:bg-stone-850 border border-heritage-brown/10 dark:border-stone-850 rounded-xl outline-none text-heritage-brown dark:text-stone-100 font-semibold focus:border-heritage-terracotta transition-colors"
                     >
                       <option value="phrase">Phrase</option>
                       <option value="number">Number / Counting</option>
@@ -488,30 +488,30 @@ export default function Language() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60">Usage</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60 dark:text-stone-300">Usage</label>
                     <input 
                       type="text"
                       placeholder="e.g. Greetings"
                       value={newPhrase.usage}
                       onChange={e => setNewPhrase({...newPhrase, usage: e.target.value})}
-                      className="w-full px-4 py-3 bg-heritage-cream/30 border border-heritage-brown/10 rounded-xl outline-none text-heritage-brown font-semibold focus:border-heritage-terracotta transition-colors"
+                      className="w-full px-4 py-3 bg-heritage-cream/30 dark:bg-stone-850 border border-heritage-brown/10 dark:border-stone-850 rounded-xl outline-none text-heritage-brown dark:text-stone-100 font-semibold focus:border-heritage-terracotta transition-colors placeholder-stone-400 dark:placeholder-stone-500"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60">Example Sentence</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-heritage-brown/60 dark:text-stone-300">Example Sentence</label>
                   <textarea 
                     rows={2}
                     placeholder="Provide a sentence demonstrating how this is used..."
                     value={newPhrase.example_sentence}
                     onChange={e => setNewPhrase({...newPhrase, example_sentence: e.target.value})}
-                    className="w-full px-4 py-3 bg-heritage-cream/30 border border-heritage-brown/10 rounded-xl outline-none text-heritage-brown font-semibold focus:border-heritage-terracotta transition-colors resize-none"
+                    className="w-full px-4 py-3 bg-heritage-cream/30 dark:bg-stone-850 border border-heritage-brown/10 dark:border-stone-850 rounded-xl outline-none text-heritage-brown dark:text-stone-100 font-semibold focus:border-heritage-terracotta transition-colors resize-none placeholder-stone-400 dark:placeholder-stone-500"
                   />
                 </div>
 
-                <div className="p-4 bg-heritage-cream/50 rounded-2xl border border-dashed border-heritage-brown/20 text-center">
-                  <p className="text-xs font-bold text-heritage-brown mb-2 uppercase tracking-widest">Audio Pronunciation</p>
+                <div className="p-4 bg-heritage-cream/50 dark:bg-stone-850 rounded-2xl border border-dashed border-heritage-brown/20 dark:border-stone-800 text-center">
+                  <p className="text-xs font-bold text-heritage-brown dark:text-stone-200 mb-2 uppercase tracking-widest">Audio Pronunciation</p>
                   <div className="flex items-center justify-center space-x-3">
                     <button 
                       type="button" 
@@ -520,7 +520,7 @@ export default function Language() {
                     >
                       <Volume2 className="w-5 h-5" />
                     </button>
-                    <span className="text-[10px] text-heritage-brown/60 font-bold uppercase">Click to Record Voice Pronunciation</span>
+                    <span className="text-[10px] text-heritage-brown/60 dark:text-stone-400 font-bold uppercase">Click to Record Voice Pronunciation</span>
                   </div>
                 </div>
 
@@ -551,11 +551,11 @@ export default function Language() {
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl p-8 max-w-2xl w-full relative shadow-2xl border border-heritage-brown/10 text-left"
+              className="bg-white dark:bg-stone-900 rounded-3xl p-8 max-w-2xl w-full relative shadow-2xl border border-heritage-brown/10 dark:border-stone-800 text-left"
             >
               <button 
                 onClick={() => setShowReviewModal(false)}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-heritage-cream/50 text-heritage-brown/50 hover:text-heritage-brown transition-colors cursor-pointer"
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-heritage-cream/50 dark:hover:bg-stone-800 text-heritage-brown/50 dark:text-stone-400 hover:text-heritage-brown dark:hover:text-stone-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -565,35 +565,35 @@ export default function Language() {
                   <Book className="w-6 h-6 text-heritage-olive" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-serif font-bold text-heritage-brown">Linguistic Approval Queue</h3>
-                  <p className="text-xs text-heritage-brown/50">Authenticate entries prior to public release</p>
+                  <h3 className="text-2xl font-serif font-bold text-heritage-brown dark:text-stone-100">Linguistic Approval Queue</h3>
+                  <p className="text-xs text-heritage-brown/50 dark:text-stone-400">Authenticate entries prior to public release</p>
                 </div>
               </div>
 
               {reviewList.length === 0 ? (
-                <div className="text-center py-12 bg-heritage-cream/30 rounded-2xl border-2 border-dashed border-heritage-brown/10">
+                <div className="text-center py-12 bg-heritage-cream/30 dark:bg-stone-850 rounded-2xl border-2 border-dashed border-heritage-brown/10 dark:border-stone-800">
                   <Check className="w-12 h-12 text-heritage-olive mx-auto mb-3" />
-                  <h4 className="font-bold text-heritage-brown">All Caught Up!</h4>
-                  <p className="text-xs text-heritage-brown/50">There are no pending phrases awaiting verification.</p>
+                  <h4 className="font-bold text-heritage-brown dark:text-stone-200">All Caught Up!</h4>
+                  <p className="text-xs text-heritage-brown/50 dark:text-stone-400">There are no pending phrases awaiting verification.</p>
                 </div>
               ) : (
                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
                   {reviewList.map((item) => (
-                    <div key={item.id} className="p-5 bg-heritage-cream/30 rounded-2xl border border-heritage-brown/5 flex items-center justify-between gap-4">
+                    <div key={item.id} className="p-5 bg-heritage-cream/30 dark:bg-stone-850 rounded-2xl border border-heritage-brown/5 dark:border-stone-800 flex items-center justify-between gap-4">
                       <div>
-                        <span className="text-[9px] font-black uppercase tracking-wider text-heritage-terracotta bg-heritage-terracotta/5 px-2 py-0.5 rounded-full mb-1 inline-block">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-heritage-terracotta dark:text-[#f4a261] bg-heritage-terracotta/5 dark:bg-heritage-terracotta/10 px-2 py-0.5 rounded-full mb-1 inline-block">
                           {item.category} • {item.usage || 'Common'}
                         </span>
-                        <h4 className="font-bold text-lg text-heritage-brown">{item.lukenye}</h4>
-                        <p className="text-sm text-heritage-brown/60 mb-2">{item.english}</p>
+                        <h4 className="font-bold text-lg text-heritage-brown dark:text-stone-100">{item.lukenye}</h4>
+                        <p className="text-sm text-heritage-brown/60 dark:text-stone-300 mb-2">{item.english}</p>
                         {item.example_sentence && (
-                          <p className="text-xs text-heritage-brown/50 italic">Context: "{item.example_sentence}"</p>
+                          <p className="text-xs text-heritage-brown/50 dark:text-stone-400 italic">Context: "{item.example_sentence}"</p>
                         )}
                       </div>
                       <div className="flex items-center space-x-2 shrink-0">
                         <button 
                           onClick={() => handlePlay(item.id, item.audio_url)}
-                          className="p-3 bg-white text-heritage-brown border border-heritage-brown/10 hover:bg-heritage-brown hover:text-white rounded-xl transition-colors cursor-pointer"
+                          className="p-3 bg-white dark:bg-stone-900 text-heritage-brown dark:text-stone-300 border border-heritage-brown/10 dark:border-stone-800 hover:bg-heritage-brown dark:hover:bg-stone-800 hover:text-white rounded-xl transition-colors cursor-pointer"
                           title="Listen Pronunciation"
                         >
                           <Volume2 className="w-4 h-4" />
@@ -618,7 +618,7 @@ export default function Language() {
                 </div>
               )}
 
-              <div className="mt-8 pt-6 border-t border-heritage-brown/10 flex items-center justify-between text-xs text-heritage-brown/50">
+              <div className="mt-8 pt-6 border-t border-heritage-brown/10 dark:border-stone-850 flex items-center justify-between text-xs text-heritage-brown/50 dark:text-stone-400">
                 <span className="flex items-center">
                   <ShieldAlert className="w-4 h-4 mr-1 text-heritage-terracotta" />
                   Only certified committee members can publish to the dictionary.
