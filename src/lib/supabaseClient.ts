@@ -44,8 +44,9 @@ export interface MediaFile {
 
 // Check configuration status
 export const getSupabaseConfig = () => {
-  const url = (import.meta as any).env.VITE_SUPABASE_URL || '';
-  const key = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
+  const metaEnv = (import.meta as any).env || {};
+  const url = metaEnv.VITE_SUPABASE_URL || (typeof process !== 'undefined' ? process.env?.VITE_SUPABASE_URL : '') || '';
+  const key = metaEnv.VITE_SUPABASE_ANON_KEY || (typeof process !== 'undefined' ? process.env?.VITE_SUPABASE_ANON_KEY : '') || '';
   
   const isConfigured = 
     url && 

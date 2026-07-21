@@ -51,6 +51,7 @@ async function resolveUserUUID(client: any, userId?: string): Promise<string> {
 
 // Initialize local storage fallbacks if empty
 const initializeLocalStorage = () => {
+  if (typeof localStorage === 'undefined') return;
   if (!localStorage.getItem('bakenye_statuses')) {
     localStorage.setItem('bakenye_statuses', JSON.stringify([]));
   }
