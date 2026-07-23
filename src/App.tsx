@@ -8,7 +8,6 @@ import { registerOnlineSyncListener } from './lib/syncService';
 // Core Layout components
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
-import AppInstallPrompt from './components/AppInstallPrompt';
 import ScrollToTop from './components/ScrollToTop';
 
 // Admin Components
@@ -97,7 +96,6 @@ function StorefrontLayout({ user, userRole }: { user: any; userRole: string | nu
         </Suspense>
       </main>
       <Footer />
-      <AppInstallPrompt />
     </div>
   );
 }

@@ -500,9 +500,6 @@ export default function Home() {
         handleOpenStatus={handleOpenStatus}
       />
 
-      {/* Spacing before "Today in Bakenye" */}
-      <div className="h-10 md:h-16" />
-
       {/* 3. DAILY SPOTLIGHT */}
       <DailySpotlight 
         dailySpotlight={dailySpotlight}
