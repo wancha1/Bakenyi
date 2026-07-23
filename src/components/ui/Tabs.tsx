@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { motion } from 'motion/react';
 
 export interface TabOption<T extends string = string> {
@@ -25,13 +25,14 @@ export const Tabs = <T extends string>({
   className = '',
   id,
 }: TabsProps<T>) => {
+  const generatedId = useId();
+  const layoutGroupId = id || `tabs-layout-${generatedId.replace(/:/g, '')}`;
+
   const containerStyles = {
     underline: 'flex gap-2 border-b border-heritage-brown/10 dark:border-white/10 overflow-x-auto scrollbar-none py-1 sticky top-0 z-10 bg-heritage-cream/10 backdrop-blur-xs',
     pill: 'inline-flex p-1.5 bg-heritage-brown/[0.04] dark:bg-white/[0.04] rounded-2xl border border-heritage-brown/5 dark:border-white/5 overflow-x-auto scrollbar-none max-w-full',
     editorial: 'flex flex-wrap gap-4 md:gap-8 border-b border-heritage-brown/10 py-2',
   };
-
-  const layoutGroupId = id || `tabs-layout-${Math.random().toString(36).substring(2, 9)}`;
 
   return (
     <div className={`w-full ${className}`}>

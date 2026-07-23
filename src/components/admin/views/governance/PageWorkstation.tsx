@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, 
@@ -66,6 +66,18 @@ export default function PageWorkstation({
   const [newContent, setNewContent] = useState('');
   const [newStatus, setNewStatus] = useState<'published' | 'draft'>('published');
   const [newExtraFields, setNewExtraFields] = useState<Record<string, string>>({});
+
+  // Reset workstation tab and forms when navigating to a new page window
+  useEffect(() => {
+    setActiveTab('published');
+    setSearchText('');
+    setStatusFilter('all');
+    setSelectedItemIds([]);
+    setEditingItem(null);
+    setNewTitle('');
+    setNewSummary('');
+    setNewContent('');
+  }, [page.id]);
 
   // Stats calculation
   const pageItems = useMemo(() => {

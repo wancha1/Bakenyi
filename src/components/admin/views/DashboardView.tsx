@@ -455,6 +455,13 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
     return WEBPAGES.find(wp => wp.id === activePageId) || WEBPAGES[0];
   }, [activePageId]);
 
+  // Synchronize category tab when active page window changes
+  useEffect(() => {
+    if (activePageId !== 'overview' && activePage) {
+      setActiveCategoryTab(activePage.category);
+    }
+  }, [activePageId, activePage]);
+
   // Filtered Audits for the automated visual feed
   const filteredAudits = useMemo(() => {
     return governanceAudits.filter(log => {
