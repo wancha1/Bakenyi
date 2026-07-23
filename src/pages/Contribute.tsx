@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History, Mail, Lock, User as UserIcon, HelpCircle, ShieldAlert, Eye, EyeOff } from 'lucide-react';
 import { getSupabase, checkIsAdmin } from '../lib/supabaseClient';
-import { getContributions, createContribution, uploadMedia, Contribution, getStoryCategories, StoryCategory } from '../lib/supabase';
+import { getContributions, createContribution, uploadMedia, uploadAudioFile, Contribution, getStoryCategories, StoryCategory } from '../lib/supabase';
 import OralHistoryRecorder from '../components/OralHistoryRecorder';
 import SEO from '../components/SEO';
 
@@ -323,8 +323,11 @@ export default function Contribute() {
           return;
         }
         setUploadingFile(true);
-        const audioFile = new File([recordedAudioBlob], `oral_history_${Date.now()}.webm`, { type: 'audio/webm' });
-        const { url, error: uploadErr } = await uploadMedia(audioFile, 'images');
+        const fileName = `oral_history_${Date.now()}.webm`;
+        const { url, error: uploadErr } = await uploadAudioFile(recordedAudioBlob, fileName, {
+          maxSizeBytes: 25 * 1024 * 1024, // 25 MB max size
+          enableCompression: true
+        });
         if (uploadErr) throw uploadErr;
         mediaUrl = url;
         setUploadingFile(false);

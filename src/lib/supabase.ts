@@ -1,6 +1,11 @@
 import { Article } from '../types/article';
 import { bakenyiArticles } from '../data/articlesData';
 import { getSupabase, fetchUsers } from './supabaseClient';
+import { validateAndCompressAudio, AudioValidationOptions, formatFileSize } from './audioUtils';
+import { queueOfflineItem, flushOfflineQueue, registerOnlineSyncListener } from './syncService';
+
+export { validateAndCompressAudio, formatFileSize, queueOfflineItem, flushOfflineQueue, registerOnlineSyncListener };
+export type { AudioValidationOptions };
 
 /**
  * Generates an RFC4122-compliant version 4 UUID.
@@ -436,14 +441,24 @@ function getBucketNameForFile(file: File, type?: string): string {
 }
 
 export async function uploadMedia(file: File, type: 'images' | 'pdfs'): Promise<{ url: string; error: Error | null }> {
+  // If uploading audio via uploadMedia, validate size & compress first
+  let fileToUpload = file;
+  if (file.type.startsWith('audio/') || file.name.match(/\.(mp3|wav|webm|ogg|m4a)$/i)) {
+    const valResult = await validateAndCompressAudio(file);
+    if (valResult.error) {
+      return { url: '', error: valResult.error };
+    }
+    fileToUpload = new File([valResult.blob], file.name, { type: valResult.blob.type || file.type });
+  }
+
   const client = getSupabase();
   if (!client) {
-    return emulateFileUpload(file);
+    return emulateFileUpload(fileToUpload);
   }
 
   try {
-    const bucketName = getBucketNameForFile(file, type);
-    const fileExt = file.name.split('.').pop();
+    const bucketName = getBucketNameForFile(fileToUpload, type);
+    const fileExt = fileToUpload.name.split('.').pop();
     const uniqueId = Math.random().toString(36).substring(2, 10);
     
     // Fetch authenticated user id to isolate path
@@ -454,25 +469,50 @@ export async function uploadMedia(file: File, type: 'images' | 'pdfs'): Promise<
     const fileName = userId ? `${userId}/${baseName}` : baseName;
     
     // First ensure the bucket exists/we can upload to it
-    const { data, error } = await client.storage.from(bucketName).upload(fileName, file);
+    const { data, error } = await client.storage.from(bucketName).upload(fileName, fileToUpload);
     if (error) {
       console.warn(`Storage upload to ${bucketName} failed (bucket might not exist), falling back to Base64:`, error);
-      return emulateFileUpload(file);
+      return emulateFileUpload(fileToUpload);
     }
 
     const { data: { publicUrl } } = client.storage.from(bucketName).getPublicUrl(fileName);
     return { url: publicUrl, error: null };
   } catch (err: any) {
-    return emulateFileUpload(file);
+    return emulateFileUpload(fileToUpload);
   }
 }
 
-export async function uploadAudioFile(blob: Blob, fileName: string): Promise<{ url: string; error: Error | null }> {
+export async function uploadAudioFile(
+  blob: Blob,
+  fileName: string,
+  options?: AudioValidationOptions
+): Promise<{ url: string; compressed?: boolean; originalSize?: number; finalSize?: number; error: Error | null }> {
+  // 1. Client-side audio maximum size validation & optional compression
+  const valResult = await validateAndCompressAudio(blob, options);
+  if (valResult.error) {
+    return {
+      url: '',
+      compressed: false,
+      originalSize: valResult.originalSize,
+      finalSize: valResult.compressedSize,
+      error: valResult.error
+    };
+  }
+
+  const processedBlob = valResult.blob;
+  const file = new File([processedBlob], fileName, { type: processedBlob.type || 'audio/webm' });
   const client = getSupabase();
-  // Standard WebM or alternative file container creation
-  const file = new File([blob], fileName, { type: blob.type || 'audio/webm' });
+
   if (!client) {
-    return emulateFileUpload(file);
+    queueOfflineItem('audio', 'create', { fileName, blobSize: processedBlob.size });
+    const emulated = await emulateFileUpload(file);
+    return {
+      url: emulated.url,
+      compressed: valResult.isCompressed,
+      originalSize: valResult.originalSize,
+      finalSize: valResult.compressedSize,
+      error: emulated.error
+    };
   }
 
   try {
@@ -487,14 +527,36 @@ export async function uploadAudioFile(blob: Blob, fileName: string): Promise<{ u
     
     const { data, error } = await client.storage.from(bucketName).upload(filePath, file);
     if (error) {
-      console.warn(`Storage upload of audio to ${bucketName} failed, falling back to Base64:`, error);
-      return emulateFileUpload(file);
+      console.warn(`Storage upload of audio to ${bucketName} failed, falling back to Base64 and offline queue:`, error);
+      queueOfflineItem('audio', 'create', { fileName, filePath, blobSize: processedBlob.size });
+      const emulated = await emulateFileUpload(file);
+      return {
+        url: emulated.url,
+        compressed: valResult.isCompressed,
+        originalSize: valResult.originalSize,
+        finalSize: valResult.compressedSize,
+        error: null
+      };
     }
 
     const { data: { publicUrl } } = client.storage.from(bucketName).getPublicUrl(filePath);
-    return { url: publicUrl, error: null };
+    return {
+      url: publicUrl,
+      compressed: valResult.isCompressed,
+      originalSize: valResult.originalSize,
+      finalSize: valResult.compressedSize,
+      error: null
+    };
   } catch (err: any) {
-    return emulateFileUpload(file);
+    queueOfflineItem('audio', 'create', { fileName, blobSize: processedBlob.size });
+    const emulated = await emulateFileUpload(file);
+    return {
+      url: emulated.url,
+      compressed: valResult.isCompressed,
+      originalSize: valResult.originalSize,
+      finalSize: valResult.compressedSize,
+      error: null
+    };
   }
 }
 
@@ -767,19 +829,12 @@ export async function getGalleryImages(includePending = false): Promise<GalleryI
   }
 
   try {
-    // Try querying the clean modern media table first
-    let { data, error } = await client
+    const { data, error } = await client
       .from('media')
       .select('id, title, description, file_url, category, status, created_at')
       .eq('file_type', 'image');
 
-    if (error) {
-      // Fallback to legacy gallery table
-      const fallbackRes = await client.from('gallery').select('id, title, image_url, created_at');
-      data = fallbackRes.data;
-      error = fallbackRes.error;
-      if (error) throw error;
-    }
+    if (error) throw error;
 
     if (data && data.length > 0) {
       const mapped = data.map((row: any) => {
@@ -788,7 +843,6 @@ export async function getGalleryImages(includePending = false): Promise<GalleryI
         let cat = row.category || 'General';
         let statusVal: 'pending' | 'approved' | 'rejected' = row.status || 'approved';
         
-        // Check if title is serialized JSON holding title, description, category and status
         try {
           if (titleVal && titleVal.startsWith('{')) {
             const parsed = JSON.parse(titleVal);
@@ -802,7 +856,7 @@ export async function getGalleryImages(includePending = false): Promise<GalleryI
         return {
           id: row.id,
           title: titleVal,
-          imageUrl: row.file_url || row.image_url,
+          imageUrl: row.file_url,
           created_at: row.created_at,
           description: desc,
           category: cat,
@@ -831,7 +885,6 @@ export async function addGalleryImage(
 ): Promise<{ data: GalleryImage | null; error: Error | null }> {
   const client = getSupabase();
   const id = generateUUID();
-  const titleStr = JSON.stringify({ title, description, category, status });
 
   const galleryObj: GalleryImage = {
     id,
@@ -848,7 +901,6 @@ export async function addGalleryImage(
   }
 
   try {
-    // Try inserting into the modern media table first
     const { data: dbData, error } = await client
       .from('media')
       .insert({
@@ -863,45 +915,8 @@ export async function addGalleryImage(
       .select('id, title, description, file_url, category, status, created_at')
       .maybeSingle();
 
-    if (error) {
-      // Fallback to legacy gallery table
-      const { data: legacyData, error: legacyErr } = await client
-        .from('gallery')
-        .insert({
-          title: titleStr,
-          image_url: imageUrl,
-          created_at: new Date().toISOString()
-        })
-        .select('id, title, image_url, created_at')
-        .maybeSingle();
+    if (error) throw error;
 
-      if (legacyErr) {
-        // Deeper fallback with manual ID insert in legacy table
-        const { error: errorWithId } = await client.from('gallery').insert({
-          id,
-          title: titleStr,
-          image_url: imageUrl,
-          created_at: new Date().toISOString()
-        });
-        if (errorWithId) throw errorWithId;
-        return { data: galleryObj, error: null };
-      }
-      
-      const returnedId = legacyData?.id || id;
-      return {
-        data: {
-          id: returnedId,
-          title,
-          imageUrl,
-          created_at: legacyData?.created_at || galleryObj.created_at,
-          description,
-          category,
-          status
-        },
-        error: null
-      };
-    }
-    
     const returnedId = dbData?.id || id;
     return { 
       data: {
@@ -926,33 +941,8 @@ export async function updateGalleryImageStatus(id: string, status: 'pending' | '
   if (!client) return { success: false, error: new Error('Supabase client is not configured.') };
 
   try {
-    // Try updating the media table first
     const { error: mediaErr } = await client.from('media').update({ status }).eq('id', id);
-    if (!mediaErr) {
-      return { success: true, error: null };
-    }
-
-    // Fallback to legacy gallery table
-    const { data: row, error: fetchErr } = await client.from('gallery').select('id, title, image_url').eq('id', id).maybeSingle();
-    if (fetchErr) throw fetchErr;
-    if (!row) throw new Error('Gallery image not found.');
-
-    let titleVal = row.title;
-    let desc = '';
-    let cat = 'General';
-    try {
-      if (titleVal.startsWith('{')) {
-        const parsed = JSON.parse(titleVal);
-        titleVal = parsed.title;
-        desc = parsed.description || '';
-        cat = parsed.category || 'General';
-      }
-    } catch (e) {}
-
-    const titleStr = JSON.stringify({ title: titleVal, description: desc, category: cat, status });
-    const { error: updateErr } = await client.from('gallery').update({ title: titleStr }).eq('id', id);
-    if (updateErr) throw updateErr;
-
+    if (mediaErr) throw mediaErr;
     return { success: true, error: null };
   } catch (err: any) {
     console.error('updateGalleryImageStatus failed:', err);

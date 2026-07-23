@@ -1,5 +1,4 @@
-import React from 'react';
-import { Helmet } from 'react-helmet-async';
+import React, { useEffect } from 'react';
 
 export interface MetadataProps {
   title: string;
@@ -14,8 +13,8 @@ export interface MetadataProps {
 }
 
 /**
- * Custom React Hook to dynamically manage SEO metadata using react-helmet-async.
- * Returns a <Helmet> React Element to be rendered at the root of the page component.
+ * Custom React Hook to dynamically manage SEO metadata using native React 19 head hoisting.
+ * Returns React head elements to be rendered at the root of the page component.
  *
  * @param props Metadata configurations including title, description, keywords, etc.
  */
@@ -46,9 +45,15 @@ export function useDocumentMetadata({
   const defaultKeywords = 'Bakenye, Lukenye language, Bantu heritage, oral histories, clan lineages, cultural archives, East African culture, traditional preservation';
   const finalKeywords = keywords ? `${keywords}, ${defaultKeywords}` : defaultKeywords;
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = finalTitle;
+    }
+  }, [finalTitle]);
+
   return (
-    <Helmet>
-      {/* Standard Meta Tags */}
+    <>
+      {/* Standard Meta Tags (React 19 native head hoisting) */}
       <title>{finalTitle}</title>
       <meta name="description" content={description} />
       <meta name="keywords" content={finalKeywords} />
@@ -68,6 +73,6 @@ export function useDocumentMetadata({
       <meta name="twitter:title" content={finalOgTitle} />
       <meta name="twitter:description" content={finalOgDescription} />
       <meta name="twitter:image" content={finalOgImage} />
-    </Helmet>
+    </>
   );
 }

@@ -1,9 +1,9 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { HelmetProvider } from 'react-helmet-async';
 import { ThemeProvider } from './context/ThemeContext';
 import { getSupabaseConfig, getSupabase, checkIsAdmin } from './lib/supabaseClient';
+import { registerOnlineSyncListener } from './lib/syncService';
 
 // Core Layout components
 import Navbar from './components/layout/Navbar';
@@ -218,10 +218,23 @@ function DashboardApp({ user, userRole, onLogout }: { user: any; userRole: any; 
 
   const resolvedRole = userRole || 'public';
 
-  // Handle reporter or historian members attempting to load restricted tabs
+  const getAllowedTabs = (role: string) => {
+    if (role === 'super_admin') {
+      return ['dashboard', 'users', 'roles', 'content', 'media', 'reports', 'activity_logs', 'settings', 'system_health'];
+    }
+    if (role === 'admin' || role === 'community_leader') {
+      return ['dashboard', 'users', 'content', 'media', 'reports', 'activity_logs'];
+    }
+    if (role === 'reporter' || role === 'historian') {
+      return ['dashboard', 'content', 'media'];
+    }
+    return ['dashboard'];
+  };
+
+  // Handle users attempting to load restricted tabs for their role
   useEffect(() => {
-    const isRestricted = resolvedRole === 'reporter' || resolvedRole === 'historian';
-    if (isRestricted && !['dashboard', 'content', 'media'].includes(activeTab)) {
+    const allowed = getAllowedTabs(resolvedRole);
+    if (!allowed.includes(activeTab)) {
       setActiveTab('dashboard');
     }
   }, [activeTab, resolvedRole]);
@@ -235,11 +248,10 @@ function DashboardApp({ user, userRole, onLogout }: { user: any; userRole: any; 
     );
   }
 
-  // Render view by tab ID
+  // Render view by tab ID with role permission guards
   const renderView = () => {
-    const isRestricted = resolvedRole === 'reporter' || resolvedRole === 'historian';
-    // Reporter/Historian role restriction guard
-    if (isRestricted && !['dashboard', 'content', 'media'].includes(activeTab)) {
+    const allowed = getAllowedTabs(resolvedRole);
+    if (!allowed.includes(activeTab)) {
       return <DashboardView onNavigate={(tab) => setActiveTab(tab)} user={user} userRole={resolvedRole} />;
     }
 
@@ -374,6 +386,14 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
+    // Register automated offline sync engine on window 'online' event
+    const cleanupSync = registerOnlineSyncListener();
+    return () => {
+      cleanupSync();
+    };
+  }, []);
+
+  useEffect(() => {
     // Check auth status
     const client = getSupabase();
     if (client) {
@@ -414,9 +434,8 @@ export default function App() {
   };
 
   return (
-    <HelmetProvider>
-      <ThemeProvider>
-        <BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
           <ScrollToTop />
           <Routes>
             {/* Public Storefront Routes */}
@@ -479,6 +498,5 @@ export default function App() {
           </Routes>
         </BrowserRouter>
       </ThemeProvider>
-    </HelmetProvider>
   );
 }

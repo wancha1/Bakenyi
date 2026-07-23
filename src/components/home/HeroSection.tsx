@@ -67,39 +67,38 @@ export default function HeroSection({
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white w-full py-16 flex flex-col items-center">
         <FadeIn direction="up" duration={0.8} className="w-full max-w-4xl flex flex-col items-center">
           
-          {/* Subheading Badge */}
-          <Badge 
-            variant="sand" 
-            size="md" 
-            className="mb-8 border-heritage-sand/30 bg-heritage-sand/10 text-heritage-sand tracking-[0.25em] py-2 px-4 shadow-sm"
-          >
-            Digital Sanctuary of the Bakenyi People
-          </Badge>
+          {/* Subheading Pill Badge */}
+          <div className="inline-flex items-center gap-2 mb-8 px-4 py-1.5 rounded-full bg-stone-900/80 border border-stone-700/60 backdrop-blur-md shadow-inner">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-amber-200/90">
+              Digital Sanctuary of the Bakenyi People
+            </span>
+          </div>
           
           {/* Typography Heading */}
-          <h1 className="text-4xl sm:text-6xl md:text-8xl font-serif font-black mb-8 leading-[1.1] tracking-tight">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-serif font-black mb-8 leading-[1.08] tracking-tight">
             Preserving the <br />
-            <span className="text-heritage-terracotta dark:text-heritage-sand font-serif italic text-shadow-premium">
+            <span className="text-amber-400 dark:text-amber-300 font-serif italic drop-shadow-sm">
               Riverine Heritage
             </span>
           </h1>
 
           {/* Body description */}
-          <p className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-stone-300 mb-10 font-normal leading-relaxed">
-            Explore the history, clans, language, and custom oral memories of Uganda's lake dwellers, archived directly from the Elder Council.
+          <p className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-stone-300/90 mb-10 font-normal leading-relaxed">
+            Explore the history, clans, language, and oral memories of Uganda's lake dwellers, archived directly under the guidance of the Council of Elders.
           </p>
 
           {/* Premium Search Bar */}
           <div className="relative w-full max-w-2xl mx-auto mb-12 z-30 hidden md:block">
             <div 
-              className={`flex items-center bg-white dark:bg-stone-900 border ${
+              className={`flex items-center bg-stone-900/90 backdrop-blur-md border ${
                 isSearchFocused 
-                  ? 'border-heritage-terracotta ring-4 ring-heritage-terracotta/20' 
-                  : 'border-heritage-brown/10 dark:border-white/10'
-              } rounded-[20px] shadow-2xl transition-all duration-300 p-1.5 overflow-hidden`}
+                  ? 'border-amber-500 ring-4 ring-amber-500/20' 
+                  : 'border-stone-700/60 hover:border-stone-600'
+              } rounded-2xl shadow-2xl transition-all duration-300 p-2 overflow-hidden`}
             >
               <div className="pl-4 pr-2">
-                <Search className="w-5 h-5 text-heritage-terracotta" />
+                <Search className="w-5 h-5 text-amber-400" />
               </div>
               <input 
                 type="text"
@@ -107,13 +106,13 @@ export default function HeroSection({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
-                className="flex-grow bg-transparent border-none text-stone-900 dark:text-stone-100 px-2 py-3 text-sm focus:outline-none placeholder-stone-500 font-medium"
+                className="flex-grow bg-transparent border-none text-white px-2 py-2.5 text-sm focus:outline-none placeholder-stone-400 font-medium"
                 aria-label="Search cultural records"
               />
               {searchTerm && (
                 <button 
                   onClick={() => setSearchTerm('')}
-                  className="p-2 text-stone-400 hover:text-stone-600 rounded-lg mr-1 cursor-pointer"
+                  className="p-2 text-stone-400 hover:text-white rounded-lg mr-1 cursor-pointer transition-colors"
                   id="btn-clear-hero-search"
                   title="Clear input"
                 >
@@ -124,7 +123,7 @@ export default function HeroSection({
                 variant="primary"
                 onClick={() => navigate(`/search?q=${encodeURIComponent(searchTerm)}`)}
                 id="btn-submit-hero-search"
-                className="px-6 py-3 rounded-xl"
+                className="px-6 py-2.5 rounded-xl font-bold bg-amber-600 hover:bg-amber-500 text-white shadow-md border border-amber-500/30"
               >
                 Search
               </Button>

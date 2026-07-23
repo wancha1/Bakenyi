@@ -339,8 +339,11 @@ export default function OralHistoryRecorder({ onRecordingSubmitted }: { onRecord
       
       setUploadProgress(50);
       
-      // Upload audio file blob
-      const { url: audioUrl, error: uploadErr } = await uploadAudioFile(audioBlob, fileName);
+      // Upload audio file blob with size validation & client-side compression
+      const { url: audioUrl, error: uploadErr } = await uploadAudioFile(audioBlob, fileName, {
+        maxSizeBytes: 25 * 1024 * 1024, // 25 MB max limit
+        enableCompression: true
+      });
       if (uploadErr) throw uploadErr;
 
       setUploadProgress(80);

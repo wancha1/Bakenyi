@@ -297,13 +297,19 @@ export default function UsersView({ currentUserRoleProp, currentUserEmailProp }:
   }
 
   // Delete Action: Elder Only
+  const isPrimaryElderEmail = (email?: string) => {
+    if (!email) return false;
+    const lower = email.toLowerCase();
+    return lower === 'wanchaaaron@gmail.com' || lower === 'aaronwancha@gmail.com' || lower === 'superadmin@bakenye.com';
+  };
+
   async function handleDeleteUser(user: UserProfile) {
     if (currentUserRole !== 'admin' && currentUserRole !== 'super_admin') {
       alert('Access Denied: Only Elders can delete user profiles.');
       return;
     }
 
-    if (user.email === 'aaronwancha@gmail.com') {
+    if (isPrimaryElderEmail(user.email)) {
       alert('Action Blocked: To prevent lockouts, the primary administrator account cannot be deleted.');
       return;
     }
@@ -567,7 +573,7 @@ export default function UsersView({ currentUserRoleProp, currentUserEmailProp }:
                           <div className="text-left">
                             <div className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
                               <span>{fullName}</span>
-                              {u.email === 'aaronwancha@gmail.com' && (
+                              {isPrimaryElderEmail(u.email) && (
                                 <span className="bg-indigo-600 text-[8px] text-white px-1 py-0.2 rounded-sm uppercase tracking-widest font-black">Super</span>
                               )}
                             </div>
@@ -727,7 +733,7 @@ export default function UsersView({ currentUserRoleProp, currentUserEmailProp }:
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white font-sans flex items-center justify-center gap-1.5">
                   <span>{viewingUser.full_name || viewingUser.email.split('@')[0]}</span>
-                  {viewingUser.email === 'aaronwancha@gmail.com' && (
+                  {isPrimaryElderEmail(viewingUser.email) && (
                     <span className="bg-indigo-600 text-[8px] text-white px-1 py-0.2 rounded-sm uppercase tracking-widest font-black">Super</span>
                   )}
                 </h3>

@@ -557,6 +557,49 @@ CREATE POLICY "Elders can manage all orders"
     ON public.orders FOR ALL USING (public.is_super_admin());
 
 
+-- 13. ELDER QUESTIONS TABLE
+CREATE TABLE IF NOT EXISTS public.elder_questions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    question TEXT NOT NULL,
+    category TEXT DEFAULT 'General',
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'answered', 'rejected')),
+    answer TEXT,
+    answered_by TEXT,
+    answered_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.elder_questions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view answered elder questions" 
+    ON public.elder_questions FOR SELECT USING (status = 'answered' OR public.is_super_admin());
+
+CREATE POLICY "Anyone can submit elder questions" 
+    ON public.elder_questions FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Elders can manage elder questions" 
+    ON public.elder_questions FOR ALL USING (public.is_super_admin());
+
+
+-- 14. NEWSLETTER SUBSCRIBERS TABLE
+CREATE TABLE IF NOT EXISTS public.newsletter_subscribers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE NOT NULL,
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'unsubscribed')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can subscribe to newsletter" 
+    ON public.newsletter_subscribers FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Elders can view newsletter subscribers" 
+    ON public.newsletter_subscribers FOR SELECT USING (public.is_super_admin());
+
+
 -- ==========================================
 -- 3. SEED DEFAULT ROLES & PERMISSIONS DATA
 -- ==========================================

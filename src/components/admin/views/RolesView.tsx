@@ -25,7 +25,7 @@ export default function RolesView({ currentUserRoleProp, currentUserEmailProp }:
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // Authentication & Authorization state
-  const [currentUserRole, setCurrentUserRole] = useState<'super_admin' | 'admin' | 'staff' | 'customer' | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<'super_admin' | 'admin' | 'historian' | 'community_leader' | 'reporter' | 'member' | 'public' | 'staff' | 'customer' | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
@@ -119,8 +119,9 @@ export default function RolesView({ currentUserRoleProp, currentUserEmailProp }:
     const userToChange = users.find(u => u.id === id);
     if (!userToChange) return;
 
-    if (userToChange.email === 'aaronwancha@gmail.com' && newRole !== 'admin') {
-      alert('Action Blocked: To prevent lockout, you cannot revoke Elder role from the primary account (aaronwancha@gmail.com).');
+    const isPrimaryElder = userToChange.email === 'aaronwancha@gmail.com' || userToChange.email === 'wanchaaaron@gmail.com' || userToChange.email === 'superadmin@bakenye.com';
+    if (isPrimaryElder && newRole !== 'super_admin' && newRole !== 'admin') {
+      alert('Action Blocked: To prevent lockout, you cannot revoke Elder/Admin role from the primary account.');
       logAdminActivity(
         'Elder',
         'Role Demotion Blocked',
