@@ -589,14 +589,15 @@ export async function getEvents(onlyApproved = true): Promise<Event[]> {
       title: row.title,
       description: row.description,
       location: row.location,
-      start_datetime: row.starts_at || row.start_datetime || '',
-      end_datetime: row.ends_at || row.end_datetime || '',
+      starts_at: row.starts_at || '',
+      ends_at: row.ends_at || '',
       cover_image: row.image_url || row.cover_image || '',
+      image_url: row.image_url || row.cover_image || '',
       organizer: row.organizer,
       contact: '',
       rsvp_settings: { enabled: false, limit: null },
       map_location: { latitude: null, longitude: null },
-      created_by: row.author_id || row.created_by || '',
+      author_id: row.author_id || row.created_by || '',
       approved_by: '',
       status: row.status,
       created_at: row.created_at,
@@ -631,11 +632,11 @@ export async function createEvent(event: Omit<Event, 'id'>): Promise<{ data: Eve
       title: event.title,
       description: event.description,
       location: event.location,
-      starts_at: event.start_datetime,
-      ends_at: event.end_datetime,
-      image_url: event.cover_image,
+      starts_at: event.starts_at,
+      ends_at: event.ends_at,
+      image_url: event.image_url || event.cover_image,
       organizer: event.organizer,
-      author_id: await resolveUserUUID(client, event.created_by),
+      author_id: await resolveUserUUID(client, event.author_id),
       status: event.status,
       created_at: event.created_at,
       updated_at: event.updated_at
@@ -673,9 +674,10 @@ export async function updateEvent(id: string, updates: Partial<Event>): Promise<
     if (updates.title !== undefined) dbRecord.title = updates.title;
     if (updates.description !== undefined) dbRecord.description = updates.description;
     if (updates.location !== undefined) dbRecord.location = updates.location;
-    if (updates.start_datetime !== undefined) dbRecord.starts_at = updates.start_datetime;
-    if (updates.end_datetime !== undefined) dbRecord.ends_at = updates.end_datetime;
-    if (updates.cover_image !== undefined) dbRecord.image_url = updates.cover_image;
+    if (updates.starts_at !== undefined) dbRecord.starts_at = updates.starts_at;
+    if (updates.ends_at !== undefined) dbRecord.ends_at = updates.ends_at;
+    if (updates.image_url !== undefined) dbRecord.image_url = updates.image_url;
+    else if (updates.cover_image !== undefined) dbRecord.image_url = updates.cover_image;
     if (updates.organizer !== undefined) dbRecord.organizer = updates.organizer;
     if (updates.status !== undefined) dbRecord.status = updates.status;
     if (updates.created_at !== undefined) dbRecord.created_at = updates.created_at;
@@ -914,7 +916,7 @@ async function assembleFallbackRegistry(statusFilter?: string): Promise<ContentR
         record_id: n.id,
         title: n.title || 'Untitled Notice',
         status: n.status || 'draft',
-        author_id: n.created_by,
+        author_id: n.author_id || n.created_by,
         submitted_at: n.created_at,
         approved_by: n.approved_by,
         approved_at: n.approved_at,
@@ -963,7 +965,7 @@ async function assembleFallbackRegistry(statusFilter?: string): Promise<ContentR
         record_id: ev.id,
         title: ev.title || 'Untitled Event',
         status: regStatus,
-        author_id: ev.created_by,
+        author_id: ev.author_id || ev.created_by,
         submitted_at: ev.created_at,
         approved_by: ev.approved_by,
         created_at: ev.created_at,
@@ -1025,7 +1027,7 @@ export async function updateRegistryItemStatus(recordId: string, status: string,
     if (['community_highlights', 'notices'].includes(table)) {
       // These tables natively support the full standard status set
       targetStatus = status;
-    } else if (table === 'articles' || table === 'heritage_articles') {
+    } else if (table === 'articles') {
       if (status === 'submitted' || status === 'under_review') targetStatus = 'pending';
       else if (status === 'needs_revision') targetStatus = 'rejected';
       else if (status === 'approved') targetStatus = 'approved';

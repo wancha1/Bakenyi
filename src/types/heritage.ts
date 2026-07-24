@@ -55,7 +55,8 @@ export interface Announcement {
   start_date: string;
   end_date?: string;
   pinned: boolean;
-  created_by: string;
+  author_id?: string;
+  created_by?: string;
   approved_by?: string;
   status: 'draft' | 'pending' | 'approved' | 'archived' | 'rejected';
   created_at: string;
@@ -67,9 +68,10 @@ export interface Event {
   title: string;
   description: string;
   location: string;
-  start_datetime: string;
-  end_datetime: string;
+  starts_at: string;
+  ends_at: string;
   cover_image?: string;
+  image_url?: string;
   organizer: string;
   contact?: string;
   rsvp_settings: {
@@ -81,7 +83,7 @@ export interface Event {
     latitude: number | null;
     longitude: number | null;
   };
-  created_by: string;
+  author_id: string;
   approved_by?: string;
   status: 'draft' | 'pending' | 'approved' | 'rejected' | 'archived';
   created_at: string;
@@ -109,7 +111,8 @@ export interface Notice {
   message: string;
   priority: 'low' | 'normal' | 'high' | 'emergency';
   status: 'draft' | 'submitted' | 'under_review' | 'needs_revision' | 'approved' | 'published' | 'archived';
-  created_by: string;
+  author_id?: string;
+  created_by?: string;
   approved_by?: string;
   approved_at?: string;
   created_at: string;

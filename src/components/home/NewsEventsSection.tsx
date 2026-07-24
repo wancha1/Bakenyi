@@ -157,7 +157,7 @@ export default function NewsEventsSection({
 
             <div className="space-y-6">
               {events.map((event, index) => {
-                const dateObj = new Date(event.start_datetime);
+                const dateObj = new Date(event.starts_at);
                 const isRsvpOpen = event.rsvp_settings?.enabled;
                 const totalRsvpsCount = event.rsvp_settings?.rsvps?.length || 0;
 
@@ -179,7 +179,7 @@ export default function NewsEventsSection({
                             </span>
                           </div>
                           <span className="text-[9px] font-mono font-bold text-heritage-terracotta dark:text-heritage-sand bg-heritage-terracotta/5 border border-heritage-terracotta/10 px-2.5 py-1 rounded-md">
-                            {getCountdown(event.start_datetime)}
+                            {getCountdown(event.starts_at)}
                           </span>
                         </div>
 

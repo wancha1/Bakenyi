@@ -152,13 +152,13 @@ export default function Gallery() {
           combinedList = [...combinedList, ...formattedAudio];
         }
 
-        // 3. Fetch custom video files from database `media` table
-        const { data: videoTracks } = await client.from('media').select('*').eq('file_type', 'video');
+        // 3. Fetch custom video files from database `vlogs` table
+        const { data: videoTracks } = await client.from('vlogs').select('*');
         if (videoTracks && videoTracks.length > 0) {
           const formattedVideo: UnifiedMediaItem[] = videoTracks.map(vid => ({
             id: vid.id,
             title: vid.title,
-            fileUrl: vid.file_url,
+            fileUrl: vid.video_url || vid.file_url,
             fileType: 'video',
             description: vid.description || '',
             category: vid.category || 'General',
@@ -265,11 +265,10 @@ export default function Gallery() {
               recording_date: new Date().toISOString().split('T')[0]
             });
           } else if (file.type === 'video') {
-            await client.from('media').insert({
+            await client.from('vlogs').insert({
               title: file.title,
-              file_url: file.url,
+              video_url: file.url,
               description: file.desc,
-              file_type: 'video',
               category: uploadCategory,
               status: isAdmin ? 'approved' : 'pending'
             });

@@ -13,7 +13,7 @@ export interface ElderSubmission {
   coverImage?: string;
   elderFeedback?: string;
   reviewedBy?: string;
-  originalTable: 'articles' | 'heritage_articles' | 'events' | 'gallery' | 'media' | 'announcements' | 'contributions';
+  originalTable: 'articles' | 'events' | 'gallery' | 'announcements' | 'contributions';
   originalData: any;
 }
 
@@ -181,7 +181,7 @@ export async function fetchElderSubmissions(userId: string): Promise<{ submissio
     const { data: articles, error: artErr } = await client
       .from('articles')
       .select('*')
-      .or(`author_id.eq.${userId},created_by.eq.${userId}`)
+      .eq('author_id', userId)
       .order('created_at', { ascending: false });
 
     if (artErr) console.warn('Articles fetch error:', artErr);
@@ -190,7 +190,7 @@ export async function fetchElderSubmissions(userId: string): Promise<{ submissio
     const { data: events, error: evErr } = await client
       .from('events')
       .select('*')
-      .or(`author_id.eq.${userId},created_by.eq.${userId}`)
+      .eq('author_id', userId)
       .order('created_at', { ascending: false });
 
     if (evErr) console.warn('Events fetch error:', evErr);
@@ -248,7 +248,7 @@ export async function fetchElderSubmissions(userId: string): Promise<{ submissio
         status: ev.status as any,
         createdAt: ev.created_at,
         updatedAt: ev.updated_at || ev.created_at,
-        summary: `${ev.location} | ${new Date(ev.starts_at || ev.start_datetime).toLocaleDateString()}`,
+        summary: `${ev.location} | ${new Date(ev.starts_at).toLocaleDateString()}`,
         body: ev.description || '',
         coverImage: ev.image_url || ev.cover_image || undefined,
         originalTable: 'events',
@@ -323,12 +323,12 @@ export async function fetchElderMediaList(userId?: string): Promise<{ media: Eld
 
   try {
     let query = client
-      .from('media')
+      .from('gallery')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (userId) {
-      query = query.eq('created_by', userId);
+      query = query.eq('uploaded_by', userId);
     }
 
     const { data, error } = await query;
@@ -337,14 +337,14 @@ export async function fetchElderMediaList(userId?: string): Promise<{ media: Eld
     const list: ElderMediaItem[] = (data || []).map(item => ({
       id: item.id,
       title: item.title,
-      description: item.description || '',
-      url: item.file_url,
-      type: (item.file_type as any) || 'image',
-      category: item.category || 'General',
-      albumId: item.metadata?.albumId,
+      description: item.caption || item.event || '',
+      url: item.image_url,
+      type: 'image',
+      category: 'Gallery',
+      albumId: undefined,
       createdAt: item.created_at,
-      createdBy: item.created_by,
-      status: item.status
+      createdBy: item.uploaded_by,
+      status: 'approved'
     }));
 
     return { media: list, error: null };
@@ -366,10 +366,10 @@ export async function fetchElderEventsList(userId?: string): Promise<{ events: E
     let query = client
       .from('events')
       .select('*')
-      .order('start_datetime', { ascending: true });
+      .order('starts_at', { ascending: true });
 
     if (userId) {
-      query = query.eq('created_by', userId);
+      query = query.eq('author_id', userId);
     }
 
     const { data, error } = await query;
@@ -380,15 +380,15 @@ export async function fetchElderEventsList(userId?: string): Promise<{ events: E
       title: item.title,
       description: item.description || '',
       location: item.location,
-      startDatetime: item.start_datetime,
-      endDatetime: item.end_datetime,
-      coverImage: item.cover_image || undefined,
+      startDatetime: item.starts_at,
+      endDatetime: item.ends_at,
+      coverImage: item.image_url || item.cover_image || undefined,
       organizer: item.organizer,
       contact: item.contact || undefined,
       capacity: item.capacity || undefined,
       status: item.status,
       createdAt: item.created_at,
-      createdBy: item.created_by
+      createdBy: item.author_id
     }));
 
     return { events: list, error: null };
@@ -498,7 +498,7 @@ export async function saveElderArticle(
           updated_at: new Date().toISOString()
         })
         .eq('id', articleData.id)
-        .or(`author_id.eq.${userId},created_by.eq.${userId}`)
+        .eq('author_id', userId)
         .select()
         .single();
 
@@ -579,7 +579,7 @@ export async function saveElderEvent(
           updated_at: new Date().toISOString()
         })
         .eq('id', eventData.id)
-        .or(`author_id.eq.${userId},created_by.eq.${userId}`)
+        .eq('author_id', userId)
         .select()
         .single();
 
@@ -693,16 +693,13 @@ export async function saveElderMedia(
 
   try {
     const { data, error } = await client
-      .from('media')
+      .from('gallery')
       .insert({
         title: mediaData.title,
-        description: mediaData.description,
-        file_url: mediaData.fileUrl,
-        file_type: mediaData.fileType,
-        category: mediaData.category || 'General',
-        status: mediaData.status,
-        created_by: userId,
-        metadata: mediaData.albumId ? { albumId: mediaData.albumId } : {}
+        caption: mediaData.description,
+        image_url: mediaData.fileUrl,
+        event: mediaData.category || 'General',
+        uploaded_by: userId
       })
       .select()
       .single();
@@ -720,7 +717,7 @@ export async function saveElderMedia(
 export async function deleteElderSubmission(
   userId: string,
   id: string,
-  table: 'articles' | 'heritage_articles' | 'events' | 'gallery' | 'media' | 'announcements' | 'contributions'
+  table: 'articles' | 'events' | 'gallery' | 'announcements' | 'contributions'
 ): Promise<{ success: boolean; error: Error | null }> {
   const client = getSupabase();
   if (!client) {

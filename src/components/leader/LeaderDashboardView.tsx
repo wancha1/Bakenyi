@@ -235,8 +235,8 @@ export default function LeaderDashboardView({ user }: { user: any }) {
       body: sub.body || '',
       summary: sub.summary || '',
       priority: 'normal',
-      eventDate: sub.type === 'event' && sub.originalData?.start_datetime ? sub.originalData.start_datetime.substring(0, 10) : '',
-      eventTime: sub.type === 'event' && sub.originalData?.start_datetime ? new Date(sub.originalData.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+      eventDate: sub.type === 'event' && sub.originalData?.starts_at ? sub.originalData.starts_at.substring(0, 10) : '',
+      eventTime: sub.type === 'event' && sub.originalData?.starts_at ? new Date(sub.originalData.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
       eventVenue: sub.type === 'event' ? sub.originalData?.location || '' : '',
       eventSpeaker: sub.type === 'event' ? sub.originalData?.organizer || '' : '',
       eventScope: 'All Clans Welcome',
@@ -307,7 +307,7 @@ export default function LeaderDashboardView({ user }: { user: any }) {
     }
   };
 
-  const handleDeleteSubmission = async (id: string, table: 'heritage_articles' | 'events' | 'media' | 'announcements' | 'contributions') => {
+  const handleDeleteSubmission = async (id: string, table: 'articles' | 'events' | 'gallery' | 'announcements' | 'contributions') => {
     if (!window.confirm('Are you sure you want to delete this item from Supabase?')) return;
     const { success, error } = await deleteElderSubmission(userId, id, table);
     if (error) {
@@ -806,7 +806,7 @@ export default function LeaderDashboardView({ user }: { user: any }) {
                         {new Date(media.createdAt).toLocaleDateString()}
                       </span>
                       <button
-                        onClick={() => handleDeleteSubmission(media.id, 'media')}
+                        onClick={() => handleDeleteSubmission(media.id, 'gallery')}
                         className="p-1 hover:bg-rose-50 text-rose-600 rounded-lg transition-colors cursor-pointer"
                         title="Delete Media"
                       >

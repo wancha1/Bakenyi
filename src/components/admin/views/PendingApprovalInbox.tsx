@@ -215,7 +215,7 @@ export default function PendingApprovalInbox() {
           id: a.id,
           contentType: 'Announcement',
           title: a.title,
-          submittedBy: a.created_by || 'Council Secretary',
+          submittedBy: a.author_id || a.created_by || 'Council Secretary',
           submittedAt: parseDate(a.created_at),
           status: a.status as any,
           category: a.category,
@@ -232,8 +232,8 @@ export default function PendingApprovalInbox() {
           id: e.id,
           contentType: 'Event',
           title: e.title,
-          thumbnail: e.cover_image,
-          submittedBy: e.created_by || 'Event Coordinator',
+          thumbnail: e.image_url || e.cover_image,
+          submittedBy: e.author_id || e.created_by || 'Event Coordinator',
           submittedAt: parseDate(e.created_at),
           status: e.status as any,
           category: 'Gathering',
@@ -1342,8 +1342,8 @@ export default function PendingApprovalInbox() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] bg-slate-100/50 p-2.5 rounded-lg font-mono">
                           <div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-amber-500" /> Venue: {selectedItem.raw.location}</div>
                           <div>Organizer: {selectedItem.raw.organizer}</div>
-                          <div>Start: {new Date(selectedItem.raw.start_datetime).toLocaleString()}</div>
-                          <div>End: {new Date(selectedItem.raw.end_datetime).toLocaleString()}</div>
+                          <div>Start: {new Date(selectedItem.raw.starts_at).toLocaleString()}</div>
+                          <div>End: {new Date(selectedItem.raw.ends_at).toLocaleString()}</div>
                         </div>
                       </div>
                     )}

@@ -286,14 +286,14 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
       updated_at: new Date().toISOString()
     };
 
-    // Auto-resolve logged-in user for created_by field
+    // Auto-resolve logged-in user for author_id field
     try {
       const { data: userData } = await client.auth.getUser();
       if (userData?.user?.id) {
-        dbRecord.created_by = userData.user.id;
+        dbRecord.author_id = userData.user.id;
       }
     } catch (userErr) {
-      console.warn('Could not retrieve user ID for created_by field:', userErr);
+      console.warn('Could not retrieve user ID for author_id field:', userErr);
     }
 
     // Try inserting into articles
@@ -436,8 +436,8 @@ function getBucketNameForFile(file: File, type?: string): string {
     return 'system-assets';
   }
   
-  // Default fallback is heritage-images for all general images or files
-  return 'heritage-images';
+  // Default fallback is gallery-images for all general images or files
+  return 'gallery-images';
 }
 
 export async function uploadMedia(file: File, type: 'images' | 'pdfs'): Promise<{ url: string; error: Error | null }> {
@@ -830,49 +830,30 @@ export async function getGalleryImages(includePending = false): Promise<GalleryI
 
   try {
     const { data, error } = await client
-      .from('media')
-      .select('id, title, description, file_url, category, status, created_at')
-      .eq('file_type', 'image');
+      .from('gallery')
+      .select('id, title, caption, event, image_url, created_at')
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     if (data && data.length > 0) {
-      const mapped = data.map((row: any) => {
-        let titleVal = row.title;
-        let desc = row.description || '';
-        let cat = row.category || 'General';
-        let statusVal: 'pending' | 'approved' | 'rejected' = row.status || 'approved';
-        
-        try {
-          if (titleVal && titleVal.startsWith('{')) {
-            const parsed = JSON.parse(titleVal);
-            titleVal = parsed.title;
-            desc = parsed.description || desc;
-            cat = parsed.category || cat;
-            statusVal = parsed.status || statusVal;
-          }
-        } catch (e) {}
+      const mapped = data.map((row: any) => ({
+        id: row.id,
+        title: row.title || row.event || 'Heritage Photograph',
+        imageUrl: row.image_url,
+        created_at: row.created_at,
+        description: row.caption || row.event || '',
+        category: 'Gallery',
+        status: 'approved' as const
+      }));
 
-        return {
-          id: row.id,
-          title: titleVal,
-          imageUrl: row.file_url,
-          created_at: row.created_at,
-          description: desc,
-          category: cat,
-          status: statusVal
-        };
-      });
-
-      return includePending ? mapped : mapped.filter(img => img.status === 'approved');
+      return mapped;
     }
 
     return DEFAULT_GALLERY_IMAGES;
   } catch (err) {
     console.warn('getGalleryImages query failed, using high-quality defaults:', err);
-    return includePending 
-      ? DEFAULT_GALLERY_IMAGES 
-      : DEFAULT_GALLERY_IMAGES.filter(img => img.status === 'approved');
+    return DEFAULT_GALLERY_IMAGES;
   }
 }
 
@@ -902,17 +883,15 @@ export async function addGalleryImage(
 
   try {
     const { data: dbData, error } = await client
-      .from('media')
+      .from('gallery')
       .insert({
         title,
-        description,
-        file_url: imageUrl,
-        file_type: 'image',
-        category,
-        status,
+        caption: description,
+        image_url: imageUrl,
+        event: category,
         created_at: new Date().toISOString()
       })
-      .select('id, title, description, file_url, category, status, created_at')
+      .select('id, title, caption, image_url, event, created_at')
       .maybeSingle();
 
     if (error) throw error;
@@ -922,11 +901,11 @@ export async function addGalleryImage(
       data: {
         id: returnedId,
         title: dbData?.title || title,
-        imageUrl: dbData?.file_url || imageUrl,
+        imageUrl: dbData?.image_url || imageUrl,
         created_at: dbData?.created_at || galleryObj.created_at,
-        description: dbData?.description || description,
-        category: dbData?.category || category,
-        status: dbData?.status || status
+        description: dbData?.caption || description,
+        category: dbData?.event || category,
+        status: 'approved'
       }, 
       error: null 
     };
@@ -941,8 +920,8 @@ export async function updateGalleryImageStatus(id: string, status: 'pending' | '
   if (!client) return { success: false, error: new Error('Supabase client is not configured.') };
 
   try {
-    const { error: mediaErr } = await client.from('media').update({ status }).eq('id', id);
-    if (mediaErr) throw mediaErr;
+    const { error: galErr } = await client.from('gallery').delete().eq('id', id);
+    if (galErr) throw galErr;
     return { success: true, error: null };
   } catch (err: any) {
     console.error('updateGalleryImageStatus failed:', err);
@@ -1242,20 +1221,20 @@ export async function getLeaders(onlyApproved = true): Promise<Leader[]> {
   try {
     const { data, error } = await client
       .from('leaders')
-      .select('id, name, title, bio, role, clan, clan_id, photo_url, status, created_at')
-      .order('name', { ascending: true });
+      .select('*')
+      .order('created_at', { ascending: false });
     
     if (error) throw error;
 
     const mapped = (data || []).map((row: any) => ({
       id: row.id,
-      name: row.name || '',
-      role: row.role || row.title || '',
-      bio: row.bio || '',
-      photo_url: row.photo_url || '',
-      expertise: 'Cultural Custodian',
+      name: row.name || row.full_name || row.title || 'Community Leader',
+      role: row.role || row.title || row.position || 'Cultural Elder',
+      bio: row.bio || row.description || '',
+      photo_url: row.photo_url || row.image_url || '',
+      expertise: row.expertise || 'Cultural Custodian',
       clan: row.clan || row.clan_id || '',
-      contact_email: '',
+      contact_email: row.contact_email || row.email || '',
       status: row.status || 'approved',
       created_at: row.created_at
     }));

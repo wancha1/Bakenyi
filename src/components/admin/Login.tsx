@@ -520,7 +520,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                   <div>VITE_SUPABASE_ANON_KEY=<span className="text-amber-600">"eyJhbG..."</span></div>
                 </div>
                 <p className="text-[10px] text-slate-400">
-                  Once declared, your custom schema containing <code>heritage_articles</code>, <code>profiles</code>, and security RLS guidelines takes effect instantly.
+                  Once declared, your custom schema containing <code>articles</code>, <code>profiles</code>, and security RLS guidelines takes effect instantly.
                 </p>
               </div>
             )}

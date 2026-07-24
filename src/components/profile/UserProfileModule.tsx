@@ -188,9 +188,9 @@ export default function UserProfileModule({ user }: { user: any }) {
       let contribCount = 0;
       if (client) {
         const { count, error: contribErr } = await client
-          .from('heritage_articles')
+          .from('articles')
           .select('*', { count: 'exact', head: true })
-          .eq('created_by', user.id);
+          .eq('author_id', user.id);
         if (!contribErr && count !== null) contribCount = count;
       }
 

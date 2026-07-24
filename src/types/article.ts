@@ -13,5 +13,5 @@ export interface Article {
   tags?: string[];
   additionalImages?: string[];
   status?: 'draft' | 'published' | 'pending';
-  created_by?: string;
+  author_id?: string;
 }

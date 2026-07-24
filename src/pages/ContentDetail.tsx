@@ -143,8 +143,8 @@ Preserving the original Lukenye nouns for these natural elements is critical. Th
             // Fallback direct query
             if (client) {
               const { data: directArt } = await client
-                .from('heritage_articles')
-                .select('*, profiles:created_by(name)')
+                .from('articles')
+                .select('*, profiles:author_id(full_name)')
                 .eq('id', id)
                 .maybeSingle();
               if (directArt) {
@@ -154,8 +154,8 @@ Preserving the original Lukenye nouns for these natural elements is critical. Th
                   summary: directArt.summary,
                   content: directArt.content,
                   category: (directArt as any).category || 'Culture',
-                  coverImage: directArt.cover_image,
-                  author: (directArt as any).profiles?.name || 'Bakenyi Scribe',
+                  coverImage: directArt.featured_image || directArt.cover_image,
+                  author: (directArt as any).profiles?.full_name || (directArt as any).profiles?.name || 'Bakenyi Scribe',
                   publishedAt: directArt.published_at || directArt.created_at
                 });
               } else {
@@ -1020,7 +1020,7 @@ Preserving the original Lukenye nouns for these natural elements is critical. Th
                   <div>
                     <span className="text-[9px] font-black uppercase text-heritage-brown/40 block">Assembly Date</span>
                     <span className="text-xs font-bold text-heritage-brown dark:text-stone-200">
-                      {new Date(data.start_datetime).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      {new Date(data.starts_at).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                     </span>
                   </div>
                 </div>

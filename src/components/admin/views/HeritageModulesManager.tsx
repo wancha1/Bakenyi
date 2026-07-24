@@ -71,8 +71,8 @@ export default function HeritageModulesManager({ userRole }: HeritageModulesMana
     title: '',
     description: '',
     location: '',
-    start_datetime: '',
-    end_datetime: '',
+    starts_at: '',
+    ends_at: '',
     cover_image: '',
     organizer: '',
     contact: '',
@@ -143,8 +143,8 @@ export default function HeritageModulesManager({ userRole }: HeritageModulesMana
       title: '',
       description: '',
       location: '',
-      start_datetime: '',
-      end_datetime: '',
+      starts_at: '',
+      ends_at: '',
       cover_image: '',
       organizer: '',
       contact: '',
@@ -192,9 +192,9 @@ export default function HeritageModulesManager({ userRole }: HeritageModulesMana
         title: item.title,
         description: item.description,
         location: item.location,
-        start_datetime: item.start_datetime ? new Date(item.start_datetime).toISOString().slice(0, 16) : '',
-        end_datetime: item.end_datetime ? new Date(item.end_datetime).toISOString().slice(0, 16) : '',
-        cover_image: item.cover_image || '',
+        starts_at: item.starts_at ? new Date(item.starts_at).toISOString().slice(0, 16) : '',
+        ends_at: item.ends_at ? new Date(item.ends_at).toISOString().slice(0, 16) : '',
+        cover_image: item.cover_image || item.image_url || '',
         organizer: item.organizer,
         contact: item.contact || '',
         rsvp_enabled: item.rsvp_settings?.enabled || false,
@@ -331,9 +331,10 @@ export default function HeritageModulesManager({ userRole }: HeritageModulesMana
           title: eventForm.title,
           description: eventForm.description,
           location: eventForm.location,
-          start_datetime: new Date(eventForm.start_datetime).toISOString(),
-          end_datetime: new Date(eventForm.end_datetime).toISOString(),
+          starts_at: new Date(eventForm.starts_at).toISOString(),
+          ends_at: new Date(eventForm.ends_at).toISOString(),
           cover_image: eventForm.cover_image || undefined,
+          image_url: eventForm.cover_image || undefined,
           organizer: eventForm.organizer,
           contact: eventForm.contact || undefined,
           rsvp_settings: {
@@ -345,7 +346,7 @@ export default function HeritageModulesManager({ userRole }: HeritageModulesMana
             latitude: eventForm.latitude ? Number(eventForm.latitude) : null,
             longitude: eventForm.longitude ? Number(eventForm.longitude) : null
           },
-          created_by: 'active-admin',
+          author_id: 'active-admin',
           status: editingId ? eventForm.status : (isElder ? 'approved' : 'pending'),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -672,8 +673,8 @@ export default function HeritageModulesManager({ userRole }: HeritageModulesMana
                   <input 
                     required
                     type="datetime-local"
-                    value={eventForm.start_datetime}
-                    onChange={e => setEventForm({...eventForm, start_datetime: e.target.value})}
+                    value={eventForm.starts_at}
+                    onChange={e => setEventForm({...eventForm, starts_at: e.target.value})}
                     className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl outline-none text-slate-800 dark:text-white text-xs font-semibold"
                   />
                 </div>
@@ -682,8 +683,8 @@ export default function HeritageModulesManager({ userRole }: HeritageModulesMana
                   <input 
                     required
                     type="datetime-local"
-                    value={eventForm.end_datetime}
-                    onChange={e => setEventForm({...eventForm, end_datetime: e.target.value})}
+                    value={eventForm.ends_at}
+                    onChange={e => setEventForm({...eventForm, ends_at: e.target.value})}
                     className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl outline-none text-slate-800 dark:text-white text-xs font-semibold"
                   />
                 </div>
@@ -1013,7 +1014,7 @@ export default function HeritageModulesManager({ userRole }: HeritageModulesMana
                           </span>
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {new Date(e.start_datetime).toLocaleDateString()}
+                            {new Date(e.starts_at).toLocaleDateString()}
                           </span>
                         </div>
                       </div>

@@ -1,0 +1,90 @@
+[created_by] src/lib/supabase.ts:37: const creatorId = item.created_by;
+[from('articles')] src/lib/supabase.ts:167: .from('articles')
+[created_by] src/lib/supabase.ts:168: .select('id, title, content, status, created_at, updated_at, published_at, summary, author_id, created_by')
+[created_by] src/lib/supabase.ts:184: created_by: row.created_by
+[from('articles')] src/lib/supabase.ts:216: .from('articles')
+[created_by] src/lib/supabase.ts:217: .select('id, title, content, status, created_at, updated_at, published_at, summary, author_id, created_by')
+[created_by] src/lib/supabase.ts:235: created_by: data.created_by
+[from('articles')] src/lib/supabase.ts:301: .from('articles')
+[from('articles')] src/lib/supabase.ts:375: const { error } = await client.from('articles').update(dbRecord).eq('id', id);
+[from('articles')] src/lib/supabase.ts:403: const { error } = await client.from('articles').delete().eq('id', id);
+[from('gallery')] src/lib/supabase.ts:833: .from('gallery')
+[from('gallery')] src/lib/supabase.ts:886: .from('gallery')
+[from('gallery')] src/lib/supabase.ts:923: const { error: galErr } = await client.from('gallery').delete().eq('id', id);
+[created_by] src/lib/heritageService.ts:7: async function filterRealUsers<T extends { author_id?: string; created_by?: string; status?: string }>(items: T[]): Promise<T[]> {
+[created_by] src/lib/heritageService.ts:15: const authorId = item.author_id || item.created_by;
+[created_by] src/lib/heritageService.ts:437: created_by: row.created_by,
+[created_by] src/lib/heritageService.ts:479: created_by: await resolveUserUUID(client, announcement.created_by),
+[created_by] src/lib/heritageService.ts:521: if (updates.created_by !== undefined && isUUID(updates.created_by)) dbRecord.created_by = updates.created_by;
+[start_datetime] src/lib/heritageService.ts:592: starts_at: row.starts_at || row.start_datetime || '',
+[end_datetime] src/lib/heritageService.ts:593: ends_at: row.ends_at || row.end_datetime || '',
+[start_datetime] src/lib/heritageService.ts:594: start_datetime: row.starts_at || row.start_datetime || '',
+[end_datetime] src/lib/heritageService.ts:595: end_datetime: row.ends_at || row.end_datetime || '',
+[created_by] src/lib/heritageService.ts:602: author_id: row.author_id || row.created_by || '',
+[created_by] src/lib/heritageService.ts:603: created_by: row.author_id || row.created_by || '',
+[start_datetime] src/lib/heritageService.ts:638: starts_at: event.starts_at || event.start_datetime,
+[end_datetime] src/lib/heritageService.ts:639: ends_at: event.ends_at || event.end_datetime,
+[created_by] src/lib/heritageService.ts:642: author_id: await resolveUserUUID(client, event.author_id || event.created_by),
+[start_datetime] src/lib/heritageService.ts:681: else if (updates.start_datetime !== undefined) dbRecord.starts_at = updates.start_datetime;
+[end_datetime] src/lib/heritageService.ts:683: else if (updates.end_datetime !== undefined) dbRecord.ends_at = updates.end_datetime;
+[from('articles')] src/lib/heritageService.ts:868: const { data: articles } = await client.from('articles').select('*');
+[created_by] src/lib/heritageService.ts:884: author_id: art.author_id || art.created_by,
+[created_by] src/lib/heritageService.ts:924: author_id: n.author_id || n.created_by,
+[created_by] src/lib/heritageService.ts:973: author_id: ev.author_id || ev.created_by,
+[from('articles')] src/lib/syncService.ts:138: const { error } = await client.from('articles').upsert(dbRecord);
+[from('articles')] src/lib/syncService.ts:142: const { error } = await client.from('articles').delete().eq('id', item.payload.id);
+[from('articles')] src/lib/globalSearch.ts:49: .from('articles')
+[from('articles')] src/lib/elderDashboardService.ts:182: .from('articles')
+[created_by] src/lib/elderDashboardService.ts:184: .or(`author_id.eq.${userId},created_by.eq.${userId}`)
+[created_by] src/lib/elderDashboardService.ts:193: .or(`author_id.eq.${userId},created_by.eq.${userId}`)
+[from('gallery')] src/lib/elderDashboardService.ts:200: .from('gallery')
+[created_by] src/lib/elderDashboardService.ts:211: .eq('created_by', userId)
+[start_datetime] src/lib/elderDashboardService.ts:251: summary: `${ev.location} | ${new Date(ev.starts_at || ev.start_datetime).toLocaleDateString()}`,
+[from('gallery')] src/lib/elderDashboardService.ts:326: .from('gallery')
+[created_by] src/lib/elderDashboardService.ts:372: query = query.or(`author_id.eq.${userId},created_by.eq.${userId}`);
+[start_datetime] src/lib/elderDashboardService.ts:383: startDatetime: item.starts_at || item.start_datetime,
+[end_datetime] src/lib/elderDashboardService.ts:384: endDatetime: item.ends_at || item.end_datetime,
+[created_by] src/lib/elderDashboardService.ts:391: createdBy: item.author_id || item.created_by
+[from('articles')] src/lib/elderDashboardService.ts:491: .from('articles')
+[created_by] src/lib/elderDashboardService.ts:501: .or(`author_id.eq.${userId},created_by.eq.${userId}`)
+[from('articles')] src/lib/elderDashboardService.ts:511: .from('articles')
+[created_by] src/lib/elderDashboardService.ts:582: .or(`author_id.eq.${userId},created_by.eq.${userId}`)
+[created_by] src/lib/elderDashboardService.ts:646: .eq('created_by', userId)
+[created_by] src/lib/elderDashboardService.ts:661: created_by: userId
+[from('gallery')] src/lib/elderDashboardService.ts:696: .from('gallery')
+[created_by] src/lib/elderDashboardService.ts:731: else if (table === 'announcements') userField = 'created_by';
+[created_by] src/lib/elderDashboardService.ts:737: .or(`${userField}.eq.${userId},created_by.eq.${userId}`);
+[start_datetime] src/components/admin/views/HeritageModulesManager.tsx:74: start_datetime: '',
+[end_datetime] src/components/admin/views/HeritageModulesManager.tsx:75: end_datetime: '',
+[start_datetime] src/components/admin/views/HeritageModulesManager.tsx:146: start_datetime: '',
+[end_datetime] src/components/admin/views/HeritageModulesManager.tsx:147: end_datetime: '',
+[start_datetime] src/components/admin/views/HeritageModulesManager.tsx:195: start_datetime: (item.starts_at || item.start_datetime) ? new Date(item.starts_at || item.start_datetime).toISOString().slice(0, 16) : '',
+[end_datetime] src/components/admin/views/HeritageModulesManager.tsx:196: end_datetime: (item.ends_at || item.end_datetime) ? new Date(item.ends_at || item.end_datetime).toISOString().slice(0, 16) : '',
+[created_by] src/components/admin/views/HeritageModulesManager.tsx:315: created_by: 'active-admin',
+[start_datetime] src/components/admin/views/HeritageModulesManager.tsx:334: starts_at: new Date(eventForm.start_datetime).toISOString(),
+[end_datetime] src/components/admin/views/HeritageModulesManager.tsx:335: ends_at: new Date(eventForm.end_datetime).toISOString(),
+[start_datetime] src/components/admin/views/HeritageModulesManager.tsx:676: value={eventForm.start_datetime}
+[start_datetime] src/components/admin/views/HeritageModulesManager.tsx:677: onChange={e => setEventForm({...eventForm, start_datetime: e.target.value})}
+[end_datetime] src/components/admin/views/HeritageModulesManager.tsx:686: value={eventForm.end_datetime}
+[end_datetime] src/components/admin/views/HeritageModulesManager.tsx:687: onChange={e => setEventForm({...eventForm, end_datetime: e.target.value})}
+[start_datetime] src/components/admin/views/HeritageModulesManager.tsx:1017: {new Date(e.starts_at || e.start_datetime).toLocaleDateString()}
+[created_by] src/components/admin/views/PendingApprovalInbox.tsx:218: submittedBy: a.author_id || a.created_by || 'Council Secretary',
+[created_by] src/components/admin/views/PendingApprovalInbox.tsx:236: submittedBy: e.author_id || e.created_by || 'Event Coordinator',
+[start_datetime] src/components/admin/views/PendingApprovalInbox.tsx:1345: <div>Start: {new Date(selectedItem.raw.starts_at || selectedItem.raw.start_datetime).toLocaleString()}</div>
+[end_datetime] src/components/admin/views/PendingApprovalInbox.tsx:1346: <div>End: {new Date(selectedItem.raw.ends_at || selectedItem.raw.end_datetime).toLocaleString()}</div>
+[start_datetime] src/components/home/NewsEventsSection.tsx:160: const dateObj = new Date(event.starts_at || event.start_datetime);
+[start_datetime] src/components/home/NewsEventsSection.tsx:182: {getCountdown(event.starts_at || event.start_datetime)}
+[from('articles')] src/components/profile/UserProfileModule.tsx:191: .from('articles')
+[created_by] src/components/profile/UserProfileModule.tsx:193: .or(`author_id.eq.${user.id},created_by.eq.${user.id}`);
+[start_datetime] src/components/leader/LeaderDashboardView.tsx:238: eventDate: sub.type === 'event' && (sub.originalData?.starts_at || sub.originalData?.start_datetime) ? (sub.originalData.starts_at || sub.originalData.start_datetime).substring(0, 10) : '',
+[start_datetime] src/components/leader/LeaderDashboardView.tsx:239: eventTime: sub.type === 'event' && (sub.originalData?.starts_at || sub.originalData?.start_datetime) ? new Date(sub.originalData.starts_at || sub.originalData.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+[start_datetime] src/pages/MemberDashboard.tsx:463: date: (e.starts_at || e.start_datetime) ? new Date(e.starts_at || e.start_datetime).toLocaleDateString() : 'Upcoming',
+[start_datetime] src/pages/MemberDashboard.tsx:464: time: (e.starts_at || e.start_datetime) ? new Date(e.starts_at || e.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'All day',
+[from('articles')] src/pages/ContentDetail.tsx:146: .from('articles')
+[start_datetime] src/pages/ContentDetail.tsx:1023: {new Date(data.starts_at || data.start_datetime).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+[created_by] src/types/heritage.ts:59: created_by?: string;
+[start_datetime] src/types/heritage.ts:73: start_datetime?: string;
+[end_datetime] src/types/heritage.ts:74: end_datetime?: string;
+[created_by] src/types/heritage.ts:89: created_by?: string;
+[created_by] src/types/heritage.ts:118: created_by?: string;
+[created_by] src/types/article.ts:17: created_by?: string;
