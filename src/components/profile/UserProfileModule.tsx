@@ -294,7 +294,7 @@ export default function UserProfileModule({ user }: { user: any }) {
         const { error: updateErr } = await client
           .from('profiles')
           .update({
-            full_name: fullName,
+            name: fullName,
             avatar_url: avatarUrl,
             updated_at: new Date().toISOString()
           })

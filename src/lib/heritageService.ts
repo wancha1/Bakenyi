@@ -579,8 +579,8 @@ export async function getEvents(onlyApproved = true): Promise<Event[]> {
   try {
     const { data, error } = await client
       .from('events')
-      .select('id, title, description, location, start_datetime, end_datetime, cover_image, organizer, status, created_at, updated_at, created_by')
-      .order('start_datetime', { ascending: true });
+      .select('id, title, description, location, starts_at, ends_at, image_url, organizer, status, created_at, updated_at, author_id')
+      .order('starts_at', { ascending: true });
 
     if (error) throw error;
 
@@ -589,14 +589,14 @@ export async function getEvents(onlyApproved = true): Promise<Event[]> {
       title: row.title,
       description: row.description,
       location: row.location,
-      start_datetime: row.start_datetime || '',
-      end_datetime: row.end_datetime || '',
-      cover_image: row.cover_image || '',
+      start_datetime: row.starts_at || row.start_datetime || '',
+      end_datetime: row.ends_at || row.end_datetime || '',
+      cover_image: row.image_url || row.cover_image || '',
       organizer: row.organizer,
       contact: '',
       rsvp_settings: { enabled: false, limit: null },
       map_location: { latitude: null, longitude: null },
-      created_by: row.created_by || '',
+      created_by: row.author_id || row.created_by || '',
       approved_by: '',
       status: row.status,
       created_at: row.created_at,
@@ -631,11 +631,11 @@ export async function createEvent(event: Omit<Event, 'id'>): Promise<{ data: Eve
       title: event.title,
       description: event.description,
       location: event.location,
-      start_datetime: event.start_datetime,
-      end_datetime: event.end_datetime,
-      cover_image: event.cover_image,
+      starts_at: event.start_datetime,
+      ends_at: event.end_datetime,
+      image_url: event.cover_image,
       organizer: event.organizer,
-      created_by: await resolveUserUUID(client, event.created_by),
+      author_id: await resolveUserUUID(client, event.created_by),
       status: event.status,
       created_at: event.created_at,
       updated_at: event.updated_at
@@ -673,9 +673,9 @@ export async function updateEvent(id: string, updates: Partial<Event>): Promise<
     if (updates.title !== undefined) dbRecord.title = updates.title;
     if (updates.description !== undefined) dbRecord.description = updates.description;
     if (updates.location !== undefined) dbRecord.location = updates.location;
-    if (updates.start_datetime !== undefined) dbRecord.start_datetime = updates.start_datetime;
-    if (updates.end_datetime !== undefined) dbRecord.end_datetime = updates.end_datetime;
-    if (updates.cover_image !== undefined) dbRecord.cover_image = updates.cover_image;
+    if (updates.start_datetime !== undefined) dbRecord.starts_at = updates.start_datetime;
+    if (updates.end_datetime !== undefined) dbRecord.ends_at = updates.end_datetime;
+    if (updates.cover_image !== undefined) dbRecord.image_url = updates.cover_image;
     if (updates.organizer !== undefined) dbRecord.organizer = updates.organizer;
     if (updates.status !== undefined) dbRecord.status = updates.status;
     if (updates.created_at !== undefined) dbRecord.created_at = updates.created_at;
@@ -849,20 +849,158 @@ export async function deleteNotice(id: string): Promise<boolean> {
 // UNIFIED CONTENT REGISTRY SERVICE
 // ==========================================
 
+// Helper to assemble unified content registry items directly from individual content tables
+async function assembleFallbackRegistry(statusFilter?: string): Promise<ContentRegistryItem[]> {
+  const client = getSupabase();
+  if (!client) return [];
+  
+  const items: ContentRegistryItem[] = [];
+
+  try {
+    // 1. Articles
+    const { data: articles } = await client.from('articles').select('*');
+    (articles || []).forEach((art: any) => {
+      let regStatus: any = 'draft';
+      if (art.status === 'published') regStatus = 'published';
+      else if (art.status === 'approved') regStatus = 'approved';
+      else if (art.status === 'pending') regStatus = 'under_review';
+      else if (art.status === 'rejected') regStatus = 'needs_revision';
+      else if (art.status === 'archived') regStatus = 'archived';
+
+      items.push({
+        id: art.id,
+        content_type: 'article',
+        table_name: 'articles',
+        record_id: art.id,
+        title: art.title || 'Untitled Article',
+        status: regStatus,
+        author_id: art.author_id || art.created_by,
+        submitted_at: art.created_at,
+        approved_by: art.approved_by,
+        approved_at: art.approved_at,
+        published_at: art.published_at,
+        created_at: art.created_at,
+        updated_at: art.updated_at || art.created_at
+      });
+    });
+
+    // 2. Community Highlights
+    const { data: highlights } = await client.from('community_highlights').select('*');
+    (highlights || []).forEach((h: any) => {
+      items.push({
+        id: h.id,
+        content_type: 'highlight',
+        table_name: 'community_highlights',
+        record_id: h.id,
+        title: h.title || 'Untitled Highlight',
+        status: h.status || 'draft',
+        author_id: h.author_id,
+        submitted_at: h.created_at,
+        approved_by: h.approved_by,
+        approved_at: h.approved_at,
+        published_at: h.published_at,
+        created_at: h.created_at,
+        updated_at: h.updated_at || h.created_at
+      });
+    });
+
+    // 3. Notices
+    const { data: notices } = await client.from('notices').select('*');
+    (notices || []).forEach((n: any) => {
+      items.push({
+        id: n.id,
+        content_type: 'notice',
+        table_name: 'notices',
+        record_id: n.id,
+        title: n.title || 'Untitled Notice',
+        status: n.status || 'draft',
+        author_id: n.created_by,
+        submitted_at: n.created_at,
+        approved_by: n.approved_by,
+        approved_at: n.approved_at,
+        created_at: n.created_at,
+        updated_at: n.updated_at || n.created_at
+      });
+    });
+
+    // 4. News
+    const { data: news } = await client.from('news').select('*');
+    (news || []).forEach((nw: any) => {
+      let regStatus: any = nw.status || 'draft';
+      if (nw.status === 'published') regStatus = 'published';
+      else if (nw.status === 'pending') regStatus = 'under_review';
+
+      items.push({
+        id: nw.id,
+        content_type: 'news',
+        table_name: 'news',
+        record_id: nw.id,
+        title: nw.title || 'Untitled News',
+        status: regStatus,
+        author_id: nw.author_id,
+        submitted_at: nw.created_at,
+        approved_by: nw.approved_by,
+        approved_at: nw.approved_at,
+        published_at: nw.published_at,
+        created_at: nw.created_at,
+        updated_at: nw.updated_at || nw.created_at
+      });
+    });
+
+    // 5. Events
+    const { data: events } = await client.from('events').select('*');
+    (events || []).forEach((ev: any) => {
+      let regStatus: any = 'draft';
+      if (ev.status === 'approved') regStatus = 'approved';
+      else if (ev.status === 'pending') regStatus = 'under_review';
+      else if (ev.status === 'rejected') regStatus = 'needs_revision';
+      else if (ev.status === 'archived') regStatus = 'archived';
+
+      items.push({
+        id: ev.id,
+        content_type: 'event',
+        table_name: 'events',
+        record_id: ev.id,
+        title: ev.title || 'Untitled Event',
+        status: regStatus,
+        author_id: ev.created_by,
+        submitted_at: ev.created_at,
+        approved_by: ev.approved_by,
+        created_at: ev.created_at,
+        updated_at: ev.updated_at || ev.created_at
+      });
+    });
+
+  } catch (e) {
+    console.warn('Failed to assemble fallback registry items:', e);
+  }
+
+  let filtered = items;
+  if (statusFilter && statusFilter !== 'All') {
+    filtered = items.filter(item => item.status === statusFilter);
+  }
+
+  return filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
 export async function getContentRegistry(statusFilter?: string): Promise<ContentRegistryItem[]> {
   const client = getSupabase();
   if (!client) return [];
   try {
-    let query = client.from('content_registry').select('*').order('created_at', { ascending: false });
+    let query = client.from('unified_content_registry').select('*').order('created_at', { ascending: false });
     if (statusFilter && statusFilter !== 'All') {
       query = query.eq('status', statusFilter);
     }
     const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
+    if (error) {
+      return await assembleFallbackRegistry(statusFilter);
+    }
+    if (data && data.length > 0) {
+      return data;
+    }
+    return await assembleFallbackRegistry(statusFilter);
   } catch (err) {
-    console.error('Supabase fetch content registry failed:', err);
-    return [];
+    return await assembleFallbackRegistry(statusFilter);
   }
 }
 
@@ -871,7 +1009,7 @@ export async function updateRegistryItemStatus(recordId: string, status: string,
   if (!client) return false;
   try {
     const { data: registryItem, error: fetchErr } = await client
-      .from('content_registry')
+      .from('unified_content_registry')
       .select('table_name')
       .eq('record_id', recordId)
       .single();
@@ -887,7 +1025,7 @@ export async function updateRegistryItemStatus(recordId: string, status: string,
     if (['community_highlights', 'notices'].includes(table)) {
       // These tables natively support the full standard status set
       targetStatus = status;
-    } else if (table === 'heritage_articles') {
+    } else if (table === 'articles' || table === 'heritage_articles') {
       if (status === 'submitted' || status === 'under_review') targetStatus = 'pending';
       else if (status === 'needs_revision') targetStatus = 'rejected';
       else if (status === 'approved') targetStatus = 'approved';
@@ -1025,7 +1163,7 @@ export async function getUnifiedModerationHistory(recordId: string): Promise<any
     try {
       const { data: profiles, error: profErr } = await client
         .from('profiles')
-        .select('id, email, name')
+        .select('id, email, full_name')
         .in('id', uniqueActorIds);
       
       if (!profErr && profiles) {
@@ -1036,7 +1174,7 @@ export async function getUnifiedModerationHistory(recordId: string): Promise<any
         for (const item of history) {
           if (item.actor_id && profileMap.has(item.actor_id)) {
             const p = profileMap.get(item.actor_id);
-            item.actor_name = p.name || p.email?.split('@')[0] || 'Unknown';
+            item.actor_name = p.full_name || p.name || p.email?.split('@')[0] || 'Unknown';
             item.actor_email = p.email;
           } else {
             item.actor_name = 'System / Automated';

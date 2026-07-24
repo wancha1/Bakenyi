@@ -333,7 +333,7 @@ export default function MemberDashboard() {
       const email = currentUser.email?.toLowerCase() || '';
       
       // Sandbox fallback / direct email triggers
-      if (email.includes('staff') || email.includes('reporter') || email.includes('leader')) {
+      if (email.includes('staff') || email.includes('reporter') || email.includes('leader') || email.includes('admin') || email === 'wanchaaaron@gmail.com') {
         setUserRole('reporter');
         return;
       }
@@ -345,7 +345,14 @@ export default function MemberDashboard() {
             .select('role')
             .eq('id', currentUser.id)
             .maybeSingle();
-          if (!error && (data?.role === 'staff' || data?.role === 'reporter')) {
+          if (!error && (
+            data?.role === 'staff' || 
+            data?.role === 'reporter' || 
+            data?.role === 'community_leader' || 
+            data?.role === 'historian' || 
+            data?.role === 'admin' || 
+            data?.role === 'super_admin'
+          )) {
             setUserRole('reporter');
             return;
           }

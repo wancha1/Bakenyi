@@ -135,11 +135,11 @@ export async function flushOfflineQueue(): Promise<{ synced: number; remaining: 
             summary: item.payload.excerpt || item.payload.summary || '',
             updated_at: new Date().toISOString()
           };
-          const { error } = await client.from('heritage_articles').upsert(dbRecord);
+          const { error } = await client.from('articles').upsert(dbRecord);
           if (!error) syncSuccess = true;
           else errors.push(error);
         } else if (item.action === 'delete') {
-          const { error } = await client.from('heritage_articles').delete().eq('id', item.payload.id);
+          const { error } = await client.from('articles').delete().eq('id', item.payload.id);
           if (!error) syncSuccess = true;
           else errors.push(error);
         }

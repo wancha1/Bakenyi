@@ -164,8 +164,8 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
 
   try {
     const { data, error } = await client
-      .from('heritage_articles')
-      .select('id, title, content, status, created_at, updated_at, published_at, summary, created_by')
+      .from('articles')
+      .select('id, title, content, status, created_at, updated_at, published_at, summary, author_id, created_by')
       .order('published_at', { ascending: false });
 
     if (error) throw error;
@@ -213,8 +213,8 @@ export async function getArticleById(id: string): Promise<Article | null> {
 
   try {
     const { data, error } = await client
-      .from('heritage_articles')
-      .select('id, title, content, status, created_at, updated_at, published_at, summary, created_by')
+      .from('articles')
+      .select('id, title, content, status, created_at, updated_at, published_at, summary, author_id, created_by')
       .eq('id', id)
       .maybeSingle();
 
@@ -296,9 +296,9 @@ export async function createArticle(article: Omit<Article, 'id'>): Promise<{ dat
       console.warn('Could not retrieve user ID for created_by field:', userErr);
     }
 
-    // Try inserting into heritage_articles
+    // Try inserting into articles
     const { data: insertedData, error } = await client
-      .from('heritage_articles')
+      .from('articles')
       .insert(dbRecord)
       .select('id')
       .maybeSingle();
@@ -371,8 +371,8 @@ export async function updateArticle(id: string, articleUpdates: Partial<Article>
     if (articleUpdates.publishedAt !== undefined) dbRecord.published_at = articleUpdates.publishedAt;
     if (articleUpdates.excerpt !== undefined) dbRecord.summary = articleUpdates.excerpt;
 
-    // Update heritage_articles
-    const { error } = await client.from('heritage_articles').update(dbRecord).eq('id', id);
+    // Update articles
+    const { error } = await client.from('articles').update(dbRecord).eq('id', id);
     if (error) throw error;
 
     return { data: updated, error: null };
@@ -400,7 +400,7 @@ export async function deleteArticle(id: string): Promise<{ success: boolean; err
   }
 
   try {
-    const { error } = await client.from('heritage_articles').delete().eq('id', id);
+    const { error } = await client.from('articles').delete().eq('id', id);
     if (error) throw error;
     return { success: true, error: null };
   } catch (err: any) {
@@ -1242,19 +1242,19 @@ export async function getLeaders(onlyApproved = true): Promise<Leader[]> {
   try {
     const { data, error } = await client
       .from('leaders')
-      .select('id, full_name, title, biography, clan_id, status, created_at')
-      .order('full_name', { ascending: true });
+      .select('id, name, title, bio, role, clan, clan_id, photo_url, status, created_at')
+      .order('name', { ascending: true });
     
     if (error) throw error;
 
     const mapped = (data || []).map((row: any) => ({
       id: row.id,
-      name: row.full_name || '',
-      role: row.title || '',
-      bio: row.biography || '',
-      photo_url: '',
+      name: row.name || '',
+      role: row.role || row.title || '',
+      bio: row.bio || '',
+      photo_url: row.photo_url || '',
       expertise: 'Cultural Custodian',
-      clan: row.clan_id || '',
+      clan: row.clan || row.clan_id || '',
       contact_email: '',
       status: row.status || 'approved',
       created_at: row.created_at
@@ -1275,9 +1275,10 @@ export async function createLeader(leader: Omit<Leader, 'id'>): Promise<{ data: 
 
   try {
     const dbRecord = {
-      full_name: leader.name,
+      name: leader.name,
       title: leader.role,
-      biography: leader.bio,
+      bio: leader.bio,
+      clan: leader.clan || '',
       clan_id: leader.clan || '',
       status: leader.status || 'pending'
     };
@@ -1287,12 +1288,12 @@ export async function createLeader(leader: Omit<Leader, 'id'>): Promise<{ data: 
 
     const mapped: Leader = {
       id: data.id,
-      name: data.full_name || '',
-      role: data.title || '',
-      bio: data.biography || '',
-      photo_url: '',
+      name: data.name || '',
+      role: data.role || data.title || '',
+      bio: data.bio || '',
+      photo_url: data.photo_url || '',
       expertise: 'Cultural Custodian',
-      clan: data.clan_id || '',
+      clan: data.clan || data.clan_id || '',
       contact_email: '',
       status: data.status || 'approved',
       created_at: data.created_at
@@ -1310,10 +1311,16 @@ export async function updateLeader(id: string, updates: Partial<Leader>): Promis
 
   try {
     const dbRecord: any = {};
-    if (updates.name !== undefined) dbRecord.full_name = updates.name;
-    if (updates.role !== undefined) dbRecord.title = updates.role;
-    if (updates.bio !== undefined) dbRecord.biography = updates.bio;
-    if (updates.clan !== undefined) dbRecord.clan_id = updates.clan;
+    if (updates.name !== undefined) dbRecord.name = updates.name;
+    if (updates.role !== undefined) {
+      dbRecord.role = updates.role;
+      dbRecord.title = updates.role;
+    }
+    if (updates.bio !== undefined) dbRecord.bio = updates.bio;
+    if (updates.clan !== undefined) {
+      dbRecord.clan = updates.clan;
+      dbRecord.clan_id = updates.clan;
+    }
     if (updates.status !== undefined) dbRecord.status = updates.status;
 
     const { error } = await client.from('leaders').update(dbRecord).eq('id', id);

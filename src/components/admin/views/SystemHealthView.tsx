@@ -33,7 +33,7 @@ export default function SystemHealthView() {
         const client = getSupabase();
         if (client) {
           // Perform a quick real select query to test connection integrity
-          const { data, error } = await client.from('profiles').select('count').limit(1);
+          const { error } = await client.from('profiles').select('*', { count: 'exact', head: true });
           if (!error) {
             setDbStatus('connected');
           } else {
@@ -147,7 +147,7 @@ export default function SystemHealthView() {
                 <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-850">
                   <div className="flex items-center gap-2">
                     <Lock className="w-4 h-4 text-emerald-500" />
-                    <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">articles</span>
+                    <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">heritage_articles</span>
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">History Publications & Dialects</span>
                 </div>
@@ -155,9 +155,9 @@ export default function SystemHealthView() {
                 <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-850">
                   <div className="flex items-center gap-2">
                     <Lock className="w-4 h-4 text-emerald-500" />
-                    <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">gallery</span>
+                    <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">media</span>
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Digital Artifact Library Images</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Digital Artifact Library Media</span>
                 </div>
 
                 <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-850">
@@ -186,15 +186,7 @@ export default function SystemHealthView() {
                 <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-850">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                    <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">media</span>
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Primary uploaded materials</span>
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-850">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                    <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">images</span>
+                    <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">heritage-images</span>
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vetted high-res illustrations</span>
                 </div>
@@ -202,7 +194,15 @@ export default function SystemHealthView() {
                 <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-850">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                    <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">pdfs</span>
+                    <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">heritage-audio</span>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Oral history recordings</span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-850">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                    <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">documents</span>
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Educational downloads attachment catalogs</span>
                 </div>
@@ -230,14 +230,14 @@ create policy "Allow public read access to all profiles"
 create policy "Allow users to edit their own profile"
   on public.profiles for update using (auth.uid() = id);
 
--- Articles security policies
-alter table public.articles enable row level security;
+-- Heritage Articles security policies
+alter table public.heritage_articles enable row level security;
 
 create policy "Allow public read access to published articles" 
-  on public.articles for select using (status = 'published');
+  on public.heritage_articles for select using (status = 'published');
 
-create policy "Allow full access to authenticated admins & staff" 
-  on public.articles for all to authenticated using (true);`}
+create policy "Allow full access to authenticated elders & staff" 
+  on public.heritage_articles for all to authenticated using (true);`}
               </pre>
             </div>
           </div>

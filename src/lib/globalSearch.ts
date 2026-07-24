@@ -39,14 +39,14 @@ export async function searchGlobal(query: string): Promise<GlobalSearchResult[]>
     events,
     clans,
     leaders,
-    oralHistory,
-    timeline,
+    vlogs,
+    stories,
     vocab
   ] = await Promise.all([
-    // 1. Heritage Articles (approved or published)
+    // 1. Articles (approved or published)
     runQuery(
       client
-        .from('heritage_articles')
+        .from('articles')
         .select('id, title, summary, content, status')
         .or('status.eq.published,status.eq.approved')
     ),
@@ -57,45 +57,41 @@ export async function searchGlobal(query: string): Promise<GlobalSearchResult[]>
         .select('id, title, summary, content, status')
         .eq('status', 'published')
     ),
-    // 3. Events (approved only)
+    // 3. Events
     runQuery(
       client
         .from('events')
         .select('id, title, description, location, organizer, status')
-        .eq('status', 'approved')
     ),
-    // 4. Clans (approved only)
+    // 4. Clans
     runQuery(
       client
         .from('clans')
-        .select('id, name, totem, motto, desc, status')
-        .eq('status', 'approved')
+        .select('id, name, totem, motto, desc')
     ),
-    // 5. Leaders (approved only)
+    // 5. Leaders
     runQuery(
       client
         .from('leaders')
-        .select('id, name, role, bio, expertise, status')
-        .eq('status', 'approved')
+        .select('id, name, role, bio, expertise')
     ),
-    // 6. Oral History (no status column, publicly viewable)
+    // 6. Vlogs
     runQuery(
       client
-        .from('oral_history')
-        .select('id, title, elder, narrator, topic')
+        .from('vlogs')
+        .select('id, title, description, video_url')
     ),
-    // 7. Timeline Events (no status column, publicly viewable)
+    // 7. Stories
     runQuery(
       client
-        .from('timeline_events')
-        .select('id, title, description, period, year')
+        .from('stories')
+        .select('id, title, summary, content')
     ),
-    // 8. Vocabulary (approved only)
+    // 8. Vocabulary
     runQuery(
       client
         .from('vocabulary')
-        .select('id, lukenye, english, usage, category, example_sentence, status')
-        .eq('status', 'approved')
+        .select('id, lukenye, english, usage, category, example_sentence')
     )
   ]);
 
@@ -166,28 +162,28 @@ export async function searchGlobal(query: string): Promise<GlobalSearchResult[]>
     });
   });
 
-  // Map 6. Oral History
-  oralHistory.forEach((row: any) => {
+  // Map 6. Vlogs
+  vlogs.forEach((row: any) => {
     allItems.push({
-      id: `oral-${row.id}`,
+      id: `vlog-${row.id}`,
       originalId: row.id,
       category: 'Oral History',
       title: row.title,
-      subtitle: row.elder ? `Recorded track from Elder ${row.elder}` : (row.narrator ? `Narrated by ${row.narrator}` : 'Oral History Chronicle'),
-      description: row.topic || '',
-      targetPath: `/history?track=${row.id}`
+      subtitle: 'Video Log & Oral History',
+      description: row.description || '',
+      targetPath: `/history`
     });
   });
 
-  // Map 7. Timeline
-  timeline.forEach((row: any) => {
+  // Map 7. Stories
+  stories.forEach((row: any) => {
     allItems.push({
-      id: `timeline-${row.id}`,
+      id: `story-${row.id}`,
       originalId: row.id,
       category: 'Timeline',
       title: row.title,
-      subtitle: row.year ? `Epoch: ${row.year}` : (row.period || 'Historical Era'),
-      description: row.description || row.desc || '',
+      subtitle: row.summary || 'Cultural Story',
+      description: row.content || '',
       targetPath: `/history`
     });
   });
