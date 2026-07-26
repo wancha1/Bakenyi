@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, NavigateFunction } from 'react-router-dom';
-import { Search, X, Compass, Newspaper, ArrowRight } from 'lucide-react';
+import { Search, X, Compass, Newspaper, ArrowRight, Play, Pause, Film, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button, Badge, FadeIn } from '../ui';
 
 interface SearchResultItem {
@@ -22,6 +22,38 @@ interface HeroSectionProps {
   navigate: NavigateFunction;
 }
 
+// Curated motion pictures of Lake Kyoga riverine environments
+const MOTION_PICTURES = [
+  {
+    id: 'slide-1',
+    title: 'Lake Kyoga Wetlands at Golden Hour',
+    subtitle: 'Floating Reed Horizons',
+    url: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=2000',
+    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-sunset-over-a-calm-lake-42867-large.mp4',
+  },
+  {
+    id: 'slide-2',
+    title: 'Dawn Canoe Voyage',
+    subtitle: 'Ancestral Rowing Routes',
+    url: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=2000',
+    videoUrl: '',
+  },
+  {
+    id: 'slide-3',
+    title: 'Sacred Waterways & Reeds',
+    subtitle: 'Silt Basins of Uganda',
+    url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=2000',
+    videoUrl: '',
+  },
+  {
+    id: 'slide-4',
+    title: 'Serene Riverine Sanctuary',
+    subtitle: 'Preserved Aquatic Echoes',
+    url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=2000',
+    videoUrl: '',
+  }
+];
+
 export default function HeroSection({
   searchTerm,
   setSearchTerm,
@@ -30,66 +62,156 @@ export default function HeroSection({
   searchResults,
   navigate,
 }: HeroSectionProps) {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPlayingMotion, setIsPlayingMotion] = useState(true);
+  const [useVideo, setUseVideo] = useState(true);
+  const [videoError, setVideoError] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Auto-rotate motion picture slides when playing
+  useEffect(() => {
+    if (!isPlayingMotion) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % MOTION_PICTURES.length);
+    }, 9000);
+    return () => clearInterval(interval);
+  }, [isPlayingMotion]);
+
+  const activePicture = MOTION_PICTURES[currentSlide];
+
   return (
     <section 
       id="homepage-hero" 
-      className="relative min-h-[92vh] flex items-center justify-center overflow-hidden bg-stone-950"
+      className="relative min-h-[95vh] flex items-center justify-center overflow-hidden bg-stone-950"
       aria-label="Welcome section"
     >
-      {/* Background with cinematic panning animation */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1.8 }}
-        className="absolute inset-0 z-0 overflow-hidden"
-      >
-        <motion.img 
-          src="https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=2000" 
-          alt="Lake Kyoga wetlands shoreline background" 
-          className="w-[106%] h-[106%] -left-[3%] -top-[3%] relative object-cover brightness-[0.25] contrast-[1.05]"
-          referrerPolicy="no-referrer"
-          animate={{
-            scale: [1.02, 1.07, 1.02],
-            x: [0, 10, -10, 0],
-            y: [0, -8, 8, 0],
-          }}
-          transition={{
-            duration: 35,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-stone-950/20 via-stone-950/40 to-stone-950" />
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-[0.5px]" />
-      </motion.div>
+      {/* Background Motion Picture Layer */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activePicture.id + (useVideo && !videoError ? '-video' : '-img')}
+            initial={{ opacity: 0, scale: 1.1 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.8, ease: "easeOut" }}
+            className="absolute inset-0"
+          >
+            {useVideo && activePicture.videoUrl && !videoError ? (
+              <video
+                ref={videoRef}
+                autoPlay
+                loop
+                muted
+                playsInline
+                onError={() => setVideoError(true)}
+                className="w-full h-full object-cover brightness-[0.35] contrast-[1.1]"
+              >
+                <source src={activePicture.videoUrl} type="video/mp4" />
+                <img src={activePicture.url} alt={activePicture.title} className="w-full h-full object-cover" />
+              </video>
+            ) : (
+              <motion.img 
+                src={activePicture.url} 
+                alt={activePicture.title} 
+                className="w-[108%] h-[108%] -left-[4%] -top-[4%] relative object-cover brightness-[0.3] contrast-[1.1]"
+                referrerPolicy="no-referrer"
+                animate={isPlayingMotion ? {
+                  scale: [1.02, 1.08, 1.02],
+                  x: [0, 12, -12, 0],
+                  y: [0, -10, 10, 0],
+                  rotate: [0, 0.5, -0.5, 0],
+                } : { scale: 1.02 }}
+                transition={{
+                  duration: 25,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Ambient Water Sparkle Particle Overlay */}
+        <div className="absolute inset-0 pointer-events-none z-1">
+          {[...Array(12)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full bg-amber-300/30 blur-[1px]"
+              style={{
+                width: `${Math.random() * 4 + 2}px`,
+                height: `${Math.random() * 4 + 2}px`,
+                left: `${(i * 8.5) % 100}%`,
+                top: `${(i * 15 + 10) % 90}%`,
+              }}
+              animate={isPlayingMotion ? {
+                y: [0, -35, 0],
+                x: [0, (i % 2 === 0 ? 15 : -15), 0],
+                opacity: [0.1, 0.7, 0.1],
+                scale: [0.8, 1.4, 0.8],
+              } : { opacity: 0.2 }}
+              transition={{
+                duration: 6 + (i % 5),
+                repeat: Infinity,
+                delay: i * 0.4,
+                ease: "easeInOut",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Gradient Cinematic Vignette Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-b from-stone-950/40 via-stone-950/30 to-stone-950/95 z-2" />
+        <div className="absolute inset-0 bg-gradient-to-r from-stone-950/60 via-transparent to-stone-950/60 z-2" />
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-[0.5px] z-2" />
+      </div>
+
+      {/* Floating Motion Picture Canvas Badge Bar (Top/Side Indicator) */}
+      <div className="absolute top-6 right-6 z-20 hidden lg:flex items-center gap-3 bg-stone-900/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-stone-700/50 shadow-xl text-xs font-mono text-amber-200/90">
+        <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px]">
+          <span className={`w-2 h-2 rounded-full ${isPlayingMotion ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`} />
+          Motion Picture Canvas
+        </span>
+        <span className="text-stone-500">|</span>
+        <span className="text-[11px] text-stone-300 font-sans font-medium line-clamp-1 max-w-[180px]">
+          {activePicture.title}
+        </span>
+        <button 
+          onClick={() => setIsPlayingMotion(!isPlayingMotion)}
+          className="p-1 hover:bg-stone-800 rounded-full text-stone-300 hover:text-white transition-colors cursor-pointer"
+          title={isPlayingMotion ? "Pause Motion Picture" : "Play Motion Picture"}
+          id="btn-toggle-hero-motion"
+        >
+          {isPlayingMotion ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+        </button>
+      </div>
 
       {/* Hero Content Container */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white w-full py-16 flex flex-col items-center">
         <FadeIn direction="up" duration={0.8} className="w-full max-w-4xl flex flex-col items-center">
           
           {/* Subheading Pill Badge */}
-          <div className="inline-flex items-center gap-2 mb-8 px-4 py-1.5 rounded-full bg-stone-900/80 border border-stone-700/60 backdrop-blur-md shadow-inner">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <div className="inline-flex items-center gap-2 mb-8 px-4 py-1.5 rounded-full bg-stone-900/85 border border-stone-700/70 backdrop-blur-md shadow-2xl">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
             <span className="text-xs font-semibold uppercase tracking-widest text-amber-200/90">
               Digital Sanctuary of the Bakenyi People
             </span>
           </div>
           
           {/* Typography Heading */}
-          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-serif font-black mb-8 leading-[1.08] tracking-tight">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-serif font-black mb-8 leading-[1.08] tracking-tight drop-shadow-md">
             Preserving the <br />
-            <span className="text-amber-400 dark:text-amber-300 font-serif italic drop-shadow-sm">
+            <span className="text-amber-400 dark:text-amber-300 font-serif italic drop-shadow-lg">
               Riverine Heritage
             </span>
           </h1>
 
           {/* Body description */}
-          <p className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-stone-300/90 mb-10 font-normal leading-relaxed">
+          <p className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-stone-200/90 mb-10 font-normal leading-relaxed text-shadow-sm">
             Explore the history, clans, language, and oral memories of Uganda's lake dwellers, archived directly under the guidance of the Council of Elders.
           </p>
 
           {/* Premium Search Bar */}
-          <div className="relative w-full max-w-2xl mx-auto mb-12 z-30 hidden md:block">
+          <div className="relative w-full max-w-2xl mx-auto mb-10 z-30 hidden md:block">
             <div 
               className={`flex items-center bg-stone-900/90 backdrop-blur-md border ${
                 isSearchFocused 
@@ -198,7 +320,7 @@ export default function HeroSection({
           </div>
 
           {/* CTA Button Group */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto mb-8">
             <Button 
               variant="primary" 
               size="lg"
@@ -230,18 +352,57 @@ export default function HeroSection({
             </Link>
           </div>
 
+          {/* Motion Picture Gallery Navigation Pills */}
+          <div className="flex items-center justify-center gap-2 max-w-full overflow-x-auto py-2 px-4 rounded-full bg-stone-900/60 border border-stone-800/80 backdrop-blur-md">
+            <button
+              onClick={() => setCurrentSlide((prev) => (prev - 1 + MOTION_PICTURES.length) % MOTION_PICTURES.length)}
+              className="p-1 hover:bg-stone-800 rounded-full text-stone-400 hover:text-white cursor-pointer transition-colors"
+              title="Previous Motion Picture"
+              id="btn-hero-prev-slide"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <div className="flex items-center gap-2">
+              {MOTION_PICTURES.map((pic, idx) => (
+                <button
+                  key={pic.id}
+                  onClick={() => setCurrentSlide(idx)}
+                  className={`group flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium transition-all cursor-pointer ${
+                    currentSlide === idx 
+                      ? 'bg-amber-500 text-stone-950 font-bold shadow-md' 
+                      : 'bg-stone-800/80 text-stone-400 hover:text-stone-200 hover:bg-stone-800'
+                  }`}
+                  id={`btn-hero-slide-${idx}`}
+                >
+                  <Film className={`w-3 h-3 ${currentSlide === idx ? 'text-stone-950' : 'text-stone-500 group-hover:text-amber-400'}`} />
+                  <span className="hidden sm:inline">{pic.subtitle}</span>
+                  <span className="sm:hidden">{idx + 1}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setCurrentSlide((prev) => (prev + 1) % MOTION_PICTURES.length)}
+              className="p-1 hover:bg-stone-800 rounded-full text-stone-400 hover:text-white cursor-pointer transition-colors"
+              title="Next Motion Picture"
+              id="btn-hero-next-slide"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
         </FadeIn>
       </div>
 
       {/* Scroll Indicator */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/40 text-[9px] uppercase tracking-[0.25em] flex flex-col items-center gap-2 select-none">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/40 text-[9px] uppercase tracking-[0.25em] flex flex-col items-center gap-1.5 select-none z-10">
         <span>Explore Archives</span>
         <motion.div 
-          animate={{ y: [0, 8, 0] }} 
+          animate={{ y: [0, 6, 0] }} 
           transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
-          className="w-1.5 h-1.5 bg-heritage-sand rounded-full"
+          className="w-1.5 h-1.5 bg-amber-400 rounded-full"
         />
       </div>
     </section>
   );
 }
+

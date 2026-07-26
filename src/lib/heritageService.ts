@@ -1165,7 +1165,7 @@ export async function getUnifiedModerationHistory(recordId: string): Promise<any
     try {
       const { data: profiles, error: profErr } = await client
         .from('profiles_public')
-        .select('id, email, full_name')
+        .select('id, full_name, avatar_url, role')
         .in('id', uniqueActorIds);
       
       if (!profErr && profiles) {
@@ -1176,8 +1176,7 @@ export async function getUnifiedModerationHistory(recordId: string): Promise<any
         for (const item of history) {
           if (item.actor_id && profileMap.has(item.actor_id)) {
             const p = profileMap.get(item.actor_id);
-            item.actor_name = p.full_name || p.email?.split('@')[0] || 'Unknown';
-            item.actor_email = p.email;
+            item.actor_name = p.full_name || 'Unknown';
           } else {
             item.actor_name = 'System / Automated';
           }

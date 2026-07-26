@@ -110,7 +110,7 @@ export default function VisitorEngagement({
                   id: 'pick-1',
                   title: 'Architecture of Floating Reed Houses',
                   desc: 'Discover the ancient structural science behind homes that float directly on top of deep-water silt layers.',
-                  image: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=400',
+                  image: 'https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?auto=format&fit=crop&q=80&w=600',
                   path: '/history',
                   tag: 'History'
                 },
@@ -118,7 +118,7 @@ export default function VisitorEngagement({
                   id: 'pick-2',
                   title: 'Lineage of the founding Water Clans',
                   desc: 'Understand the traditional boundaries, canoe emblems, and sacred totems of the founding Bakenyi clans.',
-                  image: 'https://images.unsplash.com/photo-1501535033-a593e6afb94d?auto=format&fit=crop&q=80&w=400',
+                  image: 'https://images.unsplash.com/photo-1534567153574-2b12153a87f0?auto=format&fit=crop&q=80&w=600',
                   path: '/clans',
                   tag: 'Ancestry'
                 },
@@ -126,7 +126,7 @@ export default function VisitorEngagement({
                   id: 'pick-3',
                   title: 'Historic Paddling Songs Archive',
                   desc: 'Listen to restored field recordings of rowing rhythms used to synchronize high-speed canoe navigation.',
-                  image: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&q=80&w=400',
+                  image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80&w=600',
                   path: '/gallery',
                   tag: 'Acoustics'
                 },
@@ -134,7 +134,7 @@ export default function VisitorEngagement({
                   id: 'pick-4',
                   title: 'Interactive Dialect Pronunciations',
                   desc: 'Explore our curated audio dictionary preserving the unique marine terminology of native Lukenye speech.',
-                  image: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&q=80&w=400',
+                  image: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&q=80&w=600',
                   path: '/language',
                   tag: 'Linguistics'
                 }

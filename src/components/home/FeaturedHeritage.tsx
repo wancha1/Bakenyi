@@ -195,9 +195,9 @@ export default function FeaturedHeritage({ featuredItems }: FeaturedHeritageProp
                 
                 <div className="relative h-44 rounded-2xl overflow-hidden border border-heritage-brown/5 dark:border-white/5 shadow-inner">
                   <img 
-                    src="https://images.unsplash.com/photo-1523805009345-7448845a9e53?auto=format&fit=crop&q=80&w=600" 
+                    src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=800" 
                     alt="Dugout canoe visual representative" 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                     referrerPolicy="no-referrer"
                   />
                   <div className="absolute inset-0 bg-stone-900/10" />

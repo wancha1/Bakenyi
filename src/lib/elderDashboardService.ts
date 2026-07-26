@@ -78,6 +78,115 @@ export interface ElderProfile {
   role: string;
 }
 
+export const INITIAL_SAMPLE_SUBMISSIONS: ElderSubmission[] = [
+  {
+    id: 'sub-sample-01',
+    title: 'The Ancient Papyrus Fiber Weaving Method of Baise-Mugaya',
+    type: 'article',
+    status: 'approved',
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    summary: 'Chronicle documenting the ancestral netcraft and water-resistant knot techniques preserved by Namasale elders.',
+    body: 'The Bakenyi elders of the Baise-Mugaya clan have preserved a unique papyrus fiber drying process. By immersing raw stems in shallow Lake Kyoga inlets for three nights, the fibers gain high tensile strength and natural water repellency...',
+    category: 'Maritime Traditions',
+    coverImage: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=800',
+    originalTable: 'articles',
+    originalData: {}
+  },
+  {
+    id: 'sub-sample-02',
+    title: 'Elder Council Decree on Lake Shoreline Conservation 2026',
+    type: 'announcement',
+    status: 'pending',
+    createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+    summary: 'Category: Clan Assembly | Priority: high',
+    body: 'Notice to all boat builders and fishing households: The Elder Council strictly forbids cutting papyrus beds within 50 meters of ancestral spawning sanctuaries near Muntu landing site.',
+    originalTable: 'announcements',
+    originalData: {}
+  },
+  {
+    id: 'sub-sample-03',
+    title: 'Annual Bakenyi Dugout Canoe Regatta & Blessing Ritual',
+    type: 'event',
+    status: 'approved',
+    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+    summary: 'Namasale Shore Sanctuary | 2026-08-15',
+    body: 'Gathering of all 7 clan flotillas for ritual canoe paddle blessing, traditional rowing competitions, and oral story recitations.',
+    coverImage: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&q=80&w=800',
+    originalTable: 'events',
+    originalData: { starts_at: new Date(Date.now() + 86400000 * 20).toISOString(), location: 'Namasale Shore Sanctuary', organizer: 'Elder Council' }
+  }
+];
+
+export const INITIAL_SAMPLE_MEDIA: ElderMediaItem[] = [
+  {
+    id: 'media-sample-01',
+    title: 'Grand Canoe Regatta Steering Paddle',
+    description: 'Ceremonial carved mahogany paddle passed through four generations of Baise-Musuuba elders.',
+    url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=800',
+    type: 'image',
+    category: 'Ceremonial Artifacts',
+    createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
+    status: 'approved'
+  },
+  {
+    id: 'media-sample-02',
+    title: 'Oral Recording: Lake Kyoga Flood Chants of 1962',
+    description: 'Audio archive recording of Elder Mukama reciting ancestral flood survival chants in Lukenye.',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    type: 'audio',
+    category: 'Oral History',
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    status: 'approved'
+  }
+];
+
+export const INITIAL_SAMPLE_EVENTS: ElderEventItem[] = [
+  {
+    id: 'event-sample-01',
+    title: 'Bakenyi Elders Council Quarterly Assembly',
+    description: 'Assembly of clan guardians to resolve boundary disputes, review new oral submissions, and approve cultural publications.',
+    location: 'Namasale Heritage Hall, Lake Kyoga',
+    startDatetime: new Date(Date.now() + 86400000 * 5).toISOString(),
+    endDatetime: new Date(Date.now() + 86400000 * 5 + 14400000).toISOString(),
+    organizer: 'Verified Elder Council',
+    status: 'approved',
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
+  },
+  {
+    id: 'event-sample-02',
+    title: 'Youth Papyrus Craft & Netmaking Masterclass',
+    description: 'Hands-on training session conducted by master weavers for younger clan members.',
+    location: 'Paliisa Cultural Sanctuary',
+    startDatetime: new Date(Date.now() + 86400000 * 12).toISOString(),
+    endDatetime: new Date(Date.now() + 86400000 * 12 + 10800000).toISOString(),
+    organizer: 'Youth Heritage Committee',
+    status: 'approved',
+    createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
+  }
+];
+
+export const INITIAL_SAMPLE_NOTIFICATIONS: ElderNotificationItem[] = [
+  {
+    id: 'notif-sample-01',
+    title: 'Chronicle Approved by Council',
+    body: 'Your submission "The Ancient Papyrus Fiber Weaving Method" has been vetted and published.',
+    type: 'approved',
+    timestamp: new Date(Date.now() - 3600000 * 2).toLocaleString(),
+    isRead: false
+  },
+  {
+    id: 'notif-sample-02',
+    title: 'New Oral History Interview Pending Audit',
+    body: 'A community member submitted an audio interview regarding Baise-Igaga lineage history.',
+    type: 'moderation',
+    timestamp: new Date(Date.now() - 3600000 * 8).toLocaleString(),
+    isRead: false
+  }
+];
+
 function generateSlug(title: string): string {
   const base = title
     .toLowerCase()
