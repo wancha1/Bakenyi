@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { 
   fetchUsers, 
+  fetchPublicUsers,
   updateUserStatus, 
   updateUserRole, 
   updateUserProfile, 
@@ -161,7 +162,13 @@ export default function UsersView({ currentUserRoleProp, currentUserEmailProp }:
   async function loadUsers() {
     setIsLoading(true);
     try {
-      const data = await fetchUsers();
+      const client = getSupabase();
+      let isAuth = false;
+      if (client) {
+        const { data: { session } } = await client.auth.getSession();
+        isAuth = !!session?.user;
+      }
+      const data = isAuth ? await fetchUsers() : await fetchPublicUsers();
       setUsers(data);
     } catch (err) {
       console.error('Failed to fetch user accounts:', err);
@@ -304,6 +311,9 @@ export default function UsersView({ currentUserRoleProp, currentUserEmailProp }:
   };
 
   async function handleDeleteUser(user: UserProfile) {
+    console.log('[ADMIN_USER_DEBUG] Delete button clicked for user:', user);
+    console.log('[ADMIN_USER_DEBUG] Selected delete user ID:', user?.id);
+
     if (currentUserRole !== 'admin' && currentUserRole !== 'super_admin') {
       alert('Access Denied: Only Elders can delete user profiles.');
       return;
@@ -325,6 +335,7 @@ export default function UsersView({ currentUserRoleProp, currentUserEmailProp }:
       placeholderConfirmWord: 'Type DELETE to confirm permanent removal',
       onConfirm: async () => {
         try {
+          console.log('[ADMIN_USER_DEBUG] Modal confirmed. Invoking deleteUser for ID:', user.id);
           const success = await deleteUser(user.id);
           if (success) {
             setUsers(prev => prev.filter(u => u.id !== user.id));
@@ -338,9 +349,11 @@ export default function UsersView({ currentUserRoleProp, currentUserEmailProp }:
             );
             flashMessage(`Permanently deleted user account ${user.email}`);
             window.dispatchEvent(new Event('bakenye_operations_updated'));
+          } else {
+            alert('Failed to delete user: Selected user ID is invalid or database deletion failed.');
           }
         } catch (err) {
-          console.error('Failed to delete user:', err);
+          console.error('[ADMIN_USER_DEBUG] Exception in handleDeleteUser handler:', err);
           alert('Failed to delete user record.');
         }
       }

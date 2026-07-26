@@ -146,98 +146,39 @@ export const updateOrderStatus = async (id: string, status: Order['status']): Pr
 };
 
 // 3. USERS
-const DEFAULT_FALLBACK_PROFILES: UserProfile[] = [
-  {
-    id: 'usr-1',
-    email: 'wanchaaaron@gmail.com',
-    role: 'super_admin',
-    status: 'active',
-    full_name: 'Aaron Wancha',
-    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150',
-    created_at: '2026-01-10T10:00:00Z',
-    last_login: new Date().toISOString()
-  },
-  {
-    id: 'usr-2',
-    email: 'mugoya@bakenye.com',
-    role: 'historian',
-    status: 'active',
-    full_name: 'Elder Juma Mugoya',
-    avatar_url: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&q=80&w=150',
-    created_at: '2026-01-12T14:30:00Z',
-    last_login: new Date().toISOString()
-  },
-  {
-    id: 'usr-3',
-    email: 'beatrice@bakenye.com',
-    role: 'community_leader',
-    status: 'active',
-    full_name: 'Beatrice Nabulo',
-    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
-    created_at: '2026-01-15T09:15:00Z',
-    last_login: new Date().toISOString()
-  },
-  {
-    id: 'usr-4',
-    email: 'simon@bakenye.com',
-    role: 'reporter',
-    status: 'active',
-    full_name: 'Simon Mukose',
-    avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150',
-    created_at: '2026-02-01T11:00:00Z',
-    last_login: new Date().toISOString()
-  },
-  {
-    id: 'usr-5',
-    email: 'florence@bakenye.com',
-    role: 'member',
-    status: 'active',
-    full_name: 'Florence Namusobya',
-    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150',
-    created_at: '2026-02-20T16:45:00Z',
-    last_login: new Date().toISOString()
-  },
-  {
-    id: 'usr-6',
-    email: 'jane@bakenye.com',
-    role: 'member',
-    status: 'pending',
-    full_name: 'Jane Kawuma',
-    avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=150',
-    created_at: '2026-03-05T08:20:00Z'
-  }
-];
+export const isValidUUID = (id: string | null | undefined): boolean => {
+  if (!id || typeof id !== 'string') return false;
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  return uuidRegex.test(id.trim());
+};
 
 function getLocalUsers(): UserProfile[] {
   try {
     const stored = localStorage.getItem('bakenye_profiles');
-    if (!stored) {
-      localStorage.setItem('bakenye_profiles', JSON.stringify(DEFAULT_FALLBACK_PROFILES));
-      return DEFAULT_FALLBACK_PROFILES;
+    if (stored) {
+      return JSON.parse(stored);
     }
-    return JSON.parse(stored);
   } catch (e) {
-    console.error('Failed to parse local profiles', e);
-    return DEFAULT_FALLBACK_PROFILES;
+    console.error('[ADMIN_USER_DEBUG] Failed to parse local profiles:', e);
   }
+  return [];
 }
 
 function saveLocalUsers(users: UserProfile[]): void {
   try {
     localStorage.setItem('bakenye_profiles', JSON.stringify(users));
   } catch (e) {
-    console.error('Failed to save local profiles', e);
+    console.error('[ADMIN_USER_DEBUG] Failed to save local profiles:', e);
   }
 }
 
 export const fetchPublicUsers = async (): Promise<UserProfile[]> => {
-  const localList = getLocalUsers();
   const client = getSupabase();
   if (client) {
     try {
       const { data, error } = await client.from('profiles_public').select('id, full_name, avatar_url, role');
       if (error) {
-        console.warn('Supabase fetchPublicUsers query failed, using local fallback:', error);
+        console.warn('[ADMIN_USER_DEBUG] Supabase fetchPublicUsers query error:', error);
       } else if (data) {
         const dbUsers: UserProfile[] = data.map((row: any) => ({
           id: row.id,
@@ -249,68 +190,72 @@ export const fetchPublicUsers = async (): Promise<UserProfile[]> => {
           created_at: new Date().toISOString(),
           last_login: new Date().toISOString()
         }));
-        const merged = [...localList, ...dbUsers];
-        const unique = merged.filter((item, index, self) => self.findIndex(t => t.id === item.id) === index);
-        return unique;
+        return dbUsers;
       }
     } catch (err: any) {
-      console.warn('Supabase fetchPublicUsers exception, using local fallback:', err);
+      console.warn('[ADMIN_USER_DEBUG] Supabase fetchPublicUsers exception:', err);
     }
   }
-  return localList;
+  return [];
 };
 
 export const fetchUsers = async (): Promise<UserProfile[]> => {
-  const localList = getLocalUsers();
   const client = getSupabase();
-  if (client) {
-    try {
-      const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
-      if (error) {
-        console.warn('Supabase fetchUsers query failed, using local fallback:', error);
-        if (error.message?.includes('fetch') || error.message?.includes('Failed') || error.message?.includes('Network')) {
-          markSupabaseOffline();
-        }
-      } else if (data) {
-        // Map database records to UserProfile format (ensuring full_name is populated from full_name)
-        const dbUsers: UserProfile[] = data.map((row: any) => ({
-          id: row.id,
-          email: row.email,
-          role: row.role,
-          status: row.status,
-          full_name: row.full_name || '',
-          avatar_url: row.avatar_url || '',
-          created_at: row.created_at,
-          last_login: row.updated_at || row.created_at
-        }));
-        
-        // Merge with any new local modifications
-        const merged = [...localList, ...dbUsers];
-        const unique = merged.filter((item, index, self) => self.findIndex(t => t.id === item.id) === index);
-        return unique;
-      }
-    } catch (err: any) {
-      console.warn('Supabase fetchUsers exception, using local fallback:', err);
-      if (err?.message?.includes('fetch') || err?.message?.includes('Failed') || err?.message?.includes('Network')) {
+  if (!client) {
+    console.warn('[ADMIN_USER_DEBUG] Supabase client unavailable in fetchUsers. Loaded profile count: 0');
+    return [];
+  }
+
+  try {
+    // Guard: Ensure user is authenticated before attempting to query public.profiles
+    const { data: { session } } = await client.auth.getSession();
+    if (!session?.user) {
+      console.warn('[ADMIN_USER_DEBUG] Unauthenticated fetchUsers attempt. Access denied to public.profiles. Loaded profile count: 0');
+      return [];
+    }
+
+    const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.error('[ADMIN_USER_DEBUG] Error fetching profiles from public.profiles:', error.message);
+      if (error.message?.includes('fetch') || error.message?.includes('Failed') || error.message?.includes('Network')) {
         markSupabaseOffline();
       }
+      return [];
+    }
+
+    if (data) {
+      const dbUsers: UserProfile[] = data.map((row: any) => ({
+        id: row.id,
+        email: row.email || '',
+        role: row.role || 'member',
+        status: row.status || 'active',
+        full_name: row.full_name || row.name || '',
+        avatar_url: row.avatar_url || '',
+        created_at: row.created_at || new Date().toISOString(),
+        last_login: row.updated_at || row.created_at || new Date().toISOString()
+      }));
+
+      console.log('[ADMIN_USER_DEBUG] Loaded profile count from public.profiles:', dbUsers.length);
+      return dbUsers;
+    }
+  } catch (err: any) {
+    console.error('[ADMIN_USER_DEBUG] Exception in fetchUsers:', err);
+    if (err?.message?.includes('fetch') || err?.message?.includes('Failed') || err?.message?.includes('Network')) {
+      markSupabaseOffline();
     }
   }
-  return localList;
+
+  console.log('[ADMIN_USER_DEBUG] Loaded profile count from public.profiles: 0');
+  return [];
 };
 
 export const updateUserStatus = async (id: string, status: UserProfile['status']): Promise<UserProfile | null> => {
-  let updatedObj: UserProfile | null = null;
-  try {
-    const localList = getLocalUsers();
-    const idx = localList.findIndex(u => u.id === id);
-    if (idx !== -1) {
-      localList[idx] = { ...localList[idx], status };
-      updatedObj = localList[idx];
-      saveLocalUsers(localList);
-    }
-  } catch (err) {
-    console.error('Failed to update user status in localStorage:', err);
+  console.log('[ADMIN_USER_DEBUG] Selected updateUserStatus user ID:', id);
+  const valid = isValidUUID(id);
+  console.log(`[ADMIN_USER_DEBUG] UUID validation result for updateUserStatus ID "${id}":`, valid ? 'VALID' : 'INVALID');
+  if (!valid) {
+    console.error(`[ADMIN_USER_DEBUG] Operation rejected: ID "${id}" is not a valid UUID.`);
+    return null;
   }
 
   const client = getSupabase();
@@ -329,26 +274,21 @@ export const updateUserStatus = async (id: string, status: UserProfile['status']
         };
         return mapped;
       }
-      console.error('Supabase updateUserStatus query error:', error);
+      console.error('[ADMIN_USER_DEBUG] Supabase updateUserStatus query error:', error);
     } catch (e) {
-      console.error('Supabase updateUserStatus exception:', e);
+      console.error('[ADMIN_USER_DEBUG] Supabase updateUserStatus exception:', e);
     }
   }
-  return updatedObj;
+  return null;
 };
 
 export const updateUserRole = async (id: string, role: UserProfile['role']): Promise<UserProfile | null> => {
-  let updatedObj: UserProfile | null = null;
-  try {
-    const localList = getLocalUsers();
-    const idx = localList.findIndex(u => u.id === id);
-    if (idx !== -1) {
-      localList[idx] = { ...localList[idx], role };
-      updatedObj = localList[idx];
-      saveLocalUsers(localList);
-    }
-  } catch (err) {
-    console.error('Failed to update user role in localStorage:', err);
+  console.log('[ADMIN_USER_DEBUG] Selected updateUserRole user ID:', id);
+  const valid = isValidUUID(id);
+  console.log(`[ADMIN_USER_DEBUG] UUID validation result for updateUserRole ID "${id}":`, valid ? 'VALID' : 'INVALID');
+  if (!valid) {
+    console.error(`[ADMIN_USER_DEBUG] Operation rejected: ID "${id}" is not a valid UUID.`);
+    return null;
   }
 
   const client = getSupabase();
@@ -367,26 +307,21 @@ export const updateUserRole = async (id: string, role: UserProfile['role']): Pro
         };
         return mapped;
       }
-      console.error('Supabase updateUserRole query error:', error);
+      console.error('[ADMIN_USER_DEBUG] Supabase updateUserRole query error:', error);
     } catch (e) {
-      console.error('Supabase updateUserRole exception:', e);
+      console.error('[ADMIN_USER_DEBUG] Supabase updateUserRole exception:', e);
     }
   }
-  return updatedObj;
+  return null;
 };
 
 export const updateUserProfile = async (id: string, updates: Partial<UserProfile>): Promise<UserProfile | null> => {
-  let updatedObj: UserProfile | null = null;
-  try {
-    const localList = getLocalUsers();
-    const idx = localList.findIndex(u => u.id === id);
-    if (idx !== -1) {
-      localList[idx] = { ...localList[idx], ...updates };
-      updatedObj = localList[idx];
-      saveLocalUsers(localList);
-    }
-  } catch (err) {
-    console.error('Failed to update user profile in localStorage:', err);
+  console.log('[ADMIN_USER_DEBUG] Selected updateUserProfile user ID:', id);
+  const valid = isValidUUID(id);
+  console.log(`[ADMIN_USER_DEBUG] UUID validation result for updateUserProfile ID "${id}":`, valid ? 'VALID' : 'INVALID');
+  if (!valid) {
+    console.error(`[ADMIN_USER_DEBUG] Operation rejected: ID "${id}" is not a valid UUID.`);
+    return null;
   }
 
   const client = getSupabase();
@@ -411,34 +346,42 @@ export const updateUserProfile = async (id: string, updates: Partial<UserProfile
         };
         return mapped;
       }
-      console.error('Supabase updateUserProfile error:', error);
+      console.error('[ADMIN_USER_DEBUG] Supabase updateUserProfile error:', error);
     } catch (e) {
-      console.error('Supabase updateUserProfile exception:', e);
+      console.error('[ADMIN_USER_DEBUG] Supabase updateUserProfile exception:', e);
     }
   }
-  return updatedObj;
+  return null;
 };
 
 export const deleteUser = async (id: string): Promise<boolean> => {
-  try {
-    const localList = getLocalUsers();
-    const filtered = localList.filter(u => u.id !== id);
-    saveLocalUsers(filtered);
-  } catch (err) {
-    console.error('Failed to delete user in localStorage:', err);
+  console.log('[ADMIN_USER_DEBUG] Selected delete user ID:', id);
+  const valid = isValidUUID(id);
+  console.log(`[ADMIN_USER_DEBUG] UUID validation result for ID "${id}":`, valid ? 'VALID' : 'INVALID');
+
+  if (!valid) {
+    console.error(`[ADMIN_USER_DEBUG] Delete operation rejected: ID "${id}" is not a valid UUID. Aborting operation before database query.`);
+    return false;
   }
 
   const client = getSupabase();
-  if (client) {
-    try {
-      const { error } = await client.from('profiles').delete().eq('id', id);
-      if (!error) return true;
-      console.error('Supabase deleteUser error:', error);
-    } catch (e) {
-      console.error('Supabase deleteUser exception:', e);
-    }
+  if (!client) {
+    console.error('[ADMIN_USER_DEBUG] Supabase client unavailable for deleteUser operation.');
+    return false;
   }
-  return true;
+
+  try {
+    const { error } = await client.from('profiles').delete().eq('id', id);
+    if (error) {
+      console.error('[ADMIN_USER_DEBUG] Supabase deleteUser database error:', error.message);
+      return false;
+    }
+    console.log(`[ADMIN_USER_DEBUG] Successfully deleted profile with UUID "${id}" from public.profiles.`);
+    return true;
+  } catch (e) {
+    console.error('[ADMIN_USER_DEBUG] Supabase deleteUser exception:', e);
+    return false;
+  }
 };
 
 // 4. MEDIA

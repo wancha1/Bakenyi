@@ -20,7 +20,7 @@ import {
   CalendarDays
 } from 'lucide-react';
 import { getArticles, getContributions, getGalleryImages, fetchAnalyticsMetrics, DBAnalyticsMetric, Contribution } from '../../../lib/supabase';
-import { fetchUsers, UserProfile } from '../../../lib/supabaseClient';
+import { fetchUsers, fetchPublicUsers, UserProfile, getSupabase } from '../../../lib/supabaseClient';
 import { Article } from '../../../types/article';
 
 export default function ReportsView() {
@@ -54,7 +54,13 @@ export default function ReportsView() {
       const galData = await getGalleryImages();
       setGalleryCount(galData.length);
 
-      const usrData = await fetchUsers();
+      const client = getSupabase();
+      let isAuth = false;
+      if (client) {
+        const { data: { session } } = await client.auth.getSession();
+        isAuth = !!session?.user;
+      }
+      const usrData = isAuth ? await fetchUsers() : await fetchPublicUsers();
       setUsers(usrData);
 
       // 2. Query analytics_metrics (guarded by Row Level Security)

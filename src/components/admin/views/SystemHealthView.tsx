@@ -33,7 +33,7 @@ export default function SystemHealthView() {
         const client = getSupabase();
         if (client) {
           // Perform a quick real select query to test connection integrity
-          const { error } = await client.from('profiles').select('*', { count: 'exact', head: true });
+          const { error } = await client.from('profiles_public').select('*', { count: 'exact', head: true });
           if (!error) {
             setDbStatus('connected');
           } else {

@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { 
   fetchUsers, 
+  fetchPublicUsers,
   fetchMediaFiles, 
   UserProfile, 
   MediaFile, 
@@ -142,9 +143,10 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
   const loadDatabaseData = async () => {
     setIsLoading(true);
     try {
-      // 1. Fetch real tables from Supabase in parallel
+      // 1. Fetch real tables from Supabase in parallel (only call fetchUsers if user is authenticated)
+      const isAuthenticatedAdmin = user && resolvedRole !== 'public';
       const [usersData, mediaData, articlesData, vocabData, contribData, galleryData] = await Promise.all([
-        fetchUsers(),
+        isAuthenticatedAdmin ? fetchUsers() : fetchPublicUsers(),
         fetchMediaFiles(),
         getArticles(false),
         getVocabulary(false),

@@ -13,7 +13,7 @@ import {
   Check,
   X
 } from 'lucide-react';
-import { fetchUsers, updateUserRole, UserProfile, getSupabase } from '../../../lib/supabaseClient';
+import { fetchUsers, fetchPublicUsers, updateUserRole, UserProfile, getSupabase } from '../../../lib/supabaseClient';
 import { logAdminActivity } from '../../../lib/operations';
 
 export default function RolesView({ currentUserRoleProp, currentUserEmailProp }: { currentUserRoleProp?: any; currentUserEmailProp?: string }) {
@@ -101,7 +101,13 @@ export default function RolesView({ currentUserRoleProp, currentUserEmailProp }:
   async function loadUsers() {
     setIsLoading(true);
     try {
-      const data = await fetchUsers();
+      const client = getSupabase();
+      let isAuth = false;
+      if (client) {
+        const { data: { session } } = await client.auth.getSession();
+        isAuth = !!session?.user;
+      }
+      const data = isAuth ? await fetchUsers() : await fetchPublicUsers();
       setUsers(data);
     } catch (err) {
       console.error('Failed to load users for RolesView:', err);
