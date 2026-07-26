@@ -208,7 +208,7 @@ export async function fetchElderSubmissions(userId: string): Promise<{ submissio
     const { data: announcements, error: annErr } = await client
       .from('announcements')
       .select('*')
-      .eq('created_by', userId)
+      .eq('author_id', userId)
       .order('created_at', { ascending: false });
 
     if (annErr) console.warn('Announcements fetch error:', annErr);
@@ -643,7 +643,7 @@ export async function saveElderAnnouncement(
           updated_at: new Date().toISOString()
         })
         .eq('id', annData.id)
-        .eq('created_by', userId)
+        .eq('author_id', userId)
         .select()
         .single();
 
@@ -658,7 +658,7 @@ export async function saveElderAnnouncement(
           category: annData.category || 'community',
           priority: annData.priority || 'normal',
           status: annData.status,
-          created_by: userId
+          author_id: userId
         })
         .select()
         .single();
@@ -728,13 +728,13 @@ export async function deleteElderSubmission(
     let userField = 'author_id';
     if (table === 'contributions') userField = 'reporter_id';
     else if (table === 'gallery') userField = 'uploaded_by';
-    else if (table === 'announcements') userField = 'created_by';
+    else if (table === 'announcements') userField = 'author_id';
 
     const { error } = await client
       .from(table)
       .delete()
       .eq('id', id)
-      .or(`${userField}.eq.${userId},created_by.eq.${userId}`);
+      .eq(userField, userId);
 
     if (error) throw error;
     return { success: true, error: null };

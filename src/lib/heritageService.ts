@@ -1,18 +1,18 @@
-import { getSupabase, fetchUsers } from './supabaseClient';
+import { getSupabase, fetchPublicUsers } from './supabaseClient';
 import { generateUUID } from './supabase';
 import { Status, News, Announcement, Event, CommunityHighlight, Notice, ContentRegistryItem, ContentRevision, AnalyticsMetric } from '../types/heritage';
 
 const isUUID = (str?: string) => str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str) : false;
 
-async function filterRealUsers<T extends { author_id?: string; created_by?: string; status?: string }>(items: T[]): Promise<T[]> {
+async function filterRealUsers<T extends { author_id?: string; status?: string }>(items: T[]): Promise<T[]> {
   try {
-    const users = await fetchUsers();
+    const users = await fetchPublicUsers();
     const realUserIds = new Set(users.map(u => u.id));
     return items.filter(item => {
       if (item.status === 'approved' || item.status === 'published') {
         return true;
       }
-      const authorId = item.author_id || item.created_by;
+      const authorId = item.author_id;
       return authorId && realUserIds.has(authorId);
     });
   } catch (e) {
@@ -34,7 +34,7 @@ async function resolveUserUUID(client: any, userId?: string): Promise<string> {
     // ignore
   }
   try {
-    const { data } = await client.from('profiles').select('id').limit(1);
+    const { data } = await client.from('profiles_public').select('id').limit(1);
     if (data && data.length > 0) {
       return data[0].id;
     }
@@ -434,7 +434,7 @@ export async function getAnnouncements(onlyApproved = true): Promise<Announcemen
       start_date: row.start_date,
       end_date: row.end_date,
       pinned: row.pinned || false,
-      created_by: row.created_by,
+      author_id: row.author_id,
       approved_by: row.approved_by,
       status: row.status,
       created_at: row.created_at,
@@ -476,7 +476,7 @@ export async function createAnnouncement(announcement: Omit<Announcement, 'id'>)
       start_date: announcement.start_date,
       end_date: announcement.end_date,
       pinned: announcement.pinned,
-      created_by: await resolveUserUUID(client, announcement.created_by),
+      author_id: await resolveUserUUID(client, announcement.author_id),
       status: announcement.status,
       created_at: announcement.created_at,
       updated_at: announcement.updated_at
@@ -518,7 +518,7 @@ export async function updateAnnouncement(id: string, updates: Partial<Announceme
     if (updates.start_date !== undefined) dbRecord.start_date = updates.start_date;
     if (updates.end_date !== undefined) dbRecord.end_date = updates.end_date;
     if (updates.pinned !== undefined) dbRecord.pinned = updates.pinned;
-    if (updates.created_by !== undefined && isUUID(updates.created_by)) dbRecord.created_by = updates.created_by;
+    if (updates.author_id !== undefined && isUUID(updates.author_id)) dbRecord.author_id = updates.author_id;
     if (updates.approved_by !== undefined && isUUID(updates.approved_by)) dbRecord.approved_by = updates.approved_by;
     if (updates.status !== undefined) dbRecord.status = updates.status;
     if (updates.created_at !== undefined) dbRecord.created_at = updates.created_at;
@@ -597,7 +597,7 @@ export async function getEvents(onlyApproved = true): Promise<Event[]> {
       contact: '',
       rsvp_settings: { enabled: false, limit: null },
       map_location: { latitude: null, longitude: null },
-      author_id: row.author_id || row.created_by || '',
+      author_id: row.author_id || '',
       approved_by: '',
       status: row.status,
       created_at: row.created_at,
@@ -876,7 +876,7 @@ async function assembleFallbackRegistry(statusFilter?: string): Promise<ContentR
         record_id: art.id,
         title: art.title || 'Untitled Article',
         status: regStatus,
-        author_id: art.author_id || art.created_by,
+        author_id: art.author_id,
         submitted_at: art.created_at,
         approved_by: art.approved_by,
         approved_at: art.approved_at,
@@ -916,7 +916,7 @@ async function assembleFallbackRegistry(statusFilter?: string): Promise<ContentR
         record_id: n.id,
         title: n.title || 'Untitled Notice',
         status: n.status || 'draft',
-        author_id: n.author_id || n.created_by,
+        author_id: n.author_id,
         submitted_at: n.created_at,
         approved_by: n.approved_by,
         approved_at: n.approved_at,
@@ -965,7 +965,7 @@ async function assembleFallbackRegistry(statusFilter?: string): Promise<ContentR
         record_id: ev.id,
         title: ev.title || 'Untitled Event',
         status: regStatus,
-        author_id: ev.author_id || ev.created_by,
+        author_id: ev.author_id,
         submitted_at: ev.created_at,
         approved_by: ev.approved_by,
         created_at: ev.created_at,
@@ -1164,7 +1164,7 @@ export async function getUnifiedModerationHistory(recordId: string): Promise<any
   if (uniqueActorIds.length > 0) {
     try {
       const { data: profiles, error: profErr } = await client
-        .from('profiles')
+        .from('profiles_public')
         .select('id, email, full_name')
         .in('id', uniqueActorIds);
       
@@ -1176,7 +1176,7 @@ export async function getUnifiedModerationHistory(recordId: string): Promise<any
         for (const item of history) {
           if (item.actor_id && profileMap.has(item.actor_id)) {
             const p = profileMap.get(item.actor_id);
-            item.actor_name = p.full_name || p.name || p.email?.split('@')[0] || 'Unknown';
+            item.actor_name = p.full_name || p.email?.split('@')[0] || 'Unknown';
             item.actor_email = p.email;
           } else {
             item.actor_name = 'System / Automated';

@@ -1,6 +1,6 @@
 import { Article } from '../types/article';
 import { bakenyiArticles } from '../data/articlesData';
-import { getSupabase, fetchUsers } from './supabaseClient';
+import { getSupabase, fetchPublicUsers } from './supabaseClient';
 import { validateAndCompressAudio, AudioValidationOptions, formatFileSize } from './audioUtils';
 import { queueOfflineItem, flushOfflineQueue, registerOnlineSyncListener } from './syncService';
 
@@ -28,13 +28,13 @@ export const supabase = getSupabase();
 
 export async function filterRealArticles(items: any[]): Promise<any[]> {
   try {
-    const users = await fetchUsers();
+    const users = await fetchPublicUsers();
     const realUserIds = new Set(users.map(u => u.id));
     return items.filter(item => {
       if (item.status === 'approved' || item.status === 'published') {
         return true;
       }
-      const creatorId = item.created_by;
+      const creatorId = item.author_id;
       return creatorId && realUserIds.has(creatorId);
     });
   } catch (e) {
@@ -45,7 +45,7 @@ export async function filterRealArticles(items: any[]): Promise<any[]> {
 
 export async function filterRealContributions(items: any[]): Promise<any[]> {
   try {
-    const users = await fetchUsers();
+    const users = await fetchPublicUsers();
     const realUserIds = new Set(users.map(u => u.id));
     return items.filter(item => {
       if (item.status === 'approved' || item.status === 'published') {
@@ -165,7 +165,7 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
   try {
     const { data, error } = await client
       .from('articles')
-      .select('id, title, content, status, created_at, updated_at, published_at, summary, author_id, created_by')
+      .select('id, title, content, status, created_at, updated_at, published_at, summary, author_id')
       .order('published_at', { ascending: false });
 
     if (error) throw error;
@@ -181,7 +181,7 @@ export async function getArticles(onlyPublished = true): Promise<Article[]> {
       status: row.status || 'published',
       views: 0,
       tags: ['Heritage'],
-      created_by: row.created_by
+      author_id: row.author_id
     }));
 
     const merged = [...localList, ...dbArticles];
@@ -214,7 +214,7 @@ export async function getArticleById(id: string): Promise<Article | null> {
   try {
     const { data, error } = await client
       .from('articles')
-      .select('id, title, content, status, created_at, updated_at, published_at, summary, author_id, created_by')
+      .select('id, title, content, status, created_at, updated_at, published_at, summary, author_id')
       .eq('id', id)
       .maybeSingle();
 
@@ -232,7 +232,7 @@ export async function getArticleById(id: string): Promise<Article | null> {
         status: data.status || 'published',
         views: 0,
         tags: ['Heritage'],
-        created_by: data.created_by
+        author_id: data.author_id
       };
       const isReal = await filterRealArticles([art]);
       return isReal.length > 0 ? isReal[0] : null;

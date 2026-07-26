@@ -56,7 +56,6 @@ export interface Announcement {
   end_date?: string;
   pinned: boolean;
   author_id?: string;
-  created_by?: string;
   approved_by?: string;
   status: 'draft' | 'pending' | 'approved' | 'archived' | 'rejected';
   created_at: string;
@@ -112,7 +111,6 @@ export interface Notice {
   priority: 'low' | 'normal' | 'high' | 'emergency';
   status: 'draft' | 'submitted' | 'under_review' | 'needs_revision' | 'approved' | 'published' | 'archived';
   author_id?: string;
-  created_by?: string;
   approved_by?: string;
   approved_at?: string;
   created_at: string;

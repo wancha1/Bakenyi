@@ -312,7 +312,7 @@ export default function HeritageModulesManager({ userRole }: HeritageModulesMana
           priority: annForm.priority,
           pinned: annForm.pinned,
           start_date: new Date().toISOString(),
-          created_by: 'active-admin',
+          author_id: 'active-admin',
           status: editingId ? annForm.status : (isElder ? 'approved' : 'pending'),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()

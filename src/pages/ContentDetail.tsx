@@ -144,7 +144,7 @@ Preserving the original Lukenye nouns for these natural elements is critical. Th
             if (client) {
               const { data: directArt } = await client
                 .from('articles')
-                .select('*, profiles:author_id(full_name)')
+                .select('*, profiles_public:author_id(full_name)')
                 .eq('id', id)
                 .maybeSingle();
               if (directArt) {
@@ -155,7 +155,7 @@ Preserving the original Lukenye nouns for these natural elements is critical. Th
                   content: directArt.content,
                   category: (directArt as any).category || 'Culture',
                   coverImage: directArt.featured_image || directArt.cover_image,
-                  author: (directArt as any).profiles?.full_name || (directArt as any).profiles?.name || 'Bakenyi Scribe',
+                  author: (directArt as any).profiles_public?.full_name || (directArt as any).profiles?.full_name || 'Bakenyi Scribe',
                   publishedAt: directArt.published_at || directArt.created_at
                 });
               } else {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, NavigateFunction } from 'react-router-dom';
-import { Search, X, Compass, PlusCircle, ArrowRight } from 'lucide-react';
+import { Search, X, Compass, Newspaper, ArrowRight } from 'lucide-react';
 import { Button, Badge, FadeIn } from '../ui';
 
 interface SearchResultItem {
@@ -213,12 +213,12 @@ export default function HeroSection({
             <Button 
               variant="outline" 
               size="lg"
-              onClick={() => navigate('/contribute')}
-              leftIcon={<PlusCircle className="w-4 h-4" />}
+              onClick={() => navigate('/news')}
+              leftIcon={<Newspaper className="w-4 h-4" />}
               id="cta-submit-story"
               className="w-full sm:w-auto text-white dark:text-white border-white/20 hover:bg-white/10"
             >
-              Submit News
+              Get the Latest
             </Button>
 
             <Link 

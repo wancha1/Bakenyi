@@ -230,6 +230,36 @@ function saveLocalUsers(users: UserProfile[]): void {
   }
 }
 
+export const fetchPublicUsers = async (): Promise<UserProfile[]> => {
+  const localList = getLocalUsers();
+  const client = getSupabase();
+  if (client) {
+    try {
+      const { data, error } = await client.from('profiles_public').select('*').order('created_at', { ascending: false });
+      if (error) {
+        console.warn('Supabase fetchPublicUsers query failed, using local fallback:', error);
+      } else if (data) {
+        const dbUsers: UserProfile[] = data.map((row: any) => ({
+          id: row.id,
+          email: row.email || '',
+          role: row.role || 'member',
+          status: row.status || 'active',
+          full_name: row.full_name || '',
+          avatar_url: row.avatar_url || '',
+          created_at: row.created_at,
+          last_login: row.updated_at || row.created_at
+        }));
+        const merged = [...localList, ...dbUsers];
+        const unique = merged.filter((item, index, self) => self.findIndex(t => t.id === item.id) === index);
+        return unique;
+      }
+    } catch (err: any) {
+      console.warn('Supabase fetchPublicUsers exception, using local fallback:', err);
+    }
+  }
+  return localList;
+};
+
 export const fetchUsers = async (): Promise<UserProfile[]> => {
   const localList = getLocalUsers();
   const client = getSupabase();
@@ -242,13 +272,13 @@ export const fetchUsers = async (): Promise<UserProfile[]> => {
           markSupabaseOffline();
         }
       } else if (data) {
-        // Map database records to UserProfile format (ensuring full_name is populated from name)
+        // Map database records to UserProfile format (ensuring full_name is populated from full_name)
         const dbUsers: UserProfile[] = data.map((row: any) => ({
           id: row.id,
           email: row.email,
           role: row.role,
           status: row.status,
-          full_name: row.name || row.full_name || '',
+          full_name: row.full_name || '',
           avatar_url: row.avatar_url || '',
           created_at: row.created_at,
           last_login: row.updated_at || row.created_at
