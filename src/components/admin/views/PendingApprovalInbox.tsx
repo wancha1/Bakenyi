@@ -15,6 +15,7 @@ import {
   getClans, updateClan, deleteClan,
   getLeaders, updateLeader, deleteLeader,
   getVocabulary, updateVocabularyStatus,
+  createNotification,
   Vocabulary, Contribution, GalleryImage, Clan, Leader
 } from '../../../lib/supabase';
 
@@ -539,6 +540,19 @@ export default function PendingApprovalInbox() {
 
       // Clear changes comments upon successful publishing
       localStorage.removeItem(`bakenyi_comments_${item.id}`);
+      localStorage.removeItem(`bakenyi_status_override_${item.id}`);
+
+      // Dispatch notification to author
+      const authorUserId = item.raw?.author_id || item.raw?.uploaded_by || item.raw?.reporter_id || item.raw?.createdBy;
+      if (authorUserId) {
+        await createNotification({
+          userId: authorUserId,
+          title: `${item.contentType} Approved by Council`,
+          message: `Your submission "${item.title}" has been approved and published to the live Bakenye Cultural Platform!`,
+          type: 'approved',
+          link: '/leader'
+        });
+      }
 
       if (log) {
         logAdminActivity(
@@ -560,7 +574,7 @@ export default function PendingApprovalInbox() {
   const executeRejectAction = async (item: ModerationItem, log = true): Promise<boolean> => {
     try {
       if (item.contentType === 'Article') {
-        const { error } = await updateArticle(item.id, { status: 'draft' });
+        const { error } = await updateArticle(item.id, { status: 'rejected' as any });
         if (error) throw error;
       } else if (item.contentType === 'Status') {
         const res = await updateStatus(item.id, { status: 'archived' });
@@ -589,6 +603,20 @@ export default function PendingApprovalInbox() {
       } else if (item.contentType === 'Vocabulary') {
         const ok = await updateVocabularyStatus(item.id, 'rejected');
         if (!ok) throw new Error('Vocabulary update failed');
+      }
+
+      localStorage.setItem(`bakenyi_status_override_${item.id}`, 'rejected');
+
+      // Dispatch rejection notification to author
+      const authorUserId = item.raw?.author_id || item.raw?.uploaded_by || item.raw?.reporter_id || item.raw?.createdBy;
+      if (authorUserId) {
+        await createNotification({
+          userId: authorUserId,
+          title: `${item.contentType} Vetting Notice`,
+          message: `Your submission "${item.title}" was rejected during vetting by the Elder Council.`,
+          type: 'rejected',
+          link: '/leader'
+        });
       }
 
       if (log) {
@@ -644,17 +672,17 @@ export default function PendingApprovalInbox() {
       // 1. Save comments persistently
       setChangesComments(selectedItem.id, feedbackText);
       
-      // 2. Set status to changes_requested
+      // 2. Set status to revision / changes_requested in database
       if (selectedItem.contentType === 'Article') {
-        await updateArticle(selectedItem.id, { status: 'draft' as any });
+        await updateArticle(selectedItem.id, { status: 'revision' as any });
       } else if (selectedItem.contentType === 'Status') {
         await updateStatus(selectedItem.id, { status: 'pending' });
       } else if (selectedItem.contentType === 'News') {
         await updateNews(selectedItem.id, { status: 'pending' });
       } else if (selectedItem.contentType === 'Announcement') {
-        await updateAnnouncement(selectedItem.id, { status: 'pending' });
+        await updateAnnouncement(selectedItem.id, { status: 'rejected' });
       } else if (selectedItem.contentType === 'Event') {
-        await updateEvent(selectedItem.id, { status: 'pending' });
+        await updateEvent(selectedItem.id, { status: 'rejected' });
       } else if (selectedItem.contentType === 'Contribution') {
         await updateContributionStatus(selectedItem.id, 'pending');
       } else if (selectedItem.contentType === 'Gallery') {
@@ -671,7 +699,19 @@ export default function PendingApprovalInbox() {
       incrementRevisions(selectedItem.id);
 
       // Save custom status changes_requested locally in memory for immediate visual feedback
-      localStorage.setItem(`bakenyi_status_override_${selectedItem.id}`, 'changes_requested');
+      localStorage.setItem(`bakenyi_status_override_${selectedItem.id}`, 'revision');
+
+      // Dispatch notification to author
+      const authorUserId = selectedItem.raw?.author_id || selectedItem.raw?.uploaded_by || selectedItem.raw?.reporter_id || selectedItem.raw?.createdBy;
+      if (authorUserId) {
+        await createNotification({
+          userId: authorUserId,
+          title: `Revision Requested: ${selectedItem.title}`,
+          message: `Council Vetting Note on "${selectedItem.title}": "${feedbackText}". Please edit and resubmit.`,
+          type: 'revision',
+          link: '/leader'
+        });
+      }
 
       logAdminActivity(
         'Elder',

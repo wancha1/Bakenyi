@@ -10,15 +10,20 @@ import {
   Cpu,
   Lock,
   Loader2,
-  FileCode
+  FileCode,
+  AlertTriangle,
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
-import { isSupabaseConfigured } from '../../../lib/supabase';
-import { getSupabase } from '../../../lib/supabaseClient';
+import { checkSupabaseHealth, getSupabaseConfig, ClassifiedError } from '../../../lib/supabaseClient';
 
 export default function SystemHealthView() {
   const [dbStatus, setDbStatus] = useState<'connected' | 'disconnected'>('disconnected');
   const [latency, setLatency] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [healthCategory, setHealthCategory] = useState<ClassifiedError['category']>('UNKNOWN');
+  const [healthMessage, setHealthMessage] = useState<string>('');
+  const [isConfigured, setIsConfigured] = useState<boolean>(false);
 
   useEffect(() => {
     testDbConnection();
@@ -28,23 +33,15 @@ export default function SystemHealthView() {
     setLoading(true);
     const start = performance.now();
     try {
-      const configured = isSupabaseConfigured();
-      if (configured) {
-        const client = getSupabase();
-        if (client) {
-          // Perform a quick real select query to test connection integrity
-          const { error } = await client.from('profiles_public').select('*', { count: 'exact', head: true });
-          if (!error) {
-            setDbStatus('connected');
-          } else {
-            setDbStatus('disconnected');
-          }
-        }
-      } else {
-        setDbStatus('disconnected');
-      }
-    } catch (err) {
+      const health = await checkSupabaseHealth();
+      setDbStatus(health.healthy ? 'connected' : 'disconnected');
+      setHealthCategory(health.category);
+      setHealthMessage(health.message);
+      setIsConfigured(health.config.isConfigured);
+    } catch (err: any) {
       setDbStatus('disconnected');
+      setHealthCategory('NETWORK');
+      setHealthMessage(err?.message || 'Failed to establish connection to database.');
     } finally {
       const duration = Math.round(performance.now() - start);
       setLatency(duration);
@@ -55,12 +52,42 @@ export default function SystemHealthView() {
   return (
     <div className="space-y-8 text-left">
       {/* Page Title */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-sans">System Integrity & Diagnostics</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 font-sans">
-          Verify database connection health, review Row Level Security (RLS) layers, and monitor operational telemetry.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-sans">System Integrity & Diagnostics</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-sans">
+            Verify database connection health, review Row Level Security (RLS) layers, and monitor operational telemetry.
+          </p>
+        </div>
+        <button
+          onClick={testDbConnection}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <span>Re-test Connection</span>
+        </button>
       </div>
+
+      {healthMessage && (
+        <div className={`p-4 rounded-2xl border text-xs leading-relaxed flex items-start gap-3 ${
+          dbStatus === 'connected'
+            ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+            : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+        }`}>
+          {dbStatus === 'connected' ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+          ) : (
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          )}
+          <div className="space-y-1">
+            <span className="font-bold uppercase tracking-wider text-[10px] block opacity-80">
+              Diagnostics Status: [{healthCategory}]
+            </span>
+            <p className="font-medium">{healthMessage}</p>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col justify-center items-center py-24 space-y-2">

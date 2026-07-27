@@ -32,7 +32,8 @@ import {
   deleteUser, 
   UserProfile, 
   getSupabase, 
-  getSupabaseConfig 
+  getSupabaseConfig,
+  getFriendlyErrorMessage
 } from '../../../lib/supabaseClient';
 import { logAdminActivity } from '../../../lib/operations';
 import DangerAction, { DangerActionType, DangerLevel } from '../../DangerAction';
@@ -44,6 +45,7 @@ export default function UsersView({ currentUserRoleProp, currentUserEmailProp }:
   const [roleFilter, setRoleFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Auth state
   const [currentUserRole, setCurrentUserRole] = useState<'super_admin' | 'admin' | 'historian' | 'community_leader' | 'reporter' | 'public' | null>(null);
@@ -161,6 +163,7 @@ export default function UsersView({ currentUserRoleProp, currentUserEmailProp }:
 
   async function loadUsers() {
     setIsLoading(true);
+    setError(null);
     try {
       const client = getSupabase();
       let isAuth = false;
@@ -170,8 +173,10 @@ export default function UsersView({ currentUserRoleProp, currentUserEmailProp }:
       }
       const data = isAuth ? await fetchUsers() : await fetchPublicUsers();
       setUsers(data);
-    } catch (err) {
-      console.error('Failed to fetch user accounts:', err);
+    } catch (err: any) {
+      const friendlyMsg = getFriendlyErrorMessage(err);
+      console.error('Failed to fetch user accounts:', friendlyMsg);
+      setError(friendlyMsg);
     } finally {
       setIsLoading(false);
     }

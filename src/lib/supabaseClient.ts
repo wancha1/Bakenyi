@@ -42,24 +42,216 @@ export interface MediaFile {
   status: 'approved' | 'pending';
 }
 
+// Production Mode Detection
+export const isProduction = (): boolean => {
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+    return (import.meta as any).env.PROD || (import.meta as any).env.MODE === 'production';
+  }
+  return typeof process !== 'undefined' && process.env?.NODE_ENV === 'production';
+};
+
 // Check configuration status
 export const getSupabaseConfig = () => {
   const metaEnv = (import.meta as any).env || {};
-  const url = metaEnv.VITE_SUPABASE_URL || (typeof process !== 'undefined' ? process.env?.VITE_SUPABASE_URL : '') || '';
-  const key = metaEnv.VITE_SUPABASE_ANON_KEY || (typeof process !== 'undefined' ? process.env?.VITE_SUPABASE_ANON_KEY : '') || '';
+  const url = String(metaEnv.VITE_SUPABASE_URL || (typeof process !== 'undefined' ? process.env?.VITE_SUPABASE_URL : '') || '').trim();
+  const key = String(metaEnv.VITE_SUPABASE_ANON_KEY || (typeof process !== 'undefined' ? process.env?.VITE_SUPABASE_ANON_KEY : '') || '').trim();
   
-  const isConfigured = 
-    url && 
-    key && 
-    url !== 'https://your-project.supabase.co' && 
-    key !== 'your-anon-key-here';
+  let isValidUrl = false;
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      isValidUrl = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      isValidUrl = false;
+    }
+  }
 
-  return { url, key, isConfigured };
+  const isPlaceholder = url === 'https://your-project.supabase.co' || key === 'your-anon-key-here';
+  const isConfigured = url !== '' && key !== '' && !isPlaceholder && isValidUrl;
+
+  return { url, key, isConfigured, isPlaceholder, isValidUrl };
 };
+
+export interface ClassifiedError {
+  category: 'NETWORK' | 'AUTH' | 'RLS' | 'SCHEMA' | 'UNKNOWN';
+  message: string;
+  originalError: any;
+}
+
+/**
+ * Classifies low-level fetch and Supabase errors into distinct categories
+ * and meaningful user-facing messages.
+ */
+export function classifySupabaseError(error: any): ClassifiedError {
+  if (!error) {
+    return {
+      category: 'UNKNOWN',
+      message: 'An unknown error occurred.',
+      originalError: null,
+    };
+  }
+
+  // 1. Device offline check
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return {
+      category: 'NETWORK',
+      message: 'No internet connection. Please check your Wi-Fi or cellular data and try again.',
+      originalError: error,
+    };
+  }
+
+  const msg = (error.message || error.error_description || String(error)).toLowerCase();
+  const status = error.status || error.statusCode || error.code;
+
+  // 2. Network failures & connection timeouts
+  if (
+    msg.includes('failed to fetch') ||
+    msg.includes('networkerror') ||
+    msg.includes('network error') ||
+    msg.includes('abort') ||
+    msg.includes('econnrefused') ||
+    msg.includes('enotfound') ||
+    msg.includes('socket hang up') ||
+    msg.includes('timeout') ||
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    status === 0
+  ) {
+    return {
+      category: 'NETWORK',
+      message: 'Cannot reach the Supabase server. The network connection was interrupted or the server is temporarily unreachable.',
+      originalError: error,
+    };
+  }
+
+  // 3. Authentication & JWT failures
+  if (
+    status === 401 ||
+    status === 403 ||
+    msg.includes('jwt') ||
+    msg.includes('invalid_credentials') ||
+    msg.includes('invalid api key') ||
+    msg.includes('token expired') ||
+    msg.includes('unauthorized') ||
+    msg.includes('invalid login credentials') ||
+    error.code === 'PGRST301'
+  ) {
+    return {
+      category: 'AUTH',
+      message: 'Authentication failed or session expired. Please sign in again.',
+      originalError: error,
+    };
+  }
+
+  // 4. Row Level Security (RLS) & Postgres Permission Errors
+  if (
+    error.code === '42501' ||
+    msg.includes('row-level security') ||
+    msg.includes('rls') ||
+    msg.includes('permission denied') ||
+    msg.includes('violates row-level security policy')
+  ) {
+    return {
+      category: 'RLS',
+      message: 'Access denied: Security policies (RLS) prevent this action for your account role.',
+      originalError: error,
+    };
+  }
+
+  // 5. Database Schema / Missing Table Errors
+  if (
+    error.code === '42P01' ||
+    error.code === '42703' ||
+    (msg.includes('relation') && msg.includes('does not exist')) ||
+    (msg.includes('column') && msg.includes('does not exist'))
+  ) {
+    return {
+      category: 'SCHEMA',
+      message: 'Database schema error: Missing table or column in Supabase database.',
+      originalError: error,
+    };
+  }
+
+  return {
+    category: 'UNKNOWN',
+    message: error.message || 'An unexpected error occurred while communicating with the server.',
+    originalError: error,
+  };
+}
+
+export function getFriendlyErrorMessage(error: any): string {
+  const classified = classifySupabaseError(error);
+  return classified.message;
+}
+
+/**
+ * Custom fetch implementation for Supabase client with:
+ * - Device offline detection
+ * - Automatic retries with exponential backoff for transient network errors (TypeError: Failed to fetch, HTTP 502/503/504)
+ * - Request timeout via AbortController (12 seconds)
+ */
+export async function fetchWithRetry(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  maxRetries = 3,
+  initialDelayMs = 500
+): Promise<Response> {
+  let attempt = 0;
+
+  while (true) {
+    // Check if device is offline
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      throw new TypeError('No internet connection. Please check your network connection.');
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+    const mergedInit: RequestInit = {
+      ...init,
+      signal: init?.signal || controller.signal,
+    };
+
+    try {
+      const response = await fetch(input, mergedInit);
+      clearTimeout(timeoutId);
+
+      // Retry on transient server errors (502, 503, 504)
+      if ([502, 503, 504].includes(response.status) && attempt < maxRetries) {
+        attempt++;
+        const backoff = Math.min(initialDelayMs * Math.pow(2, attempt), 3000) + Math.random() * 200;
+        console.warn(`[SUPABASE_RETRY] Server returned ${response.status}. Retrying attempt ${attempt}/${maxRetries} in ${Math.round(backoff)}ms...`);
+        await new Promise((res) => setTimeout(res, backoff));
+        continue;
+      }
+
+      return response;
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+
+      const isAbort = err?.name === 'AbortError';
+      const isTypeError = err instanceof TypeError || (err?.message && (err.message.includes('fetch') || err.message.includes('Network')));
+
+      if ((isAbort || isTypeError) && attempt < maxRetries) {
+        attempt++;
+        const backoff = Math.min(initialDelayMs * Math.pow(2, attempt), 3000) + Math.random() * 200;
+        console.warn(`[SUPABASE_RETRY] Transient network error (${err?.message || 'Failed to fetch'}). Retrying attempt ${attempt}/${maxRetries} in ${Math.round(backoff)}ms...`);
+        await new Promise((res) => setTimeout(res, backoff));
+        continue;
+      }
+
+      throw err;
+    }
+  }
+}
 
 export let isSupabaseOffline = false;
 export const markSupabaseOffline = () => {
   isSupabaseOffline = true;
+};
+export const resetSupabaseOffline = () => {
+  isSupabaseOffline = false;
 };
 
 // Lazy Initialized Client
@@ -72,7 +264,15 @@ export const getSupabase = () => {
   
   if (!supabaseInstance) {
     try {
-      supabaseInstance = createClient(url, key);
+      supabaseInstance = createClient(url, key, {
+        global: {
+          fetch: fetchWithRetry,
+        },
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+        }
+      });
     } catch (err) {
       console.error('Failed to create Supabase client:', err);
       return null;
@@ -80,6 +280,68 @@ export const getSupabase = () => {
   }
   return supabaseInstance;
 };
+
+export async function checkSupabaseHealth(): Promise<{
+  healthy: boolean;
+  reachable: boolean;
+  category: ClassifiedError['category'];
+  message: string;
+  config: { url: string; isConfigured: boolean };
+}> {
+  const config = getSupabaseConfig();
+  if (!config.isConfigured) {
+    return {
+      healthy: false,
+      reachable: false,
+      category: 'SCHEMA',
+      message: config.isPlaceholder
+        ? 'Supabase URL or Anon Key is using placeholder defaults in configuration.'
+        : 'Supabase environment variables are missing or invalid URL format.',
+      config: { url: config.url, isConfigured: false },
+    };
+  }
+
+  const client = getSupabase();
+  if (!client) {
+    return {
+      healthy: false,
+      reachable: false,
+      category: 'NETWORK',
+      message: 'Failed to initialize Supabase client instance.',
+      config: { url: config.url, isConfigured: true },
+    };
+  }
+
+  try {
+    const { error } = await client.from('profiles_public').select('id', { count: 'exact', head: true });
+    if (error) {
+      const classified = classifySupabaseError(error);
+      return {
+        healthy: false,
+        reachable: classified.category !== 'NETWORK',
+        category: classified.category,
+        message: classified.message,
+        config: { url: config.url, isConfigured: true },
+      };
+    }
+    return {
+      healthy: true,
+      reachable: true,
+      category: 'UNKNOWN',
+      message: 'Supabase database is healthy and reachable.',
+      config: { url: config.url, isConfigured: true },
+    };
+  } catch (err) {
+    const classified = classifySupabaseError(err);
+    return {
+      healthy: false,
+      reachable: false,
+      category: classified.category,
+      message: classified.message,
+      config: { url: config.url, isConfigured: true },
+    };
+  }
+}
 
 // ========================================================
 // DB SERVICE METHODS (STRICT SUPABASE QUERIES - NO MOCK FALLBACKS)
@@ -216,10 +478,8 @@ export const fetchUsers = async (): Promise<UserProfile[]> => {
 
     const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
     if (error) {
-      console.error('[ADMIN_USER_DEBUG] Error fetching profiles from public.profiles:', error.message);
-      if (error.message?.includes('fetch') || error.message?.includes('Failed') || error.message?.includes('Network')) {
-        markSupabaseOffline();
-      }
+      const friendlyMsg = getFriendlyErrorMessage(error);
+      console.error('[ADMIN_USER_DEBUG] Error fetching profiles from public.profiles:', friendlyMsg);
       return [];
     }
 
@@ -239,10 +499,8 @@ export const fetchUsers = async (): Promise<UserProfile[]> => {
       return dbUsers;
     }
   } catch (err: any) {
-    console.error('[ADMIN_USER_DEBUG] Exception in fetchUsers:', err);
-    if (err?.message?.includes('fetch') || err?.message?.includes('Failed') || err?.message?.includes('Network')) {
-      markSupabaseOffline();
-    }
+    const friendlyMsg = getFriendlyErrorMessage(err);
+    console.error('[ADMIN_USER_DEBUG] Exception in fetchUsers:', friendlyMsg);
   }
 
   console.log('[ADMIN_USER_DEBUG] Loaded profile count from public.profiles: 0');

@@ -90,6 +90,8 @@ export const INITIAL_SAMPLE_SUBMISSIONS: ElderSubmission[] = [
     body: 'The Bakenyi elders of the Baise-Mugaya clan have preserved a unique papyrus fiber drying process. By immersing raw stems in shallow Lake Kyoga inlets for three nights, the fibers gain high tensile strength and natural water repellency...',
     category: 'Maritime Traditions',
     coverImage: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=800',
+    elderFeedback: 'Approved by Elder Council for inclusion in the Bakenyi digital repository.',
+    reviewedBy: 'Elder Vetting Board',
     originalTable: 'articles',
     originalData: {}
   },
@@ -102,7 +104,24 @@ export const INITIAL_SAMPLE_SUBMISSIONS: ElderSubmission[] = [
     updatedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
     summary: 'Category: Clan Assembly | Priority: high',
     body: 'Notice to all boat builders and fishing households: The Elder Council strictly forbids cutting papyrus beds within 50 meters of ancestral spawning sanctuaries near Muntu landing site.',
+    category: 'Community Guidance',
     originalTable: 'announcements',
+    originalData: {}
+  },
+  {
+    id: 'sub-sample-04',
+    title: 'Lukunyu Lineage Clan Totems & Aquatic Taboos',
+    type: 'article',
+    status: 'revision',
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+    summary: 'Detailed chronicle regarding sacred fish species taboos and clan lineage history along the lower Nile basin.',
+    body: 'The Lukunyu clan maintains strict aquatic taboos regarding the mudfish (Esonko) during seasonal migrations. According to oral history transmitted by Elder Okello, no clan member may harvest mudfish during the first week of rising waters...',
+    category: 'Clans & Lineage',
+    coverImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800',
+    elderFeedback: 'Please clarify the specific fishing grounds near Buyende where this taboo was traditionally observed, and include the Lukenye names of the secondary totems before final publication.',
+    reviewedBy: 'Elder Mufumba James',
+    originalTable: 'articles',
     originalData: {}
   },
   {
@@ -114,6 +133,7 @@ export const INITIAL_SAMPLE_SUBMISSIONS: ElderSubmission[] = [
     updatedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
     summary: 'Namasale Shore Sanctuary | 2026-08-15',
     body: 'Gathering of all 7 clan flotillas for ritual canoe paddle blessing, traditional rowing competitions, and oral story recitations.',
+    category: 'Events',
     coverImage: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&q=80&w=800',
     originalTable: 'events',
     originalData: { starts_at: new Date(Date.now() + 86400000 * 20).toISOString(), location: 'Namasale Shore Sanctuary', organizer: 'Elder Council' }

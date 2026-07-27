@@ -78,6 +78,21 @@ export default function LeaderDashboardView({ user }: { user: any }) {
 
   // Submissions filter state
   const [submissionFilter, setSubmissionFilter] = useState<'all' | 'draft' | 'pending' | 'approved' | 'revision' | 'rejected'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'updated' | 'alpha'>('newest');
+
+  // Confirmation Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+  } | null>(null);
 
   // Compose Form slide-over state
   const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
@@ -85,6 +100,7 @@ export default function LeaderDashboardView({ user }: { user: any }) {
   const [editingSubmission, setEditingSubmission] = useState<ElderSubmission | null>(null);
   const [savingForm, setSavingForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
 
   // Form Fields State
   const [formData, setFormData] = useState({
@@ -100,6 +116,21 @@ export default function LeaderDashboardView({ user }: { user: any }) {
     eventScope: 'All Clans Welcome',
     eventPoster: ''
   });
+
+  // Local Autosave Effect
+  useEffect(() => {
+    if (showCreateForm && (formData.title || formData.body) && !editingSubmission) {
+      try {
+        localStorage.setItem(`elder_draft_autosave_${userId}`, JSON.stringify({
+          formType,
+          formData,
+          savedAt: new Date().toISOString()
+        }));
+      } catch (e) {
+        // localStorage non-blocking fallback
+      }
+    }
+  }, [formData, showCreateForm, formType, editingSubmission, userId]);
   // Media Upload Modal States
   const [showMediaForm, setShowMediaForm] = useState(false);
   const [mediaTitle, setMediaTitle] = useState('');
@@ -227,6 +258,49 @@ export default function LeaderDashboardView({ user }: { user: any }) {
     });
     setEditingSubmission(null);
     setFormError(null);
+    setHasRestoredDraft(false);
+  };
+
+  const clearAutosavedDraft = () => {
+    try {
+      localStorage.removeItem(`elder_draft_autosave_${userId}`);
+    } catch (e) {}
+  };
+
+  const handleCloseForm = () => {
+    if ((formData.title.trim() || formData.body.trim()) && !editingSubmission) {
+      setConfirmModal({
+        isOpen: true,
+        title: 'Discard Unsaved Contribution?',
+        message: 'You have entered content for this submission. Closing now will save a local recovery draft in your browser, or you can discard it completely.',
+        confirmText: 'Discard & Close',
+        cancelText: 'Keep Editing',
+        isDanger: true,
+        onConfirm: () => {
+          setShowCreateForm(false);
+          resetForm();
+          setConfirmModal(null);
+        }
+      });
+    } else {
+      setShowCreateForm(false);
+      resetForm();
+    }
+  };
+
+  const restoreAutosavedDraft = () => {
+    try {
+      const saved = localStorage.getItem(`elder_draft_autosave_${userId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.formData) {
+          setFormData(parsed.formData);
+          if (parsed.formType) setFormType(parsed.formType);
+          setHasRestoredDraft(true);
+          triggerToast('Restored unsaved draft from local session!');
+        }
+      }
+    } catch (e) {}
   };
 
   const openEditForm = (sub: ElderSubmission) => {
@@ -345,19 +419,30 @@ export default function LeaderDashboardView({ user }: { user: any }) {
       setEventsList(prev => [newEvItem, ...prev]);
     }
 
+    clearAutosavedDraft();
     setSavingForm(false);
     setShowCreateForm(false);
     resetForm();
     triggerToast(status === 'draft' ? 'Submission saved as draft.' : 'Submitted to Elder Council for vetting!');
   };
 
-  const handleDeleteSubmission = async (id: string, table: 'articles' | 'events' | 'gallery' | 'announcements' | 'contributions') => {
-    if (!window.confirm('Are you sure you want to remove this submission?')) return;
-    setSubmissions(prev => prev.filter(item => item.id !== id));
-    setMediaList(prev => prev.filter(item => item.id !== id));
-    setEventsList(prev => prev.filter(item => item.id !== id));
-    triggerToast('Item removed successfully.');
-    await deleteElderSubmission(userId, id, table);
+  const handleDeleteSubmission = (id: string, table: 'articles' | 'events' | 'gallery' | 'announcements' | 'contributions') => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Cultural Artifact / Submission?',
+      message: 'Are you sure you want to permanently delete this submission? This action cannot be undone.',
+      confirmText: 'Delete Permanently',
+      cancelText: 'Cancel',
+      isDanger: true,
+      onConfirm: async () => {
+        setSubmissions(prev => prev.filter(item => item.id !== id));
+        setMediaList(prev => prev.filter(item => item.id !== id));
+        setEventsList(prev => prev.filter(item => item.id !== id));
+        setConfirmModal(null);
+        triggerToast('Item removed successfully.');
+        await deleteElderSubmission(userId, id, table);
+      }
+    });
   };
 
   const handleSaveMedia = async (status: 'pending' | 'draft') => {
@@ -441,10 +526,52 @@ export default function LeaderDashboardView({ user }: { user: any }) {
     });
   };
 
-  // Submissions Filter
+  // Submissions Multi-Criteria Search, Filter & Sort
   const filteredSubmissions = submissions.filter(item => {
-    if (submissionFilter === 'all') return true;
-    return item.status === submissionFilter;
+    // Status Filter
+    if (submissionFilter !== 'all') {
+      if (submissionFilter === 'revision') {
+        if (item.status !== 'revision' && item.status !== 'rejected') return false;
+      } else if (item.status !== submissionFilter) {
+        return false;
+      }
+    }
+
+    // Category Filter
+    if (categoryFilter !== 'all' && item.category !== categoryFilter) {
+      return false;
+    }
+
+    // Type Filter
+    if (typeFilter !== 'all' && item.type !== typeFilter) {
+      return false;
+    }
+
+    // Search Query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchTitle = item.title.toLowerCase().includes(q);
+      const matchBody = (item.body || '').toLowerCase().includes(q);
+      const matchSummary = (item.summary || '').toLowerCase().includes(q);
+      const matchCategory = (item.category || '').toLowerCase().includes(q);
+      if (!matchTitle && !matchBody && !matchSummary && !matchCategory) return false;
+    }
+
+    return true;
+  }).sort((a, b) => {
+    if (sortBy === 'newest') {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+    if (sortBy === 'oldest') {
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    }
+    if (sortBy === 'updated') {
+      return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
+    }
+    if (sortBy === 'alpha') {
+      return a.title.localeCompare(b.title);
+    }
+    return 0;
   });
 
   return (
@@ -932,42 +1059,148 @@ export default function LeaderDashboardView({ user }: { user: any }) {
       {/* VIEW 4: MY SUBMISSIONS */}
       {activeNav === 'submissions' && (
         <div className="bg-white dark:bg-slate-900 border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-heritage-brown/10 dark:border-slate-800 gap-4">
-            <div>
-              <h2 className="text-xl font-serif font-black text-heritage-brown dark:text-white">
-                My Submissions Lifecycle
-              </h2>
-              <p className="text-xs text-heritage-brown/60 dark:text-slate-400 font-semibold mt-1">
-                Track status changes, review histories, and elder decisions.
-              </p>
+          <div className="space-y-4 pb-4 border-b border-heritage-brown/10 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-serif font-black text-heritage-brown dark:text-white">
+                  My Submissions Lifecycle
+                </h2>
+                <p className="text-xs text-heritage-brown/60 dark:text-slate-400 font-semibold mt-1">
+                  Track status changes, review histories, and elder vetting decisions.
+                </p>
+              </div>
+
+              {/* Primary Action Button */}
+              <button
+                onClick={() => {
+                  resetForm();
+                  setShowCreateForm(true);
+                }}
+                className="px-4 py-2.5 bg-heritage-terracotta text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-heritage-terracotta/90 transition-all cursor-pointer flex items-center gap-2 self-start sm:self-auto shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Contribution</span>
+              </button>
             </div>
 
-            {/* Filter Tabs */}
-            <div className="flex flex-wrap bg-heritage-cream/20 dark:bg-slate-950 p-1 rounded-xl border border-heritage-brown/5 gap-1">
-              {['all', 'draft', 'pending', 'revision', 'approved'].map(tab => (
+            {/* Search and Filters Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+              {/* Search Box */}
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-heritage-brown/40 dark:text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search submissions..."
+                  className="w-full pl-9 pr-8 py-2 bg-stone-50 dark:bg-slate-950 border border-heritage-brown/15 dark:border-slate-800 rounded-xl text-xs font-semibold focus:border-heritage-terracotta focus:outline-none"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Category Filter */}
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="px-3 py-2 bg-stone-50 dark:bg-slate-950 border border-heritage-brown/15 dark:border-slate-800 rounded-xl text-xs font-semibold focus:border-heritage-terracotta focus:outline-none text-heritage-brown dark:text-slate-200"
+              >
+                <option value="all">All Categories</option>
+                <option value="Maritime Traditions">Maritime Traditions</option>
+                <option value="Community Guidance">Community Guidance</option>
+                <option value="Clans & Lineage">Clans & Lineage</option>
+                <option value="Heritage">Heritage</option>
+                <option value="General">General</option>
+              </select>
+
+              {/* Content Type Filter */}
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="px-3 py-2 bg-stone-50 dark:bg-slate-950 border border-heritage-brown/15 dark:border-slate-800 rounded-xl text-xs font-semibold focus:border-heritage-terracotta focus:outline-none text-heritage-brown dark:text-slate-200"
+              >
+                <option value="all">All Content Types</option>
+                <option value="article">Articles & Chronicles</option>
+                <option value="event">Gatherings & Events</option>
+                <option value="announcement">Announcements & Decrees</option>
+              </select>
+
+              {/* Sort Dropdown */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-3 py-2 bg-stone-50 dark:bg-slate-950 border border-heritage-brown/15 dark:border-slate-800 rounded-xl text-xs font-semibold focus:border-heritage-terracotta focus:outline-none text-heritage-brown dark:text-slate-200"
+              >
+                <option value="newest">Sort: Newest First</option>
+                <option value="oldest">Sort: Oldest First</option>
+                <option value="updated">Sort: Recently Updated</option>
+                <option value="alpha">Sort: Alphabetical (A-Z)</option>
+              </select>
+            </div>
+
+            {/* Status Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-heritage-brown/50 dark:text-slate-400 mr-1">
+                Status:
+              </span>
+              {[
+                { id: 'all', label: 'All Items' },
+                { id: 'draft', label: 'Drafts' },
+                { id: 'pending', label: 'Pending Review' },
+                { id: 'revision', label: 'Revision / Rejected' },
+                { id: 'approved', label: 'Approved' }
+              ].map(tab => (
                 <button
-                  key={tab}
-                  onClick={() => setSubmissionFilter(tab as any)}
-                  className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${
-                    submissionFilter === tab 
-                      ? 'bg-heritage-terracotta text-white' 
-                      : 'text-heritage-brown/60 dark:text-slate-400 hover:text-heritage-brown'
+                  key={tab.id}
+                  onClick={() => setSubmissionFilter(tab.id as any)}
+                  className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${
+                    submissionFilter === tab.id 
+                      ? 'bg-heritage-terracotta text-white shadow-sm' 
+                      : 'bg-stone-100 dark:bg-slate-800 text-heritage-brown/70 dark:text-slate-300 hover:bg-stone-200 dark:hover:bg-slate-700'
                   }`}
                 >
-                  {tab}
+                  {tab.label}
                 </button>
               ))}
             </div>
           </div>
 
           {loadingSubmissions ? (
-            <div className="py-16 flex flex-col items-center justify-center text-heritage-brown/40">
-              <Loader2 className="w-8 h-8 animate-spin text-heritage-terracotta mb-3" />
-              <span className="text-xs font-bold uppercase tracking-wider">Loading submissions...</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="p-5 border border-slate-200 dark:border-slate-800 rounded-3xl animate-pulse space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-16 bg-stone-200 dark:bg-slate-800 rounded-2xl" />
+                    <div className="space-y-2 flex-1">
+                      <div className="h-3 bg-stone-200 dark:bg-slate-800 rounded w-1/3" />
+                      <div className="h-4 bg-stone-200 dark:bg-slate-800 rounded w-3/4" />
+                    </div>
+                  </div>
+                  <div className="h-3 bg-stone-200 dark:bg-slate-800 rounded w-full" />
+                </div>
+              ))}
             </div>
           ) : filteredSubmissions.length === 0 ? (
-            <div className="text-center py-16 text-heritage-brown/40">
-              No submissions match the selected filter.
+            <div className="text-center py-16 text-heritage-brown/50 dark:text-slate-400 space-y-3">
+              <FileText className="w-10 h-10 mx-auto text-heritage-brown/20 dark:text-slate-700" />
+              <p className="text-xs font-bold uppercase tracking-wider">No submissions match the selected filters.</p>
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setCategoryFilter('all');
+                  setTypeFilter('all');
+                  setSubmissionFilter('all');
+                }}
+                className="px-4 py-2 bg-stone-100 dark:bg-slate-800 text-xs font-bold rounded-xl text-heritage-brown dark:text-slate-200 hover:bg-stone-200 transition-colors cursor-pointer"
+              >
+                Reset All Filters
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1028,6 +1261,41 @@ export default function LeaderDashboardView({ user }: { user: any }) {
                       {item.summary || item.body?.substring(0, 140)}
                     </p>
 
+                    {/* Inline Moderation Feedback Card */}
+                    {isRejected && (
+                      <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase text-rose-700 dark:text-rose-300 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            Reviewer Feedback
+                          </span>
+                          {item.reviewedBy && (
+                            <span className="text-[9px] text-rose-600/80 dark:text-rose-400 font-bold">
+                              By {item.reviewedBy}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-rose-900 dark:text-rose-200 font-medium leading-relaxed italic">
+                          "{item.elderFeedback || 'Revision requested by Elder Council. Please review historical details and resubmit.'}"
+                        </p>
+                        <button
+                          onClick={() => openEditForm(item)}
+                          className="w-full py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>One-Click Edit & Resubmit</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {isApproved && item.elderFeedback && (
+                      <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl">
+                        <span className="text-[9px] font-black uppercase text-emerald-700 dark:text-emerald-300 block">
+                          ✓ Vetting Notes: {item.elderFeedback}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Action Bar: View, Edit, Delete, Duplicate */}
                     <div className="flex items-center justify-between pt-3 border-t border-stone-100 dark:border-slate-800/80 gap-2">
                       <button
@@ -1035,7 +1303,7 @@ export default function LeaderDashboardView({ user }: { user: any }) {
                         className="px-3 py-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-stone-100 dark:bg-slate-800 rounded-xl hover:bg-stone-200 dark:hover:bg-slate-700 transition-colors cursor-pointer flex items-center gap-1"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        <span>View</span>
+                        <span>View Details</span>
                       </button>
 
                       <div className="flex items-center gap-1.5">
@@ -1329,8 +1597,7 @@ export default function LeaderDashboardView({ user }: { user: any }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => {
-                setShowCreateForm(false);
-                resetForm();
+                handleCloseForm();
               }}
               className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
             />
@@ -1353,11 +1620,8 @@ export default function LeaderDashboardView({ user }: { user: any }) {
                   </h3>
                 </div>
                 <button
-                  onClick={() => {
-                    setShowCreateForm(false);
-                    resetForm();
-                  }}
-                  className="p-2 hover:bg-stone-100 rounded-full text-heritage-brown/50 cursor-pointer"
+                  onClick={handleCloseForm}
+                  className="p-2 hover:bg-stone-100 dark:hover:bg-slate-800 rounded-full text-heritage-brown/50 dark:text-slate-400 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1365,6 +1629,18 @@ export default function LeaderDashboardView({ user }: { user: any }) {
 
               {/* Form Scroll Body */}
               <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                {editingSubmission && (editingSubmission.elderFeedback || editingSubmission.status === 'revision' || editingSubmission.status === 'rejected') && (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-2xl space-y-1.5 text-amber-900 dark:text-amber-200">
+                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                      <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span>Council Reviewer Notes & Revision Guidance</span>
+                    </div>
+                    <p className="text-xs font-medium leading-relaxed italic bg-white/60 dark:bg-slate-900/60 p-3 rounded-xl border border-amber-200/60 dark:border-amber-900/60">
+                      "{editingSubmission.elderFeedback || 'Council requested revisions. Please address the feedback, update necessary fields, and resubmit for final approval.'}"
+                    </p>
+                  </div>
+                )}
+
                 {formError && (
                   <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl text-xs text-rose-700 dark:text-rose-300 font-semibold flex items-center justify-between">
                     <span>{formError}</span>
@@ -1702,32 +1978,156 @@ export default function LeaderDashboardView({ user }: { user: any }) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-heritage-brown/10 dark:border-slate-800 p-6 z-10 space-y-4"
+              className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-heritage-brown/10 dark:border-slate-800 p-6 z-10 space-y-4 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex justify-between items-start pb-3 border-b border-heritage-brown/10 dark:border-slate-800">
                 <div>
                   <span className="text-[8px] font-black uppercase px-2.5 py-0.5 bg-heritage-terracotta/10 text-heritage-terracotta rounded-full">
-                    Audit Log
+                    Moderation Audit Log
                   </span>
                   <h3 className="font-serif font-black text-base text-heritage-brown dark:text-white mt-1">
-                    Chronicle Lifecycle History
+                    Vetting History & Details
                   </h3>
                 </div>
-                <button onClick={() => setReviewItem(null)} className="p-1 text-heritage-brown/40 cursor-pointer">
+                <button onClick={() => setReviewItem(null)} className="p-1 text-heritage-brown/40 hover:text-heritage-brown cursor-pointer">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-heritage-brown dark:text-white">{reviewItem.title}</p>
-                <p className="text-xs text-heritage-brown/60 dark:text-slate-400">Original Table: <span className="font-mono text-heritage-terracotta">{reviewItem.originalTable}</span></p>
-                <p className="text-xs text-heritage-brown/60 dark:text-slate-400">Status: <span className="font-bold uppercase text-emerald-600">{reviewItem.status}</span></p>
-                <p className="text-xs text-heritage-brown/60 dark:text-slate-400">Created At: {new Date(reviewItem.createdAt).toLocaleString()}</p>
+              {/* Status Header */}
+              <div className="flex items-center justify-between bg-stone-50 dark:bg-slate-950 p-3 rounded-2xl border border-stone-200 dark:border-slate-800">
+                <div>
+                  <span className="text-[9px] font-bold uppercase text-slate-400 block">Current Status</span>
+                  <span className={`text-xs font-black uppercase tracking-wider ${
+                    reviewItem.status === 'approved' || reviewItem.status === 'published' ? 'text-emerald-600' :
+                    reviewItem.status === 'pending' ? 'text-sky-600' :
+                    reviewItem.status === 'draft' ? 'text-amber-600' : 'text-rose-600'
+                  }`}>
+                    {reviewItem.status}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-bold uppercase text-slate-400 block">Category</span>
+                  <span className="text-xs font-bold text-heritage-brown dark:text-slate-200">{reviewItem.category || 'General'}</span>
+                </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-heritage-brown/10 dark:border-slate-800">
-                <button onClick={() => setReviewItem(null)} className="px-4 py-2 bg-stone-100 dark:bg-slate-800 text-xs font-bold rounded-xl cursor-pointer">
+              <div className="space-y-3">
+                <div>
+                  <h4 className="font-serif font-black text-sm text-heritage-brown dark:text-white">
+                    {reviewItem.title}
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                    Submitted on {new Date(reviewItem.createdAt).toLocaleString()}
+                  </p>
+                </div>
+
+                {/* Feedback Section */}
+                {(reviewItem.status === 'rejected' || reviewItem.status === 'revision' || reviewItem.elderFeedback) && (
+                  <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-rose-700 dark:text-rose-300 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        Reviewer Feedback
+                      </span>
+                      {reviewItem.reviewedBy && (
+                        <span className="text-[9px] font-bold text-rose-600/80 dark:text-rose-400">
+                          Reviewer: {reviewItem.reviewedBy}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-rose-900 dark:text-rose-200 font-medium italic leading-relaxed">
+                      "{reviewItem.elderFeedback || 'Please review the content body for clarity and resubmit.'}"
+                    </p>
+                  </div>
+                )}
+
+                {/* Content Preview */}
+                <div className="space-y-1">
+                  <span className="text-[9px] font-black uppercase text-slate-400">Content Preview</span>
+                  <div className="p-3 bg-stone-50 dark:bg-slate-950 rounded-2xl border border-stone-200 dark:border-slate-800 text-xs text-heritage-brown/80 dark:text-slate-300 max-h-40 overflow-y-auto font-sans leading-relaxed">
+                    {reviewItem.body}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Bar */}
+              <div className="flex items-center justify-between pt-4 border-t border-heritage-brown/10 dark:border-slate-800 gap-3">
+                <button 
+                  onClick={() => setReviewItem(null)} 
+                  className="px-4 py-2 bg-stone-100 dark:bg-slate-800 text-xs font-bold rounded-xl cursor-pointer text-slate-700 dark:text-slate-200 hover:bg-stone-200"
+                >
                   Dismiss
+                </button>
+
+                <button
+                  onClick={() => {
+                    const itemToEdit = reviewItem;
+                    setReviewItem(null);
+                    openEditForm(itemToEdit);
+                  }}
+                  className="px-4 py-2 bg-heritage-terracotta text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-heritage-terracotta/90 flex items-center gap-1.5 shadow-sm"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Edit & Resubmit</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {confirmModal && confirmModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirmModal(null)}
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+            />
+
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-heritage-brown/10 dark:border-slate-800 p-6 z-10 space-y-4 text-center"
+            >
+              <div className={`w-12 h-12 rounded-full mx-auto flex items-center justify-center ${
+                confirmModal.isDanger ? 'bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-300' : 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-300'
+              }`}>
+                <AlertCircle className="w-6 h-6" />
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="font-serif font-black text-lg text-heritage-brown dark:text-white">
+                  {confirmModal.title}
+                </h3>
+                <p className="text-xs text-heritage-brown/70 dark:text-slate-300 font-medium leading-relaxed">
+                  {confirmModal.message}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmModal(null)}
+                  className="px-4 py-2 text-xs font-bold bg-stone-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-stone-200 cursor-pointer"
+                >
+                  {confirmModal.cancelText || 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    confirmModal.onConfirm();
+                  }}
+                  className={`px-4 py-2 text-xs font-bold text-white rounded-xl shadow cursor-pointer transition-colors ${
+                    confirmModal.isDanger ? 'bg-rose-600 hover:bg-rose-700' : 'bg-heritage-terracotta hover:bg-heritage-terracotta/90'
+                  }`}
+                >
+                  {confirmModal.confirmText || 'Confirm'}
                 </button>
               </div>
             </motion.div>

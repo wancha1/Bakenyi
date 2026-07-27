@@ -1,4 +1,4 @@
-import { getSupabase, fetchPublicUsers } from './supabaseClient';
+import { getSupabase, fetchPublicUsers, getFriendlyErrorMessage } from './supabaseClient';
 import { generateUUID } from './supabase';
 import { Status, News, Announcement, Event, CommunityHighlight, Notice, ContentRegistryItem, ContentRevision, AnalyticsMetric } from '../types/heritage';
 

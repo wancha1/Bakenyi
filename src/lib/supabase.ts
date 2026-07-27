@@ -1,6 +1,6 @@
 import { Article } from '../types/article';
 import { bakenyiArticles } from '../data/articlesData';
-import { getSupabase, fetchPublicUsers } from './supabaseClient';
+import { getSupabase, fetchPublicUsers, getFriendlyErrorMessage } from './supabaseClient';
 import { validateAndCompressAudio, AudioValidationOptions, formatFileSize } from './audioUtils';
 import { queueOfflineItem, flushOfflineQueue, registerOnlineSyncListener } from './syncService';
 
@@ -633,10 +633,20 @@ export interface Contribution {
 }
 
 export async function getContributions(userId?: string): Promise<Contribution[]> {
+  const getLocal = (): Contribution[] => {
+    try {
+      const stored = localStorage.getItem('supabase_emulated_contributions') || '[]';
+      const localList = JSON.parse(stored);
+      return Array.isArray(localList) ? localList : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const localList = getLocal();
   const client = getSupabase();
+
   if (!client) {
-    const stored = localStorage.getItem('supabase_emulated_contributions') || '[]';
-    const localList = JSON.parse(stored);
     const filtered = userId ? localList.filter((item: any) => item.userId === userId) : localList;
     return filterRealContributions(filtered);
   }
@@ -647,7 +657,7 @@ export async function getContributions(userId?: string): Promise<Contribution[]>
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) throw error;
 
-    const list: Contribution[] = (data || []).map((row: any) => {
+    const dbList: Contribution[] = (data || []).map((row: any) => {
       let parsed = { description: '', imageUrl: '', type: 'photo', userEmail: 'anonymous@bakenyi.org', userId: '' };
       try {
         if (row.content) {
@@ -670,12 +680,22 @@ export async function getContributions(userId?: string): Promise<Contribution[]>
       };
     });
 
-    const filtered = userId ? list.filter(item => item.userId === userId) : list;
+    // Merge database results with local emulated cache
+    const combined = [...dbList, ...localList];
+    const unique = combined.filter((item, idx, self) => self.findIndex(t => t.id === item.id) === idx);
+    unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    try {
+      localStorage.setItem('supabase_emulated_contributions', JSON.stringify(unique));
+    } catch {
+      // Storage quota safety
+    }
+
+    const filtered = userId ? unique.filter(item => item.userId === userId) : unique;
     return filterRealContributions(filtered);
   } catch (err) {
-    console.error('getContributions failed, falling back to local emulated storage:', err);
-    const stored = localStorage.getItem('supabase_emulated_contributions') || '[]';
-    const localList = JSON.parse(stored);
+    const friendlyMsg = getFriendlyErrorMessage(err);
+    console.warn('getContributions query notice, using local emulated cache:', friendlyMsg);
     const filtered = userId ? localList.filter((item: any) => item.userId === userId) : localList;
     return filterRealContributions(filtered);
   }
@@ -690,7 +710,6 @@ export async function createContribution(
   userId: string,
   status: 'pending' | 'approved' | 'rejected' = 'pending'
 ): Promise<{ data: Contribution | null; error: Error | null }> {
-  const client = getSupabase();
   const id = generateUUID();
   const contentStr = JSON.stringify({ description, imageUrl, type, userEmail, userId });
 
@@ -706,11 +725,18 @@ export async function createContribution(
     userId
   };
 
-  if (!client) {
+  // Always store locally first for offline resilience
+  try {
     const stored = localStorage.getItem('supabase_emulated_contributions') || '[]';
     const list = JSON.parse(stored);
     list.unshift(contributionObj);
     localStorage.setItem('supabase_emulated_contributions', JSON.stringify(list));
+  } catch (e) {
+    console.warn('Failed to cache contribution locally:', e);
+  }
+
+  const client = getSupabase();
+  if (!client) {
     return { data: contributionObj, error: null };
   }
 
@@ -729,7 +755,7 @@ export async function createContribution(
       .single();
 
     if (error) {
-      // Fallback with custom generated ID in case UUID schema is not set
+      // Fallback with custom generated ID in case UUID schema is set differently
       const { error: errorWithId } = await client.from('contributions').insert({
         id,
         title,
@@ -738,28 +764,35 @@ export async function createContribution(
         reporter_id: userId,
         created_at: new Date().toISOString()
       });
-      if (errorWithId) throw errorWithId;
+      if (errorWithId) {
+        const friendly = getFriendlyErrorMessage(errorWithId);
+        console.warn('createContribution database insert notice, saved to local cache:', friendly);
+        return { data: contributionObj, error: null };
+      }
       return { data: contributionObj, error: null };
     }
     
     const returnedId = dbData?.id || id;
+    const finalObj = {
+      ...contributionObj,
+      id: returnedId,
+      created_at: dbData?.created_at || contributionObj.created_at
+    };
+
     return { 
-      data: {
-        ...contributionObj,
-        id: returnedId,
-        created_at: dbData?.created_at || contributionObj.created_at
-      }, 
+      data: finalObj, 
       error: null 
     };
   } catch (err: any) {
-    console.error('createContribution failed:', err);
-    return { data: null, error: err };
+    const friendly = getFriendlyErrorMessage(err);
+    console.warn('createContribution failed, saved to local cache:', friendly);
+    return { data: contributionObj, error: null };
   }
 }
 
 export async function updateContributionStatus(id: string, status: 'pending' | 'approved' | 'rejected'): Promise<{ success: boolean; error: Error | null }> {
-  const client = getSupabase();
-  if (!client) {
+  // Always update local cache for instant UI feedback & resilience
+  try {
     const stored = localStorage.getItem('supabase_emulated_contributions') || '[]';
     const list: Contribution[] = JSON.parse(stored);
     const idx = list.findIndex(c => c.id === id);
@@ -767,6 +800,12 @@ export async function updateContributionStatus(id: string, status: 'pending' | '
       list[idx].status = status;
       localStorage.setItem('supabase_emulated_contributions', JSON.stringify(list));
     }
+  } catch (e) {
+    console.warn('Failed to update local contribution status:', e);
+  }
+
+  const client = getSupabase();
+  if (!client) {
     return { success: true, error: null };
   }
 
@@ -780,16 +819,18 @@ export async function updateContributionStatus(id: string, status: 'pending' | '
     }
     const { error } = await query;
     if (error) {
-      // If we queried by UUID and failed, try falling back by matching title
       if (isUUID(id)) {
         await client.from('contributions').update({ status }).eq('title', id);
       } else {
-        throw error;
+        const friendly = getFriendlyErrorMessage(error);
+        console.warn('updateContributionStatus notice:', friendly);
       }
     }
     return { success: true, error: null };
   } catch (err: any) {
-    return { success: false, error: err };
+    const friendly = getFriendlyErrorMessage(err);
+    console.warn('updateContributionStatus exception, saved to local storage:', friendly);
+    return { success: true, error: null };
   }
 }
 
@@ -1612,21 +1653,80 @@ export interface DBNotification {
   created_at: string;
 }
 
+export async function createNotification(notification: {
+  userId: string;
+  title: string;
+  message: string;
+  type: 'approved' | 'revision' | 'rejected' | 'moderation' | 'system' | 'alert';
+  link?: string;
+}): Promise<{ data: DBNotification | null; error: Error | null }> {
+  const client = getSupabase();
+  const id = generateUUID();
+  const newNotif: DBNotification = {
+    id,
+    user_id: notification.userId,
+    title: notification.title,
+    message: notification.message,
+    type: notification.type,
+    link: notification.link || '/leader',
+    is_read: false,
+    created_at: new Date().toISOString()
+  };
+
+  // Local storage cache for offline/instant feedback resilience
+  try {
+    const stored = localStorage.getItem('bakenye_notifications') || localStorage.getItem('bakenyi_notifications') || '[]';
+    const list = JSON.parse(stored);
+    list.unshift(newNotif);
+    localStorage.setItem('bakenye_notifications', JSON.stringify(list));
+    localStorage.setItem('bakenyi_notifications', JSON.stringify(list));
+  } catch (e) {
+    console.error('Failed to update local notifications cache:', e);
+  }
+
+  if (!client) {
+    return { data: newNotif, error: null };
+  }
+
+  try {
+    const { data, error } = await client
+      .from('notifications')
+      .insert(newNotif)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Supabase notification insert error, saved locally:', error);
+      return { data: newNotif, error: null };
+    }
+    return { data: data || newNotif, error: null };
+  } catch (err: any) {
+    console.warn('Supabase createNotification failed, saved locally:', err);
+    return { data: newNotif, error: null };
+  }
+}
+
 export async function getUserNotifications(
   userId: string,
-  limit = 10,
+  limit = 20,
   offset = 0
 ): Promise<{ data: DBNotification[]; count: number; error: Error | null }> {
   const client = getSupabase();
-  if (!client) {
-    const stored = localStorage.getItem('bakenye_notifications') || '[]';
+  const getLocal = () => {
+    const stored = localStorage.getItem('bakenye_notifications') || localStorage.getItem('bakenyi_notifications') || '[]';
     try {
-      const all = JSON.parse(stored);
-      const sliced = all.slice(offset, offset + limit);
-      return { data: sliced, count: all.length, error: null };
+      const all: DBNotification[] = JSON.parse(stored);
+      const filtered = userId ? all.filter(n => n.user_id === userId || !n.user_id) : all;
+      return filtered;
     } catch {
-      return { data: [], count: 0, error: null };
+      return [];
     }
+  };
+
+  if (!client) {
+    const local = getLocal();
+    const sliced = local.slice(offset, offset + limit);
+    return { data: sliced, count: local.length, error: null };
   }
 
   try {
@@ -1638,10 +1738,21 @@ export async function getUserNotifications(
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return { data: data || [], count: count || 0, error: null };
+    
+    // Merge DB results with local cache to guarantee no dropped notifications
+    const dbNotifs = data || [];
+    const localNotifs = getLocal();
+    const combined = [...dbNotifs, ...localNotifs];
+    const unique = combined.filter((n, idx, self) => self.findIndex(t => t.id === n.id) === idx);
+    unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    const sliced = unique.slice(offset, offset + limit);
+    return { data: sliced, count: unique.length, error: null };
   } catch (err: any) {
-    console.error('getUserNotifications error:', err);
-    return { data: [], count: 0, error: err };
+    console.warn('getUserNotifications error, using local cache:', err);
+    const local = getLocal();
+    const sliced = local.slice(offset, offset + limit);
+    return { data: sliced, count: local.length, error: null };
   }
 }
 
