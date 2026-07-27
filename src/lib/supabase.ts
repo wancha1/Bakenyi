@@ -441,10 +441,34 @@ function getBucketNameForFile(file: File, type?: string): string {
 }
 
 export async function uploadMedia(file: File, type: 'images' | 'pdfs'): Promise<{ url: string; error: Error | null }> {
+  // Validate file size and type
+  const mime = file.type.toLowerCase();
+  const nameLower = file.name.toLowerCase();
+
+  // Size limit validation
+  const maxImageSize = 10 * 1024 * 1024; // 10MB
+  const maxPdfSize = 20 * 1024 * 1024;   // 20MB
+  const maxVideoSize = 50 * 1024 * 1024; // 50MB
+  const maxAudioSize = 25 * 1024 * 1024; // 25MB
+
+  if (type === 'pdfs' || mime === 'application/pdf' || nameLower.endsWith('.pdf')) {
+    if (file.size > maxPdfSize) {
+      return { url: '', error: new Error(`PDF size (${formatFileSize(file.size)}) exceeds the maximum limit of 20 MB.`) };
+    }
+  } else if (mime.startsWith('video/') || nameLower.match(/\.(mp4|mov|avi|mkv)$/i)) {
+    if (file.size > maxVideoSize) {
+      return { url: '', error: new Error(`Video size (${formatFileSize(file.size)}) exceeds the maximum limit of 50 MB.`) };
+    }
+  } else if (mime.startsWith('image/')) {
+    if (file.size > maxImageSize) {
+      return { url: '', error: new Error(`Image size (${formatFileSize(file.size)}) exceeds the maximum limit of 10 MB.`) };
+    }
+  }
+
   // If uploading audio via uploadMedia, validate size & compress first
   let fileToUpload = file;
   if (file.type.startsWith('audio/') || file.name.match(/\.(mp3|wav|webm|ogg|m4a)$/i)) {
-    const valResult = await validateAndCompressAudio(file);
+    const valResult = await validateAndCompressAudio(file, { maxSizeBytes: maxAudioSize });
     if (valResult.error) {
       return { url: '', error: valResult.error };
     }
@@ -453,32 +477,45 @@ export async function uploadMedia(file: File, type: 'images' | 'pdfs'): Promise<
 
   const client = getSupabase();
   if (!client) {
-    return emulateFileUpload(fileToUpload);
+    return { url: '', error: new Error('Supabase client is not initialized or configured.') };
   }
 
   try {
-    const bucketName = getBucketNameForFile(fileToUpload, type);
-    const fileExt = fileToUpload.name.split('.').pop();
+    const primaryBucket = getBucketNameForFile(fileToUpload, type);
+    const fileExt = fileToUpload.name.split('.').pop() || 'bin';
     const uniqueId = Math.random().toString(36).substring(2, 10);
     
-    // Fetch authenticated user id to isolate path
+    // Fetch authenticated user session
     const { data: { session } } = await client.auth.getSession();
     const userId = session?.user?.id;
     
     const baseName = `${Date.now()}_${uniqueId}.${fileExt}`;
     const fileName = userId ? `${userId}/${baseName}` : baseName;
     
-    // First ensure the bucket exists/we can upload to it
-    const { data, error } = await client.storage.from(bucketName).upload(fileName, fileToUpload);
-    if (error) {
-      console.warn(`Storage upload to ${bucketName} failed (bucket might not exist), falling back to Base64:`, error);
-      return emulateFileUpload(fileToUpload);
+    // Attempt upload to primary bucket
+    let uploadRes = await client.storage.from(primaryBucket).upload(fileName, fileToUpload, { upsert: true });
+    let targetBucket = primaryBucket;
+
+    // Fallback to 'gallery-images' bucket if primary bucket returns error
+    if (uploadRes.error && primaryBucket !== 'gallery-images') {
+      console.warn(`Storage upload to bucket "${primaryBucket}" failed (${uploadRes.error.message}), trying fallback bucket "gallery-images"...`);
+      const fallbackRes = await client.storage.from('gallery-images').upload(fileName, fileToUpload, { upsert: true });
+      if (!fallbackRes.error) {
+        uploadRes = fallbackRes;
+        targetBucket = 'gallery-images';
+      }
     }
 
-    const { data: { publicUrl } } = client.storage.from(bucketName).getPublicUrl(fileName);
+    if (uploadRes.error) {
+      console.error(`Supabase Storage upload error for file "${file.name}":`, uploadRes.error.message);
+      return { url: '', error: new Error(`Storage upload failed: ${uploadRes.error.message}`) };
+    }
+
+    const { data: { publicUrl } } = client.storage.from(targetBucket).getPublicUrl(fileName);
     return { url: publicUrl, error: null };
   } catch (err: any) {
-    return emulateFileUpload(fileToUpload);
+    console.error('Exception during uploadMedia:', err);
+    return { url: '', error: new Error(err?.message || 'Storage upload failed due to a network or server exception.') };
   }
 }
 
@@ -504,19 +541,17 @@ export async function uploadAudioFile(
   const client = getSupabase();
 
   if (!client) {
-    queueOfflineItem('audio', 'create', { fileName, blobSize: processedBlob.size });
-    const emulated = await emulateFileUpload(file);
     return {
-      url: emulated.url,
+      url: '',
       compressed: valResult.isCompressed,
       originalSize: valResult.originalSize,
       finalSize: valResult.compressedSize,
-      error: emulated.error
+      error: new Error('Supabase client unavailable.')
     };
   }
 
   try {
-    const bucketName = 'heritage-audio';
+    const primaryBucket = 'heritage-audio';
     
     // Fetch authenticated user id to isolate path
     const { data: { session } } = await client.auth.getSession();
@@ -525,21 +560,30 @@ export async function uploadAudioFile(
     const baseName = `${Date.now()}_${fileName}`;
     const filePath = userId ? `${userId}/oral-histories/${baseName}` : `oral-histories/${baseName}`;
     
-    const { data, error } = await client.storage.from(bucketName).upload(filePath, file);
-    if (error) {
-      console.warn(`Storage upload of audio to ${bucketName} failed, falling back to Base64 and offline queue:`, error);
-      queueOfflineItem('audio', 'create', { fileName, filePath, blobSize: processedBlob.size });
-      const emulated = await emulateFileUpload(file);
+    let uploadRes = await client.storage.from(primaryBucket).upload(filePath, file, { upsert: true });
+    let targetBucket: string = primaryBucket;
+
+    if (uploadRes.error && (primaryBucket as string) !== 'gallery-images') {
+      console.warn(`Storage upload to "${primaryBucket}" failed (${uploadRes.error.message}), trying fallback bucket "gallery-images"...`);
+      const fallbackRes = await client.storage.from('gallery-images').upload(filePath, file, { upsert: true });
+      if (!fallbackRes.error) {
+        uploadRes = fallbackRes;
+        targetBucket = 'gallery-images';
+      }
+    }
+
+    if (uploadRes.error) {
+      console.error('Supabase audio storage upload error:', uploadRes.error.message);
       return {
-        url: emulated.url,
+        url: '',
         compressed: valResult.isCompressed,
         originalSize: valResult.originalSize,
         finalSize: valResult.compressedSize,
-        error: null
+        error: new Error(`Audio upload failed: ${uploadRes.error.message}`)
       };
     }
 
-    const { data: { publicUrl } } = client.storage.from(bucketName).getPublicUrl(filePath);
+    const { data: { publicUrl } } = client.storage.from(targetBucket).getPublicUrl(filePath);
     return {
       url: publicUrl,
       compressed: valResult.isCompressed,
@@ -548,14 +592,12 @@ export async function uploadAudioFile(
       error: null
     };
   } catch (err: any) {
-    queueOfflineItem('audio', 'create', { fileName, blobSize: processedBlob.size });
-    const emulated = await emulateFileUpload(file);
     return {
-      url: emulated.url,
+      url: '',
       compressed: valResult.isCompressed,
       originalSize: valResult.originalSize,
       finalSize: valResult.compressedSize,
-      error: null
+      error: new Error(err?.message || 'Audio upload encountered an exception.')
     };
   }
 }

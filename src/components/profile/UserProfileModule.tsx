@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSupabase } from '../../lib/supabaseClient';
+import { uploadMedia } from '../../lib/supabase';
 import { 
   User, 
   Shield, 
@@ -23,7 +24,9 @@ import {
   Send,
   MessageSquare,
   Globe,
-  Link
+  Link,
+  Loader2,
+  Upload
 } from 'lucide-react';
 
 interface UserProfile {
@@ -80,6 +83,7 @@ export default function UserProfileModule({ user }: { user: any }) {
   const [socialX, setSocialX] = useState('');
   const [socialWebsite, setSocialWebsite] = useState('');
   const [urlErrors, setUrlErrors] = useState<{ [key: string]: string }>({});
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const avatarPresets = [
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
@@ -476,12 +480,48 @@ export default function UserProfileModule({ user }: { user: any }) {
             </div>
           )}
 
-          {/* Preset Avatar Selection list */}
-          <div className="mt-8 pt-5 border-t border-heritage-brown/5 w-full">
-            <span className="text-[10px] font-black uppercase text-heritage-brown/40 dark:text-stone-500 block mb-3 text-left tracking-wider">
+          {/* Avatar Upload & Presets */}
+          <div className="mt-8 pt-5 border-t border-heritage-brown/5 w-full space-y-4">
+            <span className="text-[10px] font-black uppercase text-heritage-brown/40 dark:text-stone-500 block text-left tracking-wider">
               Change Profile Avatar:
             </span>
-            <div className="flex gap-2 justify-center">
+
+            {/* Direct File Uploader to Supabase Storage */}
+            <div className="relative border-2 border-dashed border-heritage-brown/15 dark:border-stone-800 rounded-xl p-3 text-center bg-stone-50/50 dark:bg-stone-950/30">
+              <input 
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploadingAvatar(true);
+                  setError(null);
+                  const { url, error: upErr } = await uploadMedia(file, 'images');
+                  setUploadingAvatar(false);
+                  if (upErr) {
+                    setError(`Avatar upload failed: ${upErr.message}`);
+                  } else if (url) {
+                    setAvatarUrl(url);
+                    setSuccess('New avatar image uploaded to Storage! Click Save to confirm.');
+                    setTimeout(() => setSuccess(null), 3500);
+                  }
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+              />
+              {uploadingAvatar ? (
+                <div className="flex items-center justify-center gap-2 text-xs font-bold text-heritage-terracotta">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Uploading Avatar...</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2 text-heritage-brown/60 dark:text-stone-300">
+                  <Upload className="w-4 h-4 text-heritage-terracotta" />
+                  <span className="text-xs font-bold">Upload Custom Avatar File</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 justify-center pt-1">
               {avatarPresets.map((preset, idx) => (
                 <button
                   key={idx}
@@ -491,7 +531,7 @@ export default function UserProfileModule({ user }: { user: any }) {
                     setSuccess('Avatar updated! Save profile to store changes.');
                     setTimeout(() => setSuccess(null), 3000);
                   }}
-                  className={`w-11 h-11 rounded-full overflow-hidden border-2 transition-all cursor-pointer hover:scale-110 ${
+                  className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-all cursor-pointer hover:scale-110 ${
                     avatarUrl === preset ? 'border-heritage-terracotta ring-4 ring-heritage-terracotta/15 scale-105 shadow-md' : 'border-transparent'
                   }`}
                 >
@@ -499,8 +539,9 @@ export default function UserProfileModule({ user }: { user: any }) {
                 </button>
               ))}
             </div>
+
             {/* Input field for custom image url */}
-            <div className="mt-4">
+            <div>
               <input 
                 type="text" 
                 placeholder="Or paste direct image URL..."

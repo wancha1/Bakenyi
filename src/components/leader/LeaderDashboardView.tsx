@@ -99,7 +99,6 @@ export default function LeaderDashboardView({ user }: { user: any }) {
     eventScope: 'All Clans Welcome',
     eventPoster: ''
   });
-
   // Media Upload Modal States
   const [showMediaForm, setShowMediaForm] = useState(false);
   const [mediaTitle, setMediaTitle] = useState('');
@@ -1325,6 +1324,64 @@ export default function LeaderDashboardView({ user }: { user: any }) {
                     </div>
                   </div>
                 )}
+
+                {/* Cover Image / Poster Upload */}
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-heritage-brown/50 dark:text-slate-400 mb-1">
+                    Cover Image / Event Poster Attachment
+                  </label>
+                  {formData.eventPoster ? (
+                    <div className="relative rounded-2xl overflow-hidden border border-heritage-brown/15 bg-stone-50 dark:bg-slate-950 p-2 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img src={formData.eventPoster} alt="Cover preview" className="w-12 h-12 object-cover rounded-xl" referrerPolicy="no-referrer" />
+                        <div>
+                          <span className="text-xs font-bold text-emerald-600 block">Cover Image Linked</span>
+                          <span className="text-[9px] text-slate-400 truncate max-w-[200px] block">{formData.eventPoster}</span>
+                        </div>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => setFormData(prev => ({ ...prev, eventPoster: '' }))}
+                        className="p-1.5 bg-stone-200 dark:bg-slate-800 text-stone-700 dark:text-slate-300 rounded-lg hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative border-2 border-dashed border-heritage-brown/15 dark:border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center bg-stone-50/50 dark:bg-slate-950/25">
+                      <input 
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setPosterUploading(true);
+                          const { url, error } = await uploadMedia(file, 'images');
+                          setPosterUploading(false);
+                          if (error) {
+                            setFormError(`Cover image upload error: ${error.message}`);
+                          } else if (url) {
+                            setFormData(prev => ({ ...prev, eventPoster: url }));
+                            triggerToast('Cover image attached successfully.');
+                          }
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                      />
+                      {posterUploading ? (
+                        <div className="flex items-center gap-2 text-xs font-bold text-heritage-terracotta">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Uploading Cover Image...</span>
+                        </div>
+                      ) : (
+                        <div className="text-center text-heritage-brown/50">
+                          <Upload className="w-5 h-5 mx-auto mb-1 text-heritage-terracotta" />
+                          <span className="text-xs font-bold block">Upload Cover / Poster Image</span>
+                          <span className="text-[9px] block">PNG, JPG, WEBP (Max 10MB)</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <div>
                   <label className="block text-[9px] font-black uppercase text-heritage-brown/50 dark:text-slate-400 mb-1">

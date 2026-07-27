@@ -479,14 +479,34 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </p>
             <button
               type="button"
-              onClick={() => {
-                const mockUser = {
-                  id: 'usr_wanchaaaron',
-                  email: 'wanchaaaron@gmail.com',
-                  app_metadata: { role: 'super_admin' },
-                  user_metadata: { full_name: 'Aaron Wancha (Elder)' }
-                };
-                onLoginSuccess(mockUser);
+              onClick={async () => {
+                const client = getSupabase();
+                let genuineSession = null;
+                if (client) {
+                  try {
+                    const { data } = await client.auth.getSession();
+                    genuineSession = data?.session || null;
+                    console.log('[ELDER_BYPASS_DEBUG] Verification immediately after bypass login click - supabase.auth.getSession():', data?.session);
+                  } catch (err) {
+                    console.warn('[ELDER_BYPASS_DEBUG] Error checking supabase.auth.getSession():', err);
+                  }
+                } else {
+                  console.log('[ELDER_BYPASS_DEBUG] Supabase client unavailable. supabase.auth.getSession() is null.');
+                }
+
+                if (genuineSession?.user) {
+                  console.log('[ELDER_BYPASS_DEBUG] Real Supabase Auth session active. Logging in with authenticated user:', genuineSession.user.email);
+                  onLoginSuccess(genuineSession.user);
+                } else {
+                  console.log('[ELDER_BYPASS_DEBUG] supabase.auth.getSession() is NULL. The bypass ONLY sets local application state (mock user) and DOES NOT create a genuine Supabase Auth session.');
+                  const mockUser = {
+                    id: 'usr_wanchaaaron',
+                    email: 'wanchaaaron@gmail.com',
+                    app_metadata: { role: 'super_admin' },
+                    user_metadata: { full_name: 'Aaron Wancha (Elder)' }
+                  };
+                  onLoginSuccess(mockUser);
+                }
               }}
               className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold uppercase tracking-wider text-[10px] py-2 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10"
             >

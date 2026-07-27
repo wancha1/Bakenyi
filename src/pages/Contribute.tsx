@@ -297,12 +297,8 @@ export default function Contribute() {
         if (error) throw error;
         setPreviewUrl(url);
       } catch (err: any) {
-        alert(err.message || "Failed to upload image. Using local preview fallback.");
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPreviewUrl(reader.result as string);
-        };
-        reader.readAsDataURL(file);
+        alert(err.message || "Failed to upload file to Storage.");
+        setPreviewUrl(null);
       } finally {
         setUploadingFile(false);
       }

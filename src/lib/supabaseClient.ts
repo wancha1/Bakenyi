@@ -408,39 +408,26 @@ export const fetchMediaFiles = async (): Promise<MediaFile[]> => {
 
 export const uploadMediaFile = async (file: File): Promise<MediaFile> => {
   const client = getSupabase();
-  if (client) {
-    try {
-      const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-      const { data, error } = await client.storage.from('gallery-images').upload(fileName, file);
-      if (!error && data) {
-        const publicUrl = client.storage.from('gallery-images').getPublicUrl(fileName).data.publicUrl;
-        return {
-          name: fileName,
-          url: publicUrl,
-          size: file.size,
-          created_at: new Date().toISOString(),
-          status: 'pending'
-        };
-      }
-    } catch (e) {
-      console.error('Supabase upload exception:', e);
-    }
+  if (!client) {
+    throw new Error('Supabase client is unavailable.');
   }
 
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      resolve({
-        name: file.name,
-        url: reader.result as string,
-        size: file.size,
-        created_at: new Date().toISOString(),
-        status: 'pending'
-      });
-    };
-    reader.onerror = () => reject(new Error('Failed to read file.'));
-    reader.readAsDataURL(file);
-  });
+  const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+  const { data, error } = await client.storage.from('gallery-images').upload(fileName, file, { upsert: true });
+
+  if (error) {
+    console.error('Supabase uploadMediaFile error:', error.message);
+    throw new Error(`Upload failed: ${error.message}`);
+  }
+
+  const publicUrl = client.storage.from('gallery-images').getPublicUrl(fileName).data.publicUrl;
+  return {
+    name: fileName,
+    url: publicUrl,
+    size: file.size,
+    created_at: new Date().toISOString(),
+    status: 'pending'
+  };
 };
 
 export const updateMediaStatus = async (name: string, status: 'approved' | 'rejected'): Promise<MediaFile | null> => {

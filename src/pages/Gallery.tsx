@@ -210,26 +210,8 @@ export default function Gallery() {
           type: uploadType
         });
       } catch (err: any) {
-        console.error("Upload error:", err);
-        const cleanTitle = file.name
-          .replace(/\.[^/.]+$/, "")
-          .split(/[-_]+/)
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" ");
-
-        await new Promise<void>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            newUploads.push({
-              url: reader.result as string,
-              title: cleanTitle,
-              desc: '',
-              type: uploadType
-            });
-            resolve();
-          };
-          reader.readAsDataURL(file);
-        });
+        console.error("Gallery file upload error:", err);
+        showToast(`Failed to upload ${file.name}: ${err.message || 'Storage error'}`, 'error');
       }
     }
     

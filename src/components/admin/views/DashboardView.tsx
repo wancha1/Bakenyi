@@ -51,7 +51,8 @@ import {
   fetchMediaFiles, 
   UserProfile, 
   MediaFile, 
-  getSupabaseConfig 
+  getSupabaseConfig,
+  getSupabase 
 } from '../../../lib/supabaseClient';
 import { 
   getArticles, 
@@ -143,8 +144,13 @@ export default function DashboardView({ onNavigate, user, userRole = 'public' }:
   const loadDatabaseData = async () => {
     setIsLoading(true);
     try {
-      // 1. Fetch real tables from Supabase in parallel (only call fetchUsers if user is authenticated)
-      const isAuthenticatedAdmin = user && resolvedRole !== 'public';
+      // 1. Fetch real tables from Supabase in parallel (only call fetchUsers if user has an active Supabase session)
+      const client = getSupabase();
+      let isAuthenticatedAdmin = false;
+      if (client && user && resolvedRole !== 'public') {
+        const { data: { session } } = await client.auth.getSession();
+        isAuthenticatedAdmin = !!session?.user;
+      }
       const [usersData, mediaData, articlesData, vocabData, contribData, galleryData] = await Promise.all([
         isAuthenticatedAdmin ? fetchUsers() : fetchPublicUsers(),
         fetchMediaFiles(),
