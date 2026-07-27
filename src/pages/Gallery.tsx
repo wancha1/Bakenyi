@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { getSupabase, checkIsAdmin } from '../lib/supabaseClient';
 import { getGalleryImages, addGalleryImage, uploadMedia } from '../lib/supabase';
+import UploadZone from '../components/ui/UploadZone';
 import SEO from '../components/SEO';
 
 interface UnifiedMediaItem {
@@ -770,24 +771,33 @@ export default function Gallery() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-heritage-brown/60 dark:text-stone-400 ml-1">Select File</label>
-                    <div className="relative">
-                      <input
-                        type="file"
-                        accept={uploadType === 'image' ? "image/*" : uploadType === 'audio' ? "audio/*" : "video/*"}
-                        multiple
-                        onChange={handleFileSelect}
-                        className="hidden"
-                        id="modal-file-upload"
-                      />
-                      <label
-                        htmlFor="modal-file-upload"
-                        className="w-full px-4 py-3 bg-heritage-cream/40 dark:bg-stone-950 border-2 border-dashed border-heritage-brown/15 dark:border-stone-800 hover:border-heritage-olive/45 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-black text-xs text-heritage-brown dark:text-white transition-colors"
-                      >
-                        <Upload className="w-4 h-4 text-heritage-olive" />
-                        <span>Add File</span>
-                      </label>
-                    </div>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-heritage-brown/60 dark:text-stone-400 ml-1 block mb-1">
+                      Upload Asset
+                    </label>
+                    <UploadZone
+                      accept={
+                        uploadType === 'image' ? ["image/*"] :
+                        uploadType === 'audio' ? ["audio/*"] : ["video/*"]
+                      }
+                      maxSizeMB={uploadType === 'video' ? 100 : 25}
+                      bucket={uploadType === 'audio' ? 'audio' : 'images'}
+                      folderPath={`gallery/${uploadType}`}
+                      label={`Select ${uploadType.toUpperCase()} file`}
+                      hint="Drag & drop file or click to browse"
+                      onUploadSuccess={(url, file) => {
+                        setUploadedFiles(prev => [
+                          ...prev,
+                          {
+                            url,
+                            title: file.name.replace(/\.[^/.]+$/, ""),
+                            desc: '',
+                            type: uploadType
+                          }
+                        ]);
+                        showToast(`Uploaded ${file.name} successfully.`);
+                      }}
+                      onUploadError={(err) => showToast(`Upload Error: ${err}`, 'error')}
+                    />
                   </div>
                 </div>
 

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History, Mail, Lock, User as UserIcon, HelpCircle, ShieldAlert, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Mic, Upload, CheckCircle2, ArrowRight, LogIn, Camera, Loader2, Check, Globe, Image as ImageIcon, History, Mail, Lock, User as UserIcon, HelpCircle, ShieldAlert, Eye, EyeOff, X } from 'lucide-react';
 import { getSupabase, checkIsAdmin } from '../lib/supabaseClient';
 import { getContributions, createContribution, uploadMedia, uploadAudioFile, Contribution, getStoryCategories, StoryCategory } from '../lib/supabase';
 import OralHistoryRecorder from '../components/OralHistoryRecorder';
+import UploadZone from '../components/ui/UploadZone';
 import SEO from '../components/SEO';
 
 const steps = [
@@ -619,41 +620,39 @@ export default function Contribute() {
                     </div>
 
                     <div className="space-y-4">
-                      <div className={`p-8 border-2 border-dashed rounded-3xl bg-heritage-cream/10 text-center group transition-all ${
-                        previewUrl ? 'border-heritage-olive/30' : 'border-heritage-brown/10 hover:border-heritage-terracotta/30'
-                      }`}>
-                        <input 
-                          type="file" 
-                          className="hidden" 
-                          id="file-upload" 
-                          accept="image/*" 
-                          onChange={handleFileChange}
+                      <label className="text-xs font-black uppercase tracking-widest text-heritage-brown/60 ml-1">
+                        Attachment / Photographic Record
+                      </label>
+                      
+                      {previewUrl ? (
+                        <div className="relative group border-2 border-heritage-olive/30 rounded-3xl p-4 bg-white text-center">
+                          <img src={previewUrl} className="max-h-64 mx-auto rounded-xl shadow-lg border-4 border-white object-cover" alt="Uploaded Preview" />
+                          <div className="mt-4 flex items-center justify-between px-4">
+                            <span className="text-xs font-bold text-heritage-olive uppercase tracking-widest">
+                              ✓ Image attached and validated
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewUrl(null)}
+                              className="px-3 py-1.5 text-xs font-bold bg-stone-100 hover:bg-rose-500 hover:text-white rounded-xl transition-colors cursor-pointer flex items-center gap-1"
+                            >
+                              <X className="w-4 h-4" />
+                              <span>Replace File</span>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <UploadZone
+                          accept={["image/*"]}
+                          maxSizeMB={15}
+                          bucket="images"
+                          folderPath="contribute"
+                          label="Upload Image or Document Photograph"
+                          hint="Drag & drop file or click to browse (JPG, PNG, WEBP up to 15MB)"
+                          onUploadSuccess={(url) => setPreviewUrl(url)}
+                          onUploadError={(err) => alert(`Upload Error: ${err}`)}
                         />
-                        <label htmlFor="file-upload" className="cursor-pointer block">
-                          {uploadingFile ? (
-                            <div className="py-8">
-                              <Loader2 className="w-8 h-8 text-heritage-terracotta animate-spin mx-auto mb-2" />
-                              <p className="text-xs font-bold text-heritage-brown/50 uppercase tracking-widest">Uploading to Cloud...</p>
-                            </div>
-                          ) : previewUrl ? (
-                            <div className="relative group">
-                              <img src={previewUrl} className="max-h-64 mx-auto rounded-xl shadow-lg border-4 border-white" alt="Preview" />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-xl transition-opacity">
-                                <Upload className="text-white w-8 h-8" />
-                              </div>
-                              <p className="mt-4 text-xs font-bold text-heritage-olive uppercase tracking-widest">Image ready for submission</p>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:scale-110 transition-transform">
-                                <Upload className="w-8 h-8 text-heritage-terracotta" />
-                              </div>
-                              <p className="text-heritage-brown font-bold mb-1">Select Local Photo</p>
-                              <p className="text-xs text-heritage-brown/40 font-medium">JPEG, PNG up to 10MB</p>
-                            </>
-                          )}
-                        </label>
-                      </div>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between pt-6">

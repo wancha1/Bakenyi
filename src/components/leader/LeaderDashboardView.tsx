@@ -6,10 +6,11 @@ import {
   Upload, FileText, Play, Volume2, Image as ImageIcon, Check, 
   X, ChevronRight, User, Bell, RefreshCw, 
   MessageSquare, ChevronLeft, Search, 
-  MapPin, Clock4, Loader2, AlertCircle
+  MapPin, Clock4, Loader2, AlertCircle, Eye
 } from 'lucide-react';
 import { getSupabase } from '../../lib/supabaseClient';
 import { uploadMedia } from '../../lib/supabase';
+import { UploadZone } from '../ui/UploadZone';
 import { 
   fetchElderProfile, 
   updateElderProfile, 
@@ -558,160 +559,219 @@ export default function LeaderDashboardView({ user }: { user: any }) {
       {/* VIEW 1: OVERVIEW DASHBOARD */}
       {activeNav === 'dashboard' && (
         <div className="space-y-8 animate-fade-in">
-          {/* STATS SUMMARY CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className="bg-white dark:bg-slate-900 border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-5 shadow-sm">
+          {/* QUICK STATISTICS CARDS */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="bg-white dark:bg-slate-900 border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-heritage-brown/50 dark:text-slate-400">Total Submissions</span>
-                <div className="p-2.5 bg-heritage-terracotta/10 rounded-2xl text-heritage-terracotta">
-                  <FileText className="w-5 h-5" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-heritage-brown/60 dark:text-slate-400">Total Contributions</span>
+                <div className="p-2 bg-heritage-terracotta/10 rounded-xl text-heritage-terracotta">
+                  <FileText className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-2xl font-serif font-black text-heritage-brown dark:text-white mt-3">
+              <p className="text-2xl font-serif font-black text-heritage-brown dark:text-white mt-2">
                 {submissions.length}
               </p>
-              <span className="text-[10px] font-semibold text-heritage-brown/60 dark:text-slate-400 mt-1 block">Live Supabase Record Count</span>
+              <span className="text-[9px] font-bold text-slate-400 mt-1 block">Saved Cultural Items</span>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-5 shadow-sm">
+            <div className="bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/20 rounded-3xl p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">Pending Council Audit</span>
-                <div className="p-2.5 bg-amber-500/10 rounded-2xl text-amber-600">
-                  <Clock className="w-5 h-5" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">Drafts</span>
+                <div className="p-2 bg-amber-500/15 rounded-xl text-amber-600">
+                  <Edit3 className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-2xl font-serif font-black text-amber-600 dark:text-amber-400 mt-3">
+              <p className="text-2xl font-serif font-black text-amber-700 dark:text-amber-400 mt-2">
+                {submissions.filter(s => s.status === 'draft').length}
+              </p>
+              <span className="text-[9px] font-bold text-amber-600/70 mt-1 block">In Progress</span>
+            </div>
+
+            <div className="bg-sky-500/5 dark:bg-sky-950/20 border border-sky-500/20 rounded-3xl p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-sky-700 dark:text-sky-400">Pending Review</span>
+                <div className="p-2 bg-sky-500/15 rounded-xl text-sky-600">
+                  <Clock className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-serif font-black text-sky-700 dark:text-sky-400 mt-2">
                 {submissions.filter(s => s.status === 'pending').length}
               </p>
-              <span className="text-[10px] font-semibold text-heritage-brown/60 dark:text-slate-400 mt-1 block">Awaiting Elder Decision</span>
+              <span className="text-[9px] font-bold text-sky-600/70 mt-1 block">Under Review</span>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-5 shadow-sm">
+            <div className="bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-500/20 rounded-3xl p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Approved & Active</span>
-                <div className="p-2.5 bg-emerald-500/10 rounded-2xl text-emerald-600">
-                  <CheckCircle2 className="w-5 h-5" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Approved</span>
+                <div className="p-2 bg-emerald-500/15 rounded-xl text-emerald-600">
+                  <CheckCircle2 className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-2xl font-serif font-black text-emerald-600 dark:text-emerald-400 mt-3">
+              <p className="text-2xl font-serif font-black text-emerald-700 dark:text-emerald-400 mt-2">
                 {submissions.filter(s => s.status === 'approved' || s.status === 'published').length}
               </p>
-              <span className="text-[10px] font-semibold text-heritage-brown/60 dark:text-slate-400 mt-1 block">Published in Public Platform</span>
+              <span className="text-[9px] font-bold text-emerald-600/70 mt-1 block">Published to Archive</span>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-5 shadow-sm">
+            <div className="bg-rose-500/5 dark:bg-rose-950/20 border border-rose-500/20 rounded-3xl p-4 shadow-sm col-span-2 sm:col-span-1">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400">Media Vault Items</span>
-                <div className="p-2.5 bg-purple-500/10 rounded-2xl text-purple-600">
-                  <ImageIcon className="w-5 h-5" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400">Rejected / Revision</span>
+                <div className="p-2 bg-rose-500/15 rounded-xl text-rose-600">
+                  <AlertCircle className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-2xl font-serif font-black text-purple-600 dark:text-purple-400 mt-3">
-                {mediaList.length}
+              <p className="text-2xl font-serif font-black text-rose-700 dark:text-rose-400 mt-2">
+                {submissions.filter(s => s.status === 'rejected' || s.status === 'revision').length}
               </p>
-              <span className="text-[10px] font-semibold text-heritage-brown/60 dark:text-slate-400 mt-1 block">Uploaded Media Assets</span>
+              <span className="text-[9px] font-bold text-rose-600/70 mt-1 block">Requires Updates</span>
             </div>
           </div>
 
-          {/* RECENT SUBMISSIONS TABLE / LIST */}
-          <div className="bg-white dark:bg-slate-900 border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-heritage-brown/10 dark:border-slate-800">
+          {/* QUICK ACTIONS BAR */}
+          <div className="bg-white dark:bg-slate-900 border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-heritage-brown/10 dark:border-slate-800 pb-3">
               <div>
-                <h3 className="text-lg font-serif font-black text-heritage-brown dark:text-white">
-                  Recent Submissions Activity
+                <h3 className="text-base font-serif font-black text-heritage-brown dark:text-white">
+                  Elder Quick Actions
                 </h3>
                 <p className="text-xs text-heritage-brown/60 dark:text-slate-400 font-semibold mt-0.5">
-                  Synchronized with Supabase database records
+                  Publish new cultural materials directly into the Bakenyi digital repository.
                 </p>
               </div>
-
-              <button
-                onClick={loadSubmissionsData}
-                className="p-2 hover:bg-heritage-brown/5 dark:hover:bg-slate-800 rounded-xl text-heritage-brown/60 dark:text-slate-400 cursor-pointer transition-colors"
-                title="Refresh Submissions"
-              >
-                <RefreshCw className={`w-4 h-4 ${loadingSubmissions ? 'animate-spin text-heritage-terracotta' : ''}`} />
-              </button>
             </div>
 
-            {loadingSubmissions ? (
-              <div className="py-12 flex flex-col items-center justify-center text-heritage-brown/40">
-                <Loader2 className="w-8 h-8 animate-spin text-heritage-terracotta mb-3" />
-                <span className="text-xs font-bold uppercase tracking-wider">Fetching live database records...</span>
-              </div>
-            ) : errorSubmissions ? (
-              <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl flex items-center justify-between">
-                <div className="flex items-center gap-3 text-rose-700 dark:text-rose-300">
-                  <AlertCircle className="w-5 h-5 shrink-0" />
-                  <span className="text-xs font-semibold">{errorSubmissions}</span>
-                </div>
-                <button
-                  onClick={loadSubmissionsData}
-                  className="px-3 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-xl hover:bg-rose-700 transition-colors cursor-pointer"
-                >
-                  Retry Fetch
-                </button>
-              </div>
-            ) : submissions.length === 0 ? (
-              <div className="text-center py-12 text-heritage-brown/40 space-y-3">
-                <p className="text-xs font-semibold">No submissions recorded for your account in Supabase yet.</p>
-                <button
-                  onClick={() => {
-                    resetForm();
-                    setShowCreateForm(true);
-                  }}
-                  className="px-4 py-2 bg-heritage-terracotta text-white text-xs font-bold rounded-xl cursor-pointer"
-                >
-                  Compose Your First Chronicle
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {submissions.slice(0, 5).map(item => (
-                  <div 
-                    key={item.id}
-                    className="p-4 rounded-2xl border border-heritage-brown/5 dark:border-slate-800 hover:border-heritage-terracotta/30 dark:hover:border-heritage-terracotta/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-stone-50/50 dark:bg-slate-950/30"
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+              {[
+                { label: 'New Article', action: () => { resetForm(); setFormType('article'); setShowCreateForm(true); }, icon: FileText, color: 'text-heritage-terracotta bg-heritage-terracotta/10' },
+                { label: 'New Gallery', action: () => { setMediaType('image'); setShowMediaForm(true); }, icon: ImageIcon, color: 'text-purple-600 bg-purple-500/10' },
+                { label: 'New Oral History', action: () => { resetForm(); setFormType('article'); setFormData(prev => ({ ...prev, category: 'Oral History' })); setShowCreateForm(true); }, icon: Volume2, color: 'text-amber-600 bg-amber-500/10' },
+                { label: 'New Event', action: () => { resetForm(); setFormType('event'); setShowCreateForm(true); }, icon: CalendarIcon, color: 'text-emerald-600 bg-emerald-500/10' },
+                { label: 'Upload Doc', action: () => { setMediaType('document'); setShowMediaForm(true); }, icon: FileText, color: 'text-sky-600 bg-sky-500/10' },
+                { label: 'Upload Audio', action: () => { setMediaType('audio'); setShowMediaForm(true); }, icon: Volume2, color: 'text-amber-600 bg-amber-500/10' },
+                { label: 'Upload Video', action: () => { setMediaType('video'); setShowMediaForm(true); }, icon: Play, color: 'text-indigo-600 bg-indigo-500/10' },
+              ].map((act, i) => {
+                const Icon = act.icon;
+                return (
+                  <button
+                    key={i}
+                    onClick={act.action}
+                    className="p-3 rounded-2xl border border-stone-200 dark:border-slate-800 bg-stone-50/50 dark:bg-slate-950/40 hover:border-heritage-terracotta hover:bg-white dark:hover:bg-slate-900 transition-all flex flex-col items-center justify-center text-center gap-2 cursor-pointer group shadow-2xs"
                   >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-black uppercase bg-heritage-terracotta/10 text-heritage-terracotta px-2 py-0.5 rounded-md">
-                          {item.type}
-                        </span>
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
-                          item.status === 'approved' || item.status === 'published' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
-                          item.status === 'pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
-                          'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
-                        }`}>
-                          {item.status}
-                        </span>
-                        <span className="text-[10px] text-heritage-brown/40 dark:text-slate-500 font-semibold">
-                          {new Date(item.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <h4 className="font-serif font-black text-sm text-heritage-brown dark:text-white">
-                        {item.title}
-                      </h4>
+                    <div className={`p-2.5 rounded-xl ${act.color} group-hover:scale-110 transition-transform`}>
+                      <Icon className="w-4 h-4" />
                     </div>
+                    <span className="text-[11px] font-bold text-heritage-brown dark:text-slate-200 leading-tight">
+                      {act.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+          {/* RECENT ACTIVITY & SUBMISSIONS LIST */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Recent Drafts */}
+            <div className="bg-white dark:bg-slate-900 border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-heritage-brown/10 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-amber-500/10 text-amber-600 rounded-lg">
+                    <Edit3 className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-sm font-serif font-black text-heritage-brown dark:text-white">
+                    Recent Drafts
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setActiveNav('submissions')}
+                  className="text-[10px] font-black text-heritage-terracotta hover:underline cursor-pointer uppercase"
+                >
+                  View All
+                </button>
+              </div>
+
+              {submissions.filter(s => s.status === 'draft').length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  No saved drafts. Start composing a new story above!
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {submissions.filter(s => s.status === 'draft').slice(0, 4).map(item => (
+                    <div 
+                      key={item.id}
+                      className="p-3.5 rounded-2xl border border-amber-500/20 bg-amber-500/5 flex items-center justify-between gap-3"
+                    >
+                      <div className="overflow-hidden">
+                        <span className="text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-md inline-block mb-1">
+                          Draft
+                        </span>
+                        <h4 className="font-serif font-black text-xs text-heritage-brown dark:text-white truncate">
+                          {item.title}
+                        </h4>
+                        <p className="text-[10px] text-slate-500 truncate mt-0.5">{new Date(item.createdAt).toLocaleDateString()}</p>
+                      </div>
                       <button
                         onClick={() => openEditForm(item)}
-                        className="px-3 py-1.5 text-[10px] font-black uppercase bg-white dark:bg-slate-800 border border-heritage-brown/10 dark:border-slate-700 hover:border-heritage-terracotta text-heritage-brown dark:text-white rounded-xl transition-colors cursor-pointer"
+                        className="px-3 py-1.5 text-[10px] font-bold bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors flex-shrink-0 cursor-pointer"
                       >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSubmission(item.id, item.originalTable)}
-                        className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 rounded-xl transition-colors cursor-pointer"
-                        title="Delete from Supabase"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                        Continue Edit
                       </button>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Recently Approved */}
+            <div className="bg-white dark:bg-slate-900 border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-heritage-brown/10 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-emerald-500/10 text-emerald-600 rounded-lg">
+                    <CheckCircle2 className="w-4 h-4" />
                   </div>
-                ))}
+                  <h3 className="text-sm font-serif font-black text-heritage-brown dark:text-white">
+                    Recently Approved
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setActiveNav('submissions')}
+                  className="text-[10px] font-black text-heritage-terracotta hover:underline cursor-pointer uppercase"
+                >
+                  View All
+                </button>
               </div>
-            )}
+
+              {submissions.filter(s => s.status === 'approved' || s.status === 'published').length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  No approved contributions yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {submissions.filter(s => s.status === 'approved' || s.status === 'published').slice(0, 4).map(item => (
+                    <div 
+                      key={item.id}
+                      className="p-3.5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 flex items-center justify-between gap-3"
+                    >
+                      <div className="overflow-hidden">
+                        <span className="text-[9px] font-bold uppercase text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md inline-block mb-1">
+                          Approved & Active
+                        </span>
+                        <h4 className="font-serif font-black text-xs text-heritage-brown dark:text-white truncate">
+                          {item.title}
+                        </h4>
+                        <p className="text-[10px] text-slate-500 truncate mt-0.5">{new Date(item.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <button
+                        onClick={() => setReviewItem(item)}
+                        className="px-3 py-1.5 text-[10px] font-bold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors flex-shrink-0 cursor-pointer"
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -910,62 +970,115 @@ export default function LeaderDashboardView({ user }: { user: any }) {
               No submissions match the selected filter.
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredSubmissions.map(item => (
-                <div 
-                  key={item.id}
-                  className="border border-heritage-brown/10 dark:border-slate-800 rounded-2xl p-5 hover:border-heritage-terracotta transition-all bg-stone-50/30 dark:bg-slate-950/20"
-                >
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-black uppercase bg-heritage-terracotta/10 text-heritage-terracotta px-2.5 py-0.5 rounded-full border border-heritage-terracotta/15">
-                        {item.type}
-                      </span>
-                      <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                        item.status === 'approved' || item.status === 'published' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
-                        item.status === 'pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
-                        'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
-                      }`}>
-                        {item.status}
-                      </span>
-                      <span className="text-[10px] text-heritage-brown/40 dark:text-slate-500 font-semibold">
-                        Submitted: {new Date(item.createdAt).toLocaleDateString()}
-                      </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredSubmissions.map(item => {
+                const isDraft = item.status === 'draft';
+                const isPending = item.status === 'pending';
+                const isApproved = item.status === 'approved' || item.status === 'published';
+                const isRejected = item.status === 'rejected' || item.status === 'revision';
+
+                return (
+                  <div 
+                    key={item.id}
+                    className="border border-heritage-brown/10 dark:border-slate-800 rounded-3xl p-5 hover:border-heritage-terracotta transition-all bg-white dark:bg-slate-900/60 shadow-sm flex flex-col justify-between gap-4"
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Thumbnail */}
+                      <div className="w-20 h-20 rounded-2xl bg-stone-100 dark:bg-slate-800 overflow-hidden flex-shrink-0 border border-stone-200 dark:border-slate-800 flex items-center justify-center">
+                        {item.coverImage ? (
+                          <img src={item.coverImage} alt={item.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="text-heritage-terracotta/60">
+                            {item.type === 'event' ? <CalendarIcon className="w-8 h-8" /> : item.type === 'announcement' ? <Megaphone className="w-8 h-8" /> : <FileText className="w-8 h-8" />}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content Info */}
+                      <div className="overflow-hidden flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[9px] font-black uppercase bg-stone-100 dark:bg-slate-800 text-stone-700 dark:text-slate-300 px-2 py-0.5 rounded-md">
+                            {item.type}
+                          </span>
+                          
+                          {/* Exact Moderation Status Colors */}
+                          <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                            isDraft ? 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300' :
+                            isPending ? 'bg-sky-100 text-sky-900 border border-sky-300 dark:bg-sky-950/70 dark:text-sky-300' :
+                            isApproved ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300' :
+                            'bg-rose-100 text-rose-900 border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300'
+                          }`}>
+                            {item.status}
+                          </span>
+                        </div>
+
+                        <h3 className="font-serif font-black text-sm text-heritage-brown dark:text-white line-clamp-1 mt-1">
+                          {item.title}
+                        </h3>
+
+                        <div className="flex items-center gap-3 text-[10px] text-slate-400 font-semibold">
+                          <span>Created: {new Date(item.createdAt).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>Updated: {new Date(item.updatedAt || item.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => openEditForm(item)}
-                        className="p-1.5 hover:bg-heritage-brown/5 rounded-lg text-heritage-brown/60 hover:text-heritage-terracotta cursor-pointer"
-                        title="Edit Submission"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSubmission(item.id, item.originalTable)}
-                        className="p-1.5 hover:bg-rose-50 text-rose-600 rounded-lg cursor-pointer"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <p className="text-xs text-heritage-brown/70 dark:text-slate-300 line-clamp-2 font-medium">
+                      {item.summary || item.body?.substring(0, 140)}
+                    </p>
+
+                    {/* Action Bar: View, Edit, Delete, Duplicate */}
+                    <div className="flex items-center justify-between pt-3 border-t border-stone-100 dark:border-slate-800/80 gap-2">
                       <button
                         onClick={() => setReviewItem(item)}
-                        className="px-3 py-1.5 bg-heritage-brown/5 dark:bg-slate-800 text-[10px] font-black uppercase text-heritage-brown dark:text-white rounded-lg cursor-pointer flex items-center gap-1"
+                        className="px-3 py-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-stone-100 dark:bg-slate-800 rounded-xl hover:bg-stone-200 dark:hover:bg-slate-700 transition-colors cursor-pointer flex items-center gap-1"
                       >
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>Timeline</span>
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View</span>
                       </button>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => openEditForm(item)}
+                          className="px-3 py-1.5 text-[10px] font-bold text-heritage-terracotta bg-heritage-terracotta/10 rounded-xl hover:bg-heritage-terracotta hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const dupId = `sub-dup-${Date.now()}`;
+                            const dupItem: ElderSubmission = {
+                              ...item,
+                              id: dupId,
+                              title: `${item.title} (Draft Copy)`,
+                              status: 'draft',
+                              createdAt: new Date().toISOString(),
+                              updatedAt: new Date().toISOString()
+                            };
+                            setSubmissions(prev => [dupItem, ...prev]);
+                            triggerToast('Contribution duplicated as draft.');
+                          }}
+                          className="px-2.5 py-1.5 text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-stone-100 dark:bg-slate-800 rounded-xl hover:bg-stone-200 transition-colors cursor-pointer"
+                          title="Duplicate Contribution"
+                        >
+                          Duplicate
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteSubmission(item.id, item.originalTable)}
+                          className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer"
+                          title="Delete Contribution"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  <h3 className="font-serif font-black text-base text-heritage-brown dark:text-white">
-                    {item.title}
-                  </h3>
-                  <p className="text-xs text-heritage-brown/70 dark:text-slate-300 leading-relaxed mt-2 font-semibold">
-                    {item.summary || item.body?.substring(0, 160)}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1327,7 +1440,7 @@ export default function LeaderDashboardView({ user }: { user: any }) {
 
                 {/* Cover Image / Poster Upload */}
                 <div>
-                  <label className="block text-[9px] font-black uppercase text-heritage-brown/50 dark:text-slate-400 mb-1">
+                  <label className="block text-[9px] font-black uppercase text-heritage-brown/50 dark:text-slate-400 mb-2">
                     Cover Image / Event Poster Attachment
                   </label>
                   {formData.eventPoster ? (
@@ -1348,38 +1461,19 @@ export default function LeaderDashboardView({ user }: { user: any }) {
                       </button>
                     </div>
                   ) : (
-                    <div className="relative border-2 border-dashed border-heritage-brown/15 dark:border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center bg-stone-50/50 dark:bg-slate-950/25">
-                      <input 
-                        type="file"
-                        accept="image/*"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          setPosterUploading(true);
-                          const { url, error } = await uploadMedia(file, 'images');
-                          setPosterUploading(false);
-                          if (error) {
-                            setFormError(`Cover image upload error: ${error.message}`);
-                          } else if (url) {
-                            setFormData(prev => ({ ...prev, eventPoster: url }));
-                            triggerToast('Cover image attached successfully.');
-                          }
-                        }}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                      />
-                      {posterUploading ? (
-                        <div className="flex items-center gap-2 text-xs font-bold text-heritage-terracotta">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Uploading Cover Image...</span>
-                        </div>
-                      ) : (
-                        <div className="text-center text-heritage-brown/50">
-                          <Upload className="w-5 h-5 mx-auto mb-1 text-heritage-terracotta" />
-                          <span className="text-xs font-bold block">Upload Cover / Poster Image</span>
-                          <span className="text-[9px] block">PNG, JPG, WEBP (Max 10MB)</span>
-                        </div>
-                      )}
-                    </div>
+                    <UploadZone
+                      accept={["image/*"]}
+                      maxSizeMB={10}
+                      bucket="images"
+                      folderPath="posters"
+                      label="Upload Cover or Poster Image"
+                      hint="PNG, JPG, or WEBP up to 10MB"
+                      onUploadSuccess={(url) => {
+                        setFormData(prev => ({ ...prev, eventPoster: url }));
+                        triggerToast('Cover image attached successfully.');
+                      }}
+                      onUploadError={(err) => setFormError(`Cover upload error: ${err}`)}
+                    />
                   )}
                 </div>
 
@@ -1518,45 +1612,43 @@ export default function LeaderDashboardView({ user }: { user: any }) {
               </div>
 
               <div>
-                <label className="block text-[9px] font-black uppercase text-heritage-brown/50 dark:text-slate-400 mb-1">
-                  File Attachment (Storage Bucket)
+                <label className="block text-[9px] font-black uppercase text-heritage-brown/50 dark:text-slate-400 mb-2">
+                  File Attachment (Supabase Storage Bucket)
                 </label>
-                <div className="relative border-2 border-dashed border-heritage-brown/15 dark:border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center bg-stone-50/50 dark:bg-slate-950/25">
-                  <input 
-                    type="file" 
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setMediaFileUploading(true);
-                      const { url, error } = await uploadMedia(file, mediaType === 'document' ? 'pdfs' : 'images');
-                      setMediaFileUploading(false);
-                      if (error) {
-                        setMediaError(`File upload error: ${error.message}`);
-                      } else if (url) {
-                        setMediaUrl(url);
-                        triggerToast('Media file uploaded successfully.');
-                      }
+                {mediaUrl ? (
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 block">File Uploaded & Linked</span>
+                      <span className="text-[10px] text-slate-500 truncate max-w-[220px] block">{mediaUrl}</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setMediaUrl('')}
+                      className="p-1.5 bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 rounded-lg hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <UploadZone
+                    accept={
+                      mediaType === 'image' ? ["image/*"] :
+                      mediaType === 'audio' ? ["audio/*"] :
+                      mediaType === 'video' ? ["video/*"] :
+                      ["application/pdf", ".doc", ".docx"]
+                    }
+                    maxSizeMB={mediaType === 'video' ? 100 : 25}
+                    bucket={mediaType === 'document' ? 'pdfs' : mediaType === 'audio' ? 'audio' : 'images'}
+                    folderPath={mediaType}
+                    label={`Select ${mediaType.toUpperCase()} file to upload`}
+                    hint="Drag & drop file or click to browse"
+                    onUploadSuccess={(url) => {
+                      setMediaUrl(url);
+                      triggerToast('Media file uploaded successfully.');
                     }}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    onUploadError={(err) => setMediaError(`File upload error: ${err}`)}
                   />
-                  {mediaFileUploading ? (
-                    <div className="flex items-center gap-2 text-xs font-bold text-heritage-terracotta">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Uploading to Supabase Storage...</span>
-                    </div>
-                  ) : mediaUrl ? (
-                    <div className="text-center">
-                      <span className="text-xs font-bold text-emerald-600 block">File Uploaded & Linked</span>
-                      <span className="text-[10px] text-slate-400 truncate max-w-[200px] block">{mediaUrl}</span>
-                    </div>
-                  ) : (
-                    <div className="text-center text-heritage-brown/50">
-                      <Upload className="w-5 h-5 mx-auto mb-1 text-heritage-terracotta" />
-                      <span className="text-xs font-bold block">Click to select file</span>
-                      <span className="text-[9px] block">Bucket automatic selection</span>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
 
               <div>
