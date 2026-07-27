@@ -189,33 +189,77 @@ export function getFriendlyErrorMessage(error: any): string {
  * Custom fetch implementation for Supabase client with:
  * - Device offline detection
  * - Automatic retries with exponential backoff for transient network errors (TypeError: Failed to fetch, HTTP 502/503/504)
- * - Request timeout via AbortController (12 seconds)
+ * - Request timeout via AbortController (25 seconds)
+ * - Detailed request lifecycle logging (start, completed, aborted, failed)
  */
+let globalFetchRequestId = 0;
+
 export async function fetchWithRetry(
   input: RequestInfo | URL,
   init?: RequestInit,
-  maxRetries = 3,
+  maxRetries = 2,
   initialDelayMs = 500
 ): Promise<Response> {
+  const urlStr = typeof input === 'string' ? input : (input as any)?.url || String(input);
+  const requestId = `req_${++globalFetchRequestId}_${Math.random().toString(36).substring(2, 7)}`;
+  const requestStartTime = performance.now();
+
   let attempt = 0;
+
+  // If caller passed a signal that is ALREADY aborted before starting
+  if (init?.signal?.aborted) {
+    const abortReason = init.signal.reason || 'Caller signal was already aborted before request start';
+    console.warn(`[SUPABASE_FETCH_ABORTED] ID: ${requestId} | URL: ${urlStr} | Duration: 0ms | Reason: ${abortReason}`);
+    throw new DOMException('The user aborted a request.', 'AbortError');
+  }
 
   while (true) {
     // Check if device is offline
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      throw new TypeError('No internet connection. Please check your network connection.');
+      const offlineErr = new TypeError('No internet connection. Please check your network connection.');
+      const duration = Math.round(performance.now() - requestStartTime);
+      console.error(`[SUPABASE_FETCH_FAILED] ID: ${requestId} | URL: ${urlStr} | Duration: ${duration}ms | Error: ${offlineErr.message}`);
+      throw offlineErr;
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutController = new AbortController();
+    const TIMEOUT_MS = 25000; // 25 seconds timeout (appropriate for network operations)
+    let timedOut = false;
+
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      timeoutController.abort(`Request timed out after ${TIMEOUT_MS}ms`);
+    }, TIMEOUT_MS);
+
+    // If init.signal exists, abort timeoutController when init.signal aborts
+    const handleCallerAbort = () => {
+      timeoutController.abort(init?.signal?.reason || 'Caller signal aborted request');
+    };
+
+    if (init?.signal) {
+      if (init.signal.aborted) {
+        handleCallerAbort();
+      } else {
+        init.signal.addEventListener('abort', handleCallerAbort, { once: true });
+      }
+    }
 
     const mergedInit: RequestInit = {
       ...init,
-      signal: init?.signal || controller.signal,
+      signal: timeoutController.signal,
     };
+
+    console.log(`[SUPABASE_FETCH_START] ID: ${requestId} | URL: ${urlStr} | Attempt: ${attempt + 1}/${maxRetries + 1}`);
 
     try {
       const response = await fetch(input, mergedInit);
       clearTimeout(timeoutId);
+      if (init?.signal) {
+        init.signal.removeEventListener('abort', handleCallerAbort);
+      }
+
+      const totalDuration = Math.round(performance.now() - requestStartTime);
+      console.log(`[SUPABASE_FETCH_COMPLETE] ID: ${requestId} | URL: ${urlStr} | Duration: ${totalDuration}ms | Status: ${response.status}`);
 
       // Retry on transient server errors (502, 503, 504)
       if ([502, 503, 504].includes(response.status) && attempt < maxRetries) {
@@ -229,14 +273,31 @@ export async function fetchWithRetry(
       return response;
     } catch (err: any) {
       clearTimeout(timeoutId);
+      if (init?.signal) {
+        init.signal.removeEventListener('abort', handleCallerAbort);
+      }
 
-      const isAbort = err?.name === 'AbortError';
+      const totalDuration = Math.round(performance.now() - requestStartTime);
+      const isAbort = err?.name === 'AbortError' || timeoutController.signal.aborted;
+      const abortReason = timedOut
+        ? `Request timed out after ${TIMEOUT_MS}ms`
+        : timeoutController.signal.reason || init?.signal?.reason || err?.message || 'Request aborted';
+
+      if (isAbort) {
+        console.warn(`[SUPABASE_FETCH_ABORTED] ID: ${requestId} | URL: ${urlStr} | Duration: ${totalDuration}ms | Reason: ${abortReason}`);
+      } else {
+        console.error(`[SUPABASE_FETCH_FAILED] ID: ${requestId} | URL: ${urlStr} | Duration: ${totalDuration}ms | Error: ${err?.message || err}`);
+      }
+
+      // Do NOT retry if caller's signal was explicitly aborted
+      const isCallerAborted = init?.signal?.aborted && !timedOut;
       const isTypeError = err instanceof TypeError || (err?.message && (err.message.includes('fetch') || err.message.includes('Network')));
 
-      if ((isAbort || isTypeError) && attempt < maxRetries) {
+      // Only retry if it was a timeout or transient network error AND caller signal was NOT aborted
+      if (!isCallerAborted && (timedOut || isTypeError) && attempt < maxRetries) {
         attempt++;
         const backoff = Math.min(initialDelayMs * Math.pow(2, attempt), 3000) + Math.random() * 200;
-        console.warn(`[SUPABASE_RETRY] Transient network error (${err?.message || 'Failed to fetch'}). Retrying attempt ${attempt}/${maxRetries} in ${Math.round(backoff)}ms...`);
+        console.warn(`[SUPABASE_RETRY] Transient network/timeout error (${abortReason}). Retrying attempt ${attempt}/${maxRetries} in ${Math.round(backoff)}ms...`);
         await new Promise((res) => setTimeout(res, backoff));
         continue;
       }
@@ -434,13 +495,31 @@ function saveLocalUsers(users: UserProfile[]): void {
   }
 }
 
+let publicUsersInFlight: Promise<UserProfile[]> | null = null;
+let publicUsersCache: { data: UserProfile[]; timestamp: number } | null = null;
+const PUBLIC_USERS_CACHE_TTL_MS = 5000; // 5 second TTL cache
+
 export const fetchPublicUsers = async (): Promise<UserProfile[]> => {
-  const client = getSupabase();
-  if (client) {
+  // 1. Return cached result if valid
+  if (publicUsersCache && (Date.now() - publicUsersCache.timestamp < PUBLIC_USERS_CACHE_TTL_MS)) {
+    return publicUsersCache.data;
+  }
+
+  // 2. Deduplicate simultaneous requests: return existing in-flight promise if available
+  if (publicUsersInFlight) {
+    return publicUsersInFlight;
+  }
+
+  // 3. Initiate single request
+  publicUsersInFlight = (async () => {
+    const client = getSupabase();
+    if (!client) return [];
+
     try {
       const { data, error } = await client.from('profiles_public').select('id, full_name, avatar_url, role');
       if (error) {
         console.warn('[ADMIN_USER_DEBUG] Supabase fetchPublicUsers query error:', error);
+        return [];
       } else if (data) {
         const dbUsers: UserProfile[] = data.map((row: any) => ({
           id: row.id,
@@ -452,59 +531,81 @@ export const fetchPublicUsers = async (): Promise<UserProfile[]> => {
           created_at: new Date().toISOString(),
           last_login: new Date().toISOString()
         }));
+        publicUsersCache = { data: dbUsers, timestamp: Date.now() };
         return dbUsers;
       }
     } catch (err: any) {
       console.warn('[ADMIN_USER_DEBUG] Supabase fetchPublicUsers exception:', err);
     }
-  }
-  return [];
-};
-
-export const fetchUsers = async (): Promise<UserProfile[]> => {
-  const client = getSupabase();
-  if (!client) {
-    console.warn('[ADMIN_USER_DEBUG] Supabase client unavailable in fetchUsers. Loaded profile count: 0');
     return [];
-  }
+  })();
 
   try {
-    // Guard: Ensure user is authenticated before attempting to query public.profiles
-    const { data: { session } } = await client.auth.getSession();
-    if (!session?.user) {
-      console.warn('[ADMIN_USER_DEBUG] Unauthenticated fetchUsers attempt. Access denied to public.profiles. Loaded profile count: 0');
-      return [];
-    }
+    return await publicUsersInFlight;
+  } finally {
+    publicUsersInFlight = null;
+  }
+};
 
-    const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
-    if (error) {
-      const friendlyMsg = getFriendlyErrorMessage(error);
-      console.error('[ADMIN_USER_DEBUG] Error fetching profiles from public.profiles:', friendlyMsg);
-      return [];
-    }
+let fetchUsersInFlight: Promise<UserProfile[]> | null = null;
 
-    if (data) {
-      const dbUsers: UserProfile[] = data.map((row: any) => ({
-        id: row.id,
-        email: row.email || '',
-        role: row.role || 'member',
-        status: row.status || 'active',
-        full_name: row.full_name || row.name || '',
-        avatar_url: row.avatar_url || '',
-        created_at: row.created_at || new Date().toISOString(),
-        last_login: row.updated_at || row.created_at || new Date().toISOString()
-      }));
-
-      console.log('[ADMIN_USER_DEBUG] Loaded profile count from public.profiles:', dbUsers.length);
-      return dbUsers;
-    }
-  } catch (err: any) {
-    const friendlyMsg = getFriendlyErrorMessage(err);
-    console.error('[ADMIN_USER_DEBUG] Exception in fetchUsers:', friendlyMsg);
+export const fetchUsers = async (): Promise<UserProfile[]> => {
+  // Deduplicate simultaneous requests
+  if (fetchUsersInFlight) {
+    return fetchUsersInFlight;
   }
 
-  console.log('[ADMIN_USER_DEBUG] Loaded profile count from public.profiles: 0');
-  return [];
+  fetchUsersInFlight = (async () => {
+    const client = getSupabase();
+    if (!client) {
+      console.warn('[ADMIN_USER_DEBUG] Supabase client unavailable in fetchUsers. Loaded profile count: 0');
+      return [];
+    }
+
+    try {
+      // Guard: Ensure user is authenticated before attempting to query public.profiles
+      const { data: { session } } = await client.auth.getSession();
+      if (!session?.user) {
+        console.warn('[ADMIN_USER_DEBUG] Unauthenticated fetchUsers attempt. Access denied to public.profiles. Loaded profile count: 0');
+        return [];
+      }
+
+      const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
+      if (error) {
+        const friendlyMsg = getFriendlyErrorMessage(error);
+        console.error('[ADMIN_USER_DEBUG] Error fetching profiles from public.profiles:', friendlyMsg);
+        return [];
+      }
+
+      if (data) {
+        const dbUsers: UserProfile[] = data.map((row: any) => ({
+          id: row.id,
+          email: row.email || '',
+          role: row.role || 'member',
+          status: row.status || 'active',
+          full_name: row.full_name || row.name || '',
+          avatar_url: row.avatar_url || '',
+          created_at: row.created_at || new Date().toISOString(),
+          last_login: row.updated_at || row.created_at || new Date().toISOString()
+        }));
+
+        console.log('[ADMIN_USER_DEBUG] Loaded profile count from public.profiles:', dbUsers.length);
+        return dbUsers;
+      }
+    } catch (err: any) {
+      const friendlyMsg = getFriendlyErrorMessage(err);
+      console.error('[ADMIN_USER_DEBUG] Exception in fetchUsers:', friendlyMsg);
+    }
+
+    console.log('[ADMIN_USER_DEBUG] Loaded profile count from public.profiles: 0');
+    return [];
+  })();
+
+  try {
+    return await fetchUsersInFlight;
+  } finally {
+    fetchUsersInFlight = null;
+  }
 };
 
 export const updateUserStatus = async (id: string, status: UserProfile['status']): Promise<UserProfile | null> => {
