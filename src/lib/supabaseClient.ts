@@ -283,15 +283,16 @@ export async function fetchWithRetry(
         ? `Request timed out after ${TIMEOUT_MS}ms`
         : timeoutController.signal.reason || init?.signal?.reason || err?.message || 'Request aborted';
 
-      if (isAbort) {
-        console.warn(`[SUPABASE_FETCH_ABORTED] ID: ${requestId} | URL: ${urlStr} | Duration: ${totalDuration}ms | Reason: ${abortReason}`);
-      } else {
-        console.error(`[SUPABASE_FETCH_FAILED] ID: ${requestId} | URL: ${urlStr} | Duration: ${totalDuration}ms | Error: ${err?.message || err}`);
-      }
-
-      // Do NOT retry if caller's signal was explicitly aborted
       const isCallerAborted = init?.signal?.aborted && !timedOut;
       const isTypeError = err instanceof TypeError || (err?.message && (err.message.includes('fetch') || err.message.includes('Network')));
+
+      if (isAbort) {
+        console.warn(`[SUPABASE_FETCH_ABORTED] ID: ${requestId} | URL: ${urlStr} | Duration: ${totalDuration}ms | Reason: ${abortReason}`);
+      } else if (!isCallerAborted && (timedOut || isTypeError) && attempt < maxRetries) {
+        console.warn(`[SUPABASE_FETCH_RETRYING] ID: ${requestId} | URL: ${urlStr} | Attempt: ${attempt + 1}/${maxRetries + 1} | Error: ${err?.message || err}`);
+      } else {
+        console.warn(`[SUPABASE_FETCH_FAILED] ID: ${requestId} | URL: ${urlStr} | Duration: ${totalDuration}ms | Error: ${err?.message || err}`);
+      }
 
       // Only retry if it was a timeout or transient network error AND caller signal was NOT aborted
       if (!isCallerAborted && (timedOut || isTypeError) && attempt < maxRetries) {
